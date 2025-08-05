@@ -637,7 +637,21 @@ function InvoicePageInner() {
         const createRes = await fetch('/api/invoices', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(invoicePayload),
+          body: JSON.stringify({
+            ...invoicePayload,
+            // Line items are sent with the initial POST so the server-side RPC
+            // can create the invoice + items atomically in one transaction.
+            // The separate supabase.from('line_items').insert() below is skipped
+            // for new invoices (guarded by !isNewInvoice).
+            line_items: data.lineItems.map((item, idx) => ({
+              description: item.description,
+              quantity: item.quantity,
+              rate: item.rate,
+              amount: item.amount,
+              sort_order: idx,
+              stockbook_product_id: item.stockbook_product_id ?? null,
+            })),
+          }),
         })
         if (!createRes.ok) {
           const errBody = await createRes.json().catch(() => ({}))
@@ -655,7 +669,10 @@ function InvoicePageInner() {
         window.history.replaceState(null, '', `/invoice?id=${currentId}`)
       }
 
-      if (data.lineItems.length > 0) {
+      // New invoices: line items were inserted atomically by the server-side
+      // create_invoice_with_items() RPC — skip the direct insert here.
+      // Update path: old items are deleted (line 632) then re-inserted below.
+      if (!isNewInvoice && data.lineItems.length > 0) {
         const lineItemsPayload = data.lineItems.map((item, idx) => ({
           invoice_id: currentId,
           description: item.description,

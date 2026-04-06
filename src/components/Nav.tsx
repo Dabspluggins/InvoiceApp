@@ -1,41 +1,64 @@
+'use client'
 import Link from 'next/link'
+import { useEffect, useRef, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
+import type { User } from '@supabase/supabase-js'
 
 export default function Nav() {
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null)
+  const router = useRouter()
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabaseRef.current = supabase
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user)
+      setLoading(false)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const handleLogout = async () => {
+    if (supabaseRef.current) {
+      await supabaseRef.current.auth.signOut()
+    }
+    router.push('/')
+    router.refresh()
+  }
+
   return (
-    <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Brand */}
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-xl font-bold text-indigo-600">InvoiceFree</span>
-          </Link>
-
-          {/* Center links */}
-          <div className="hidden sm:flex items-center gap-8">
-            <Link href="/" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
-              Home
-            </Link>
-            <Link href="/invoice" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
-              Invoice Generator
-            </Link>
-          </div>
-
-          {/* Auth buttons */}
-          <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors px-3 py-1.5"
-            >
-              Login
-            </Link>
-            <Link
-              href="/signup"
-              className="text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors px-4 py-1.5 rounded-lg"
-            >
-              Sign Up
-            </Link>
-          </div>
-        </div>
+    <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+      <Link href="/" className="text-xl font-bold text-blue-600">InvoiceFree</Link>
+      <div className="flex gap-6">
+        <Link href="/" className="text-gray-600 hover:text-blue-600 text-sm">Home</Link>
+        <Link href="/invoice" className="text-gray-600 hover:text-blue-600 text-sm">Invoice Generator</Link>
+        {user && <Link href="/dashboard" className="text-gray-600 hover:text-blue-600 text-sm">Dashboard</Link>}
+      </div>
+      <div className="flex gap-3">
+        {loading ? (
+          <div className="w-20 h-9 bg-gray-100 rounded-lg animate-pulse" />
+        ) : user ? (
+          <>
+            <span className="text-sm text-gray-500 hidden md:flex items-center">{user.email}</span>
+            <button onClick={handleLogout} className="text-sm text-gray-600 hover:text-red-600 px-4 py-2 rounded-lg border border-gray-300 hover:border-red-300">
+              Log out
+            </button>
+          </>
+        ) : (
+          <>
+            <Link href="/auth/login" className="text-sm text-gray-600 hover:text-blue-600 px-4 py-2 rounded-lg border border-gray-300 hover:border-blue-300">Login</Link>
+            <Link href="/auth/signup" className="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Sign Up</Link>
+          </>
+        )}
       </div>
     </nav>
   )

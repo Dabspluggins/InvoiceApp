@@ -100,11 +100,11 @@ export default function InvoiceForm({ data, onChange }: Props) {
               {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          <div>
+          <div className="min-w-0">
             <label className={labelCls}>Issue Date</label>
             <input className={inputCls} type="date" value={data.issueDate} onChange={(e) => set('issueDate', e.target.value)} />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className={labelCls}>Due Date</label>
             <input className={inputCls} type="date" value={data.dueDate} onChange={(e) => set('dueDate', e.target.value)} />
           </div>

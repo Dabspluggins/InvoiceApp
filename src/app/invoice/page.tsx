@@ -7,7 +7,6 @@ import { newLineItem, calcTotals } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import InvoiceForm from '@/components/InvoiceForm'
 import InvoicePreview from '@/components/InvoicePreview'
-import PdfDownloadButton from '@/components/PdfDownloadButton'
 
 function todayStr() {
   return new Date().toISOString().split('T')[0]
@@ -258,7 +257,9 @@ function InvoicePageInner() {
         }`}
       >
         <div className="flex-1 md:overflow-y-auto p-4 md:p-6">
-          <InvoicePreview data={data} />
+          <div id="print-area">
+            <InvoicePreview data={data} />
+          </div>
         </div>
         <div className="hidden md:flex p-4 border-t border-gray-200 bg-white gap-3">
           <button
@@ -268,7 +269,12 @@ function InvoicePageInner() {
           >
             {saving ? 'Saving...' : savedInvoiceId ? 'Update Invoice' : 'Save Invoice'}
           </button>
-          <PdfDownloadButton invoiceNumber={data.invoiceNumber} />
+          <button
+            onClick={() => window.print()}
+            className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
+          >
+            Download PDF
+          </button>
         </div>
       </div>
 
@@ -281,7 +287,12 @@ function InvoicePageInner() {
         >
           {saving ? 'Saving...' : savedInvoiceId ? 'Update' : 'Save'}
         </button>
-        <PdfDownloadButton invoiceNumber={data.invoiceNumber} />
+        <button
+          onClick={() => window.print()}
+          className="flex-1 bg-indigo-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
+        >
+          Download PDF
+        </button>
       </div>
     </div>
   )

@@ -89,7 +89,7 @@ export default function InvoiceForm({ data, onChange }: Props) {
       {/* Invoice Meta */}
       <div className={sectionCls}>
         <p className={sectionHeadCls}>Invoice Details</p>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className={labelCls}>Invoice Number</label>
             <input className={inputCls} value={data.invoiceNumber} onChange={(e) => set('invoiceNumber', e.target.value)} />

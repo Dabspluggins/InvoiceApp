@@ -8,6 +8,7 @@ import type { User } from '@supabase/supabase-js'
 export default function Nav() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [menuOpen, setMenuOpen] = useState(false)
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null)
   const router = useRouter()
 
@@ -31,24 +32,29 @@ export default function Nav() {
     if (supabaseRef.current) {
       await supabaseRef.current.auth.signOut()
     }
+    setMenuOpen(false)
     router.push('/')
     router.refresh()
   }
 
   return (
-    <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+    <nav className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 flex items-center justify-between relative">
       <Link href="/" className="text-xl font-bold text-blue-600">InvoiceFree</Link>
-      <div className="flex gap-6">
+
+      {/* Desktop nav links */}
+      <div className="hidden md:flex gap-6">
         <Link href="/" className="text-gray-600 hover:text-blue-600 text-sm">Home</Link>
         <Link href="/invoice" className="text-gray-600 hover:text-blue-600 text-sm">Invoice Generator</Link>
         {user && <Link href="/dashboard" className="text-gray-600 hover:text-blue-600 text-sm">Dashboard</Link>}
       </div>
-      <div className="flex gap-3">
+
+      {/* Desktop auth buttons */}
+      <div className="hidden md:flex gap-3">
         {loading ? (
           <div className="w-20 h-9 bg-gray-100 rounded-lg animate-pulse" />
         ) : user ? (
           <>
-            <span className="text-sm text-gray-500 hidden md:flex items-center">{user.email}</span>
+            <span className="text-sm text-gray-500 flex items-center">{user.email}</span>
             <button onClick={handleLogout} className="text-sm text-gray-600 hover:text-red-600 px-4 py-2 rounded-lg border border-gray-300 hover:border-red-300">
               Log out
             </button>
@@ -60,6 +66,52 @@ export default function Nav() {
           </>
         )}
       </div>
+
+      {/* Hamburger button (mobile only) */}
+      <button
+        className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+        onClick={() => setMenuOpen(!menuOpen)}
+        aria-label="Toggle menu"
+        aria-expanded={menuOpen}
+      >
+        {menuOpen ? (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        )}
+      </button>
+
+      {/* Mobile overlay menu */}
+      {menuOpen && (
+        <div className="md:hidden absolute top-full left-0 right-0 bg-white border-b border-gray-200 shadow-lg z-50 px-4 py-3 flex flex-col">
+          <Link href="/" className="text-gray-700 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Home</Link>
+          <Link href="/invoice" className="text-gray-700 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Invoice Generator</Link>
+          {user && (
+            <Link href="/dashboard" className="text-gray-700 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Dashboard</Link>
+          )}
+          <div className="pt-3 flex flex-col gap-3">
+            {loading ? (
+              <div className="w-full h-9 bg-gray-100 rounded-lg animate-pulse" />
+            ) : user ? (
+              <>
+                <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                <button onClick={handleLogout} className="text-sm text-red-600 hover:text-red-700 px-4 py-2 rounded-lg border border-red-200 w-full text-center">
+                  Log out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/auth/login" className="text-sm text-gray-600 hover:text-blue-600 px-4 py-2 rounded-lg border border-gray-300 text-center" onClick={() => setMenuOpen(false)}>Login</Link>
+                <Link href="/auth/signup" className="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-center" onClick={() => setMenuOpen(false)}>Sign Up</Link>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </nav>
   )
 }

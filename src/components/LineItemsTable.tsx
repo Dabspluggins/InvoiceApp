@@ -33,9 +33,63 @@ export default function LineItemsTable({ items, currency, onChange }: Props) {
     ])
   }
 
+  const inputCls = 'border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400'
+
   return (
     <div className="mt-4">
-      <div className="overflow-x-auto">
+      {/* Mobile: card layout */}
+      <div className="md:hidden flex flex-col gap-3">
+        {items.map((item) => (
+          <div key={item.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+            <div className="flex items-start gap-2 mb-2">
+              <input
+                type="text"
+                value={item.description}
+                onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                placeholder="Item description"
+                className={inputCls + ' flex-1 w-full'}
+              />
+              <button
+                onClick={() => removeItem(item.id)}
+                className="text-gray-400 hover:text-red-500 transition-colors text-xl leading-none pt-1 flex-shrink-0"
+                aria-label="Remove item"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Qty</label>
+                <input
+                  type="number"
+                  value={item.quantity}
+                  min={0}
+                  onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                  className={inputCls + ' w-full'}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Rate</label>
+                <input
+                  type="number"
+                  value={item.rate}
+                  min={0}
+                  step="0.01"
+                  onChange={(e) => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
+                  className={inputCls + ' w-full'}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Amount</label>
+                <p className="text-sm font-medium pt-1.5 text-right">{formatCurrency(item.amount, currency)}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop: table layout */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 text-left text-gray-500 text-xs uppercase tracking-wide">
@@ -94,6 +148,7 @@ export default function LineItemsTable({ items, currency, onChange }: Props) {
           </tbody>
         </table>
       </div>
+
       <button
         onClick={addItem}
         className="mt-3 text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors"

@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { InvoiceData } from '@/lib/types'
-import { newLineItem } from '@/lib/utils'
+import { newLineItem, calcTotals } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
 import InvoiceForm from '@/components/InvoiceForm'
 import InvoicePreview from '@/components/InvoicePreview'
 import PdfDownloadButton from '@/components/PdfDownloadButton'
@@ -31,18 +33,74 @@ const defaultData: InvoiceData = {
   notes: '',
 }
 
-export default function InvoicePage() {
+function InvoicePageInner() {
   const [data, setData] = useState<InvoiceData>(defaultData)
+  const [savedInvoiceId, setSavedInvoiceId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const invoiceId = searchParams.get('id')
 
-  // Sync invoice counter from localStorage on mount
+  // Load invoice from Supabase if ?id= present, else set invoice number from localStorage
   useEffect(() => {
-    const stored = localStorage.getItem('invoice_counter')
-    const count = stored ? parseInt(stored) : 0
-    setData((prev) => ({
-      ...prev,
-      invoiceNumber: `INV-${String(count + 1).padStart(4, '0')}`,
-    }))
-  }, [])
+    if (!invoiceId) {
+      const stored = localStorage.getItem('invoice_counter')
+      const count = stored ? parseInt(stored) : 0
+      setData((prev) => ({
+        ...prev,
+        invoiceNumber: `INV-${String(count + 1).padStart(4, '0')}`,
+      }))
+      return
+    }
+
+    setSavedInvoiceId(invoiceId)
+
+    const loadInvoice = async () => {
+      const supabase = createClient()
+      const { data: inv, error } = await supabase
+        .from('invoices')
+        .select('*')
+        .eq('id', invoiceId)
+        .single()
+
+      if (error || !inv) return
+
+      const { data: items } = await supabase
+        .from('line_items')
+        .select('*')
+        .eq('invoice_id', invoiceId)
+        .order('sort_order')
+
+      setData({
+        invoiceNumber: inv.invoice_number,
+        status: inv.status,
+        issueDate: inv.issue_date,
+        dueDate: inv.due_date || '',
+        currency: inv.currency,
+        businessName: inv.business_name || '',
+        businessAddress: inv.business_address || '',
+        businessEmail: inv.business_email || '',
+        businessPhone: inv.business_phone || '',
+        logoUrl: inv.logo_url || null,
+        clientName: inv.client_name || '',
+        clientCompany: inv.client_company || '',
+        clientAddress: inv.client_address || '',
+        clientEmail: inv.client_email || '',
+        lineItems: (items || []).map((item) => ({
+          id: item.id,
+          description: item.description || '',
+          quantity: item.quantity,
+          rate: item.rate,
+          amount: item.amount,
+        })),
+        taxRate: inv.tax_rate || 0,
+        notes: inv.notes || '',
+      })
+    }
+
+    loadInvoice()
+  }, [invoiceId])
 
   // Auto-recalc line item amounts when qty or rate change
   useEffect(() => {
@@ -56,22 +114,144 @@ export default function InvoicePage() {
     }
   }, [data.lineItems])
 
+  function showToast(message: string, type: 'success' | 'error') {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        router.push('/auth/login')
+        return
+      }
+
+      const { subtotal, taxAmount, total } = calcTotals(data.lineItems, data.taxRate)
+
+      const invoicePayload = {
+        user_id: user.id,
+        invoice_number: data.invoiceNumber,
+        status: data.status,
+        issue_date: data.issueDate,
+        due_date: data.dueDate || null,
+        currency: data.currency,
+        business_name: data.businessName,
+        business_address: data.businessAddress,
+        business_email: data.businessEmail,
+        business_phone: data.businessPhone,
+        logo_url: data.logoUrl,
+        client_name: data.clientName,
+        client_company: data.clientCompany,
+        client_address: data.clientAddress,
+        client_email: data.clientEmail,
+        subtotal,
+        tax_rate: data.taxRate,
+        tax_amount: taxAmount,
+        total,
+        notes: data.notes,
+      }
+
+      let currentId = savedInvoiceId
+
+      if (currentId) {
+        const { error } = await supabase
+          .from('invoices')
+          .update({ ...invoicePayload, updated_at: new Date().toISOString() })
+          .eq('id', currentId)
+        if (error) throw error
+        await supabase.from('line_items').delete().eq('invoice_id', currentId)
+      } else {
+        const { data: inserted, error } = await supabase
+          .from('invoices')
+          .insert(invoicePayload)
+          .select('id')
+          .single()
+        if (error) throw error
+
+        currentId = inserted.id
+        setSavedInvoiceId(currentId)
+        window.history.replaceState(null, '', `/invoice?id=${currentId}`)
+
+        // Increment localStorage counter after saving a new invoice
+        const stored = localStorage.getItem('invoice_counter')
+        const count = stored ? parseInt(stored) : 0
+        localStorage.setItem('invoice_counter', String(count + 1))
+      }
+
+      if (data.lineItems.length > 0) {
+        const lineItemsPayload = data.lineItems.map((item, idx) => ({
+          invoice_id: currentId,
+          description: item.description,
+          quantity: item.quantity,
+          rate: item.rate,
+          amount: item.amount,
+          sort_order: idx,
+        }))
+        const { error } = await supabase.from('line_items').insert(lineItemsPayload)
+        if (error) throw error
+      }
+
+      showToast('Invoice saved!', 'success')
+    } catch (err) {
+      console.error(err)
+      showToast('Failed to save invoice.', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <div className="flex flex-row h-[calc(100vh-64px)] overflow-hidden">
+    <div className="flex flex-row h-[calc(100vh-64px)] overflow-hidden relative">
+      {/* Toast */}
+      {toast && (
+        <div
+          className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white ${
+            toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
+
       {/* Left: Form */}
       <div className="w-[45%] border-r border-gray-200 bg-white overflow-y-auto">
         <InvoiceForm data={data} onChange={setData} />
       </div>
 
-      {/* Right: Preview + Download */}
+      {/* Right: Preview + Actions */}
       <div className="w-[55%] flex flex-col bg-gray-100 overflow-hidden">
         <div className="flex-1 overflow-y-auto p-6">
           <InvoicePreview data={data} />
         </div>
-        <div className="p-4 border-t border-gray-200 bg-white">
+        <div className="p-4 border-t border-gray-200 bg-white flex gap-3">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition"
+          >
+            {saving ? 'Saving...' : savedInvoiceId ? 'Update Invoice' : 'Save Invoice'}
+          </button>
           <PdfDownloadButton invoiceNumber={data.invoiceNumber} />
         </div>
       </div>
     </div>
+  )
+}
+
+export default function InvoicePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-[calc(100vh-64px)]">
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      }
+    >
+      <InvoicePageInner />
+    </Suspense>
   )
 }

@@ -38,6 +38,7 @@ function InvoicePageInner() {
   const [savedInvoiceId, setSavedInvoiceId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit')
   const searchParams = useSearchParams()
   const router = useRouter()
   const invoiceId = searchParams.get('id')
@@ -205,7 +206,7 @@ function InvoicePageInner() {
   }
 
   return (
-    <div className="flex flex-row h-[calc(100vh-64px)] overflow-hidden relative">
+    <div className="flex flex-col md:flex-row md:h-[calc(100vh-64px)] md:overflow-hidden relative">
       {/* Toast */}
       {toast && (
         <div
@@ -217,17 +218,49 @@ function InvoicePageInner() {
         </div>
       )}
 
+      {/* Mobile tab toggle */}
+      <div className="md:hidden flex border-b border-gray-200 bg-white sticky top-0 z-10">
+        <button
+          className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${
+            activeTab === 'edit'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500'
+          }`}
+          onClick={() => setActiveTab('edit')}
+        >
+          Edit
+        </button>
+        <button
+          className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${
+            activeTab === 'preview'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500'
+          }`}
+          onClick={() => setActiveTab('preview')}
+        >
+          Preview
+        </button>
+      </div>
+
       {/* Left: Form */}
-      <div className="w-[45%] border-r border-gray-200 bg-white overflow-y-auto">
+      <div
+        className={`md:w-[45%] md:border-r border-gray-200 bg-white md:overflow-y-auto ${
+          activeTab === 'edit' ? 'block' : 'hidden md:block'
+        }`}
+      >
         <InvoiceForm data={data} onChange={setData} />
       </div>
 
       {/* Right: Preview + Actions */}
-      <div className="w-[55%] flex flex-col bg-gray-100 overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-6">
+      <div
+        className={`md:w-[55%] md:flex md:flex-col bg-gray-100 md:overflow-hidden ${
+          activeTab === 'preview' ? 'block' : 'hidden md:flex'
+        }`}
+      >
+        <div className="flex-1 md:overflow-y-auto p-4 md:p-6">
           <InvoicePreview data={data} />
         </div>
-        <div className="p-4 border-t border-gray-200 bg-white flex gap-3">
+        <div className="hidden md:flex p-4 border-t border-gray-200 bg-white gap-3">
           <button
             onClick={handleSave}
             disabled={saving}
@@ -237,6 +270,18 @@ function InvoicePageInner() {
           </button>
           <PdfDownloadButton invoiceNumber={data.invoiceNumber} />
         </div>
+      </div>
+
+      {/* Mobile sticky action bar */}
+      <div className="md:hidden fixed bottom-0 inset-x-0 p-3 border-t border-gray-200 bg-white z-10 flex gap-2">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex-1 bg-indigo-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition"
+        >
+          {saving ? 'Saving...' : savedInvoiceId ? 'Update' : 'Save'}
+        </button>
+        <PdfDownloadButton invoiceNumber={data.invoiceNumber} />
       </div>
     </div>
   )

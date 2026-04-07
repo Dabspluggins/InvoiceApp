@@ -5,7 +5,6 @@ import { InvoiceData } from '@/lib/types'
 import { newLineItem } from '@/lib/utils'
 import InvoiceForm from '@/components/InvoiceForm'
 import InvoicePreview from '@/components/InvoicePreview'
-import PdfDownloadButton from '@/components/PdfDownloadButton'
 
 function todayStr() {
   return new Date().toISOString().split('T')[0]
@@ -65,11 +64,19 @@ export default function InvoicePage() {
 
       {/* Right: Preview + Download */}
       <div className="w-[55%] flex flex-col bg-gray-100 overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-6">
+        <div id="print-area" className="flex-1 overflow-y-auto p-6">
           <InvoicePreview data={data} />
         </div>
         <div className="p-4 border-t border-gray-200 bg-white">
-          <PdfDownloadButton invoiceNumber={data.invoiceNumber} />
+          <button
+            onClick={() => window.print()}
+            className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors shadow-sm"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Download PDF
+          </button>
         </div>
       </div>
     </div>

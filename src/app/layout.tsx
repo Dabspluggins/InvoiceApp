@@ -6,8 +6,8 @@ import Nav from '@/components/Nav'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'InvoiceFree — Create Professional Invoices Instantly',
-  description: 'Free invoice generator. No signup required. Download as PDF instantly.',
+  title: 'BillByDab — Invoice clients. Get paid faster.',
+  description: 'Create professional invoices in seconds. Free forever, no credit card required. Download as PDF instantly.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

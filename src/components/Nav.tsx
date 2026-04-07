@@ -39,7 +39,7 @@ export default function Nav() {
 
   return (
     <nav className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 flex items-center justify-between relative">
-      <Link href="/" className="text-xl font-bold text-blue-600">InvoiceFree</Link>
+      <Link href="/" className="text-xl font-bold text-indigo-600">BillByDab</Link>
 
       {/* Desktop nav links */}
       <div className="hidden md:flex gap-6">

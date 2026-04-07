@@ -27,4 +27,5 @@ export interface InvoiceData {
   lineItems: LineItem[]
   taxRate: number
   notes: string
+  brandColor: string
 }

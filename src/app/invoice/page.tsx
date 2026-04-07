@@ -30,6 +30,7 @@ const defaultData: InvoiceData = {
   lineItems: [newLineItem()],
   taxRate: 0,
   notes: '',
+  brandColor: '#4F46E5',
 }
 
 function InvoicePageInner() {

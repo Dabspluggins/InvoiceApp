@@ -83,6 +83,22 @@ export default function InvoiceForm({ data, onChange }: Props) {
             <label className={labelCls}>Phone</label>
             <input className={inputCls} value={data.businessPhone} onChange={(e) => set('businessPhone', e.target.value)} placeholder="+1 555 000 0000" />
           </div>
+          <div className="col-span-2">
+            <label className={labelCls}>Brand Color</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={data.brandColor}
+                onChange={(e) => set('brandColor', e.target.value)}
+                className="h-9 w-14 cursor-pointer rounded border border-gray-200 p-0.5"
+              />
+              <div
+                className="h-9 w-9 rounded-lg border border-gray-200 shadow-sm flex-shrink-0"
+                style={{ backgroundColor: data.brandColor }}
+              />
+              <span className="text-xs text-gray-400 font-mono">{data.brandColor.toUpperCase()}</span>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -33,6 +33,20 @@ export default function PdfDownloadButton({ invoiceNumber }: Props) {
       return
     }
 
+    // The preview panel may be hidden (display:none) on mobile when the user
+    // is on the Edit tab. html2pdf silently fails on hidden elements, so walk
+    // up the DOM and temporarily force-show any ancestor that is display:none,
+    // generate the PDF, then restore each one.
+    const hiddenAncestors: { el: HTMLElement; original: string }[] = []
+    let node: HTMLElement | null = element
+    while (node) {
+      if (getComputedStyle(node).display === 'none') {
+        hiddenAncestors.push({ el: node, original: node.style.display })
+        node.style.display = 'block'
+      }
+      node = node.parentElement
+    }
+
     window.html2pdf()
       .set({
         margin: 0.5,
@@ -43,6 +57,11 @@ export default function PdfDownloadButton({ invoiceNumber }: Props) {
       })
       .from(element)
       .save()
+      .then(() => {
+        for (const { el, original } of hiddenAncestors) {
+          el.style.display = original
+        }
+      })
   }
 
   return (

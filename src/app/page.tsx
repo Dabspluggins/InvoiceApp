@@ -195,6 +195,113 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Invoice Mockup Preview */}
+      <section className="bg-gray-50 border-y border-gray-100 py-16">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <p className="text-xs font-semibold uppercase tracking-widest text-indigo-500 mb-2">Live Preview</p>
+          <h2 className="text-2xl font-bold text-gray-800 mb-8">Here's what your invoice looks like</h2>
+          {/* Mockup card — scaled down so it fits without being too tall */}
+          <div className="flex justify-center">
+            <div className="origin-top transform scale-90 w-full max-w-[600px] bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200 text-left">
+              {/* Colored header bar */}
+              <div className="bg-indigo-600 px-6 py-4 flex items-center justify-between">
+                <span className="text-white text-xl font-extrabold tracking-widest uppercase">Invoice</span>
+                <span className="text-white text-lg font-bold tracking-tight">BillByDab</span>
+              </div>
+
+              <div className="px-6 pt-5 pb-4">
+                {/* From / Bill To columns */}
+                <div className="grid grid-cols-2 gap-6 mb-5">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-500 mb-1">From</p>
+                    <p className="text-sm font-semibold text-gray-800">Dab Studio LLC</p>
+                    <p className="text-xs text-gray-500">14 Crescent Avenue</p>
+                    <p className="text-xs text-gray-500">Lagos, Nigeria</p>
+                    <p className="text-xs text-gray-500">hello@dabstudio.co</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-500 mb-1">Bill To</p>
+                    <p className="text-sm font-semibold text-gray-800">Acme Corp Inc.</p>
+                    <p className="text-xs text-gray-500">88 Market Street, Suite 4</p>
+                    <p className="text-xs text-gray-500">San Francisco, CA 94105</p>
+                    <p className="text-xs text-gray-500">billing@acmecorp.com</p>
+                  </div>
+                </div>
+
+                {/* Meta row */}
+                <div className="bg-gray-50 border border-gray-100 rounded-lg px-4 py-2.5 grid grid-cols-3 gap-2 mb-5">
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-gray-400 font-semibold">Invoice #</p>
+                    <p className="text-xs font-bold text-gray-700">INV-0042</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-gray-400 font-semibold">Issue Date</p>
+                    <p className="text-xs font-bold text-gray-700">Apr 1, 2026</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-gray-400 font-semibold">Due Date</p>
+                    <p className="text-xs font-bold text-gray-700">Apr 30, 2026</p>
+                  </div>
+                </div>
+
+                {/* Line items table */}
+                <table className="w-full text-xs mb-5">
+                  <thead>
+                    <tr className="bg-indigo-50 text-indigo-700">
+                      <th className="text-left py-2 px-3 font-semibold rounded-l-md">Description</th>
+                      <th className="text-center py-2 px-2 font-semibold">Qty</th>
+                      <th className="text-right py-2 px-2 font-semibold">Rate</th>
+                      <th className="text-right py-2 px-3 font-semibold rounded-r-md">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    <tr className="text-gray-700">
+                      <td className="py-2.5 px-3">Website Design</td>
+                      <td className="py-2.5 px-2 text-center text-gray-500">1</td>
+                      <td className="py-2.5 px-2 text-right text-gray-500">$1,200.00</td>
+                      <td className="py-2.5 px-3 text-right font-medium">$1,200.00</td>
+                    </tr>
+                    <tr className="text-gray-700">
+                      <td className="py-2.5 px-3">SEO Consultation</td>
+                      <td className="py-2.5 px-2 text-center text-gray-500">3</td>
+                      <td className="py-2.5 px-2 text-right text-gray-500">$150.00</td>
+                      <td className="py-2.5 px-3 text-right font-medium">$450.00</td>
+                    </tr>
+                    <tr className="text-gray-700">
+                      <td className="py-2.5 px-3">Monthly Retainer</td>
+                      <td className="py-2.5 px-2 text-center text-gray-500">1</td>
+                      <td className="py-2.5 px-2 text-right text-gray-500">$800.00</td>
+                      <td className="py-2.5 px-3 text-right font-medium">$800.00</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                {/* Totals — bottom right */}
+                <div className="flex justify-end">
+                  <div className="w-52 space-y-1.5 text-xs">
+                    <div className="flex justify-between text-gray-500">
+                      <span>Subtotal</span>
+                      <span>$2,450.00</span>
+                    </div>
+                    <div className="flex justify-between text-gray-500">
+                      <span>Tax (10%)</span>
+                      <span>$245.00</span>
+                    </div>
+                    <div className="border-t border-gray-200 pt-1.5 flex justify-between font-bold text-gray-800 text-sm">
+                      <span>Total</span>
+                      <span className="text-indigo-600">$2,695.00</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer strip */}
+              <div className="bg-indigo-600 h-1.5" />
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features */}
       <section className="bg-gray-50 py-20 border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6">

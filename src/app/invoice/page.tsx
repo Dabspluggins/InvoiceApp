@@ -205,11 +205,11 @@ function InvoicePageInner() {
   }
 
   return (
-    <div className="flex flex-col md:flex-row md:h-[calc(100vh-64px)] md:overflow-hidden relative">
+    <div className="flex flex-col md:flex-row md:h-[calc(100vh-64px)] md:overflow-hidden relative print:block print:h-auto print:overflow-visible">
       {/* Toast */}
       {toast && (
         <div
-          className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white ${
+          className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white print:hidden ${
             toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
           }`}
         >
@@ -218,7 +218,7 @@ function InvoicePageInner() {
       )}
 
       {/* Mobile tab toggle */}
-      <div className="md:hidden flex border-b border-gray-200 bg-white sticky top-0 z-10">
+      <div className="md:hidden flex border-b border-gray-200 bg-white sticky top-0 z-10 print:hidden">
         <button
           className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${
             activeTab === 'edit'
@@ -243,7 +243,7 @@ function InvoicePageInner() {
 
       {/* Left: Form */}
       <div
-        className={`md:w-[45%] md:border-r border-gray-200 bg-white md:overflow-y-auto ${
+        className={`md:w-[45%] md:border-r border-gray-200 bg-white md:overflow-y-auto print:hidden ${
           activeTab === 'edit' ? 'block' : 'hidden md:block'
         }`}
       >
@@ -252,16 +252,16 @@ function InvoicePageInner() {
 
       {/* Right: Preview + Actions */}
       <div
-        className={`md:w-[55%] md:flex md:flex-col bg-gray-100 md:overflow-hidden ${
+        className={`md:w-[55%] md:flex md:flex-col bg-gray-100 md:overflow-hidden print:!block print:w-full print:bg-white print:overflow-visible ${
           activeTab === 'preview' ? 'block' : 'hidden md:flex'
         }`}
       >
-        <div className="flex-1 md:overflow-y-auto p-4 md:p-6">
-          <div id="print-area">
+        <div className="flex-1 md:overflow-y-auto p-4 md:p-6 print:overflow-visible print:p-0">
+          <div>
             <InvoicePreview data={data} />
           </div>
         </div>
-        <div className="hidden md:flex p-4 border-t border-gray-200 bg-white gap-3">
+        <div className="hidden md:flex p-4 border-t border-gray-200 bg-white gap-3 print:hidden">
           <button
             onClick={handleSave}
             disabled={saving}
@@ -279,7 +279,7 @@ function InvoicePageInner() {
       </div>
 
       {/* Mobile sticky action bar */}
-      <div className="md:hidden fixed bottom-0 inset-x-0 p-3 border-t border-gray-200 bg-white z-10 flex gap-2">
+      <div className="md:hidden fixed bottom-0 inset-x-0 p-3 border-t border-gray-200 bg-white z-10 flex gap-2 print:hidden">
         <button
           onClick={handleSave}
           disabled={saving}

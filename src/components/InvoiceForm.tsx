@@ -96,7 +96,21 @@ export default function InvoiceForm({ data, onChange }: Props) {
                 className="h-9 w-9 rounded-lg border border-gray-200 shadow-sm flex-shrink-0"
                 style={{ backgroundColor: data.brandColor }}
               />
-              <span className="text-xs text-gray-400 font-mono">{data.brandColor.toUpperCase()}</span>
+              <input
+                type="text"
+                value={data.brandColor}
+                onChange={(e) => {
+                  const val = e.target.value
+                  set('brandColor', val)
+                  // Only update color picker if it's a valid full hex
+                  if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                    set('brandColor', val)
+                  }
+                }}
+                className="w-28 px-2 py-1 border border-gray-300 rounded text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                placeholder="#4F46E5"
+                maxLength={7}
+              />
             </div>
           </div>
         </div>

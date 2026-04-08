@@ -97,6 +97,7 @@ function InvoicePageInner() {
         })),
         taxRate: inv.tax_rate || 0,
         notes: inv.notes || '',
+        brandColor: inv.brand_color || '#4F46E5',
       })
     }
 
@@ -154,6 +155,7 @@ function InvoicePageInner() {
         tax_amount: taxAmount,
         total,
         notes: data.notes,
+        brand_color: data.brandColor,
       }
 
       let currentId = savedInvoiceId

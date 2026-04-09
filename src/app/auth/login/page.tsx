@@ -51,7 +51,10 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-gray-700">Password</label>
+              <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">Forgot password?</Link>
+            </div>
             <input
               type="password"
               required
@@ -82,6 +85,9 @@ export default function LoginPage() {
             Don&apos;t have an account?{' '}
             <Link href="/auth/signup" className="text-blue-600 hover:underline font-medium">Sign up free</Link>
           </p>
+          <Link href="/forgot-password" className="text-sm text-gray-500 hover:text-gray-700 block">
+            Forgot your password?
+          </Link>
           <Link href="/invoice" className="text-sm text-gray-400 hover:text-gray-600 block">
             Continue without an account →
           </Link>

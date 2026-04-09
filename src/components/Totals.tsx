@@ -29,7 +29,7 @@ export default function Totals({ subtotal, taxRate, taxAmount, total, currency, 
             max={100}
             step="0.1"
             onChange={(e) => onTaxRateChange(parseFloat(e.target.value) || 0)}
-            className="w-14 border border-gray-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400 ml-1"
+            className="w-14 border border-gray-200 rounded px-1.5 py-0.5 text-xs text-gray-900 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400 ml-1"
           />
           <span className="text-xs">%</span>
         </span>

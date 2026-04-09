@@ -31,7 +31,7 @@ export default function InvoiceForm({ data, onChange }: Props) {
   const { subtotal, taxAmount, total } = calcTotals(data.lineItems, data.taxRate)
 
   const inputCls =
-    'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 transition'
+    'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 transition'
   const labelCls = 'block text-xs font-medium text-gray-500 mb-1'
   const sectionCls = 'mb-6'
   const sectionHeadCls = 'text-sm font-semibold text-gray-700 mb-3 pb-1 border-b border-gray-100'

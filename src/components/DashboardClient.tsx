@@ -116,6 +116,16 @@ export default function DashboardClient() {
         </div>
       </div>
 
+      {/* Quick links */}
+      <div className="flex gap-3 mb-6">
+        <Link
+          href="/clients"
+          className="text-sm text-indigo-600 hover:text-indigo-800 font-medium border border-indigo-200 hover:border-indigo-400 px-4 py-2 rounded-lg transition"
+        >
+          Manage Clients →
+        </Link>
+      </div>
+
       {/* Invoice list */}
       {invoices.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-8 md:p-12 text-center">

@@ -7,9 +7,9 @@ import { createClient } from '@/lib/supabase/client'
 interface Invoice {
   id: string
   invoice_number: string
-  bill_to: string
-  client_email: string
-  invoice_total: number
+  client_name: string
+  client_company: string
+  total: number
   status: string
   issue_date: string
   due_date: string
@@ -54,7 +54,7 @@ export default function AnalyticsClient() {
     const supabase = createClient()
     supabase
       .from('invoices')
-      .select('id, invoice_number, bill_to, client_email, invoice_total, status, issue_date, due_date, created_at')
+      .select('id, invoice_number, client_name, client_company, total, status, issue_date, due_date, created_at')
       .then(({ data }) => {
         setInvoices(data || [])
         setLoading(false)
@@ -68,17 +68,17 @@ export default function AnalyticsClient() {
   const today = new Date().toISOString().slice(0, 10)
 
   // KPIs
-  const totalInvoiced = invoices.reduce((sum, i) => sum + (i.invoice_total || 0), 0)
+  const totalInvoiced = invoices.reduce((sum, i) => sum + (i.total || 0), 0)
   const totalPaid = invoices
     .filter(i => i.status === 'paid')
-    .reduce((sum, i) => sum + (i.invoice_total || 0), 0)
+    .reduce((sum, i) => sum + (i.total || 0), 0)
   const outstanding = invoices
     .filter(i => i.status === 'sent' || i.status === 'pending')
-    .reduce((sum, i) => sum + (i.invoice_total || 0), 0)
+    .reduce((sum, i) => sum + (i.total || 0), 0)
   const overdueInvoices = invoices.filter(
     i => i.due_date && i.due_date < today && i.status !== 'paid'
   )
-  const overdueTotal = overdueInvoices.reduce((sum, i) => sum + (i.invoice_total || 0), 0)
+  const overdueTotal = overdueInvoices.reduce((sum, i) => sum + (i.total || 0), 0)
 
   // Monthly trend — last 6 months
   const months = getLast6Months()
@@ -87,16 +87,16 @@ export default function AnalyticsClient() {
     const paid = invoices.filter(i => i.status === 'paid' && monthKey(i.created_at) === key)
     return {
       label,
-      invoiced: created.reduce((s, i) => s + (i.invoice_total || 0), 0),
-      paid: paid.reduce((s, i) => s + (i.invoice_total || 0), 0),
+      invoiced: created.reduce((s, i) => s + (i.total || 0), 0),
+      paid: paid.reduce((s, i) => s + (i.total || 0), 0),
     }
   })
 
   // Top 5 clients by paid revenue
   const clientMap: Record<string, number> = {}
   invoices.filter(i => i.status === 'paid').forEach(i => {
-    const name = i.bill_to || i.client_email || 'Unknown'
-    clientMap[name] = (clientMap[name] || 0) + (i.invoice_total || 0)
+    const name = i.client_name || i.client_company || 'Unknown'
+    clientMap[name] = (clientMap[name] || 0) + (i.total || 0)
   })
   const topClients = Object.entries(clientMap)
     .sort((a, b) => b[1] - a[1])
@@ -250,10 +250,10 @@ export default function AnalyticsClient() {
                             </Link>
                           </td>
                           <td className="px-5 py-3 text-gray-600 max-w-[120px] truncate">
-                            {inv.bill_to || '—'}
+                            {inv.client_name || inv.client_company || '—'}
                           </td>
                           <td className="px-5 py-3 text-gray-900 font-medium text-right">
-                            {fmt(inv.invoice_total || 0)}
+                            {fmt(inv.total || 0)}
                           </td>
                           <td className="px-5 py-3 text-gray-500 text-right whitespace-nowrap">
                             {inv.due_date}

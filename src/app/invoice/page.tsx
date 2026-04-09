@@ -206,7 +206,7 @@ function InvoicePageInner() {
       toEmail: data.clientEmail || '',
       toName: data.clientName || '',
       subject: `Invoice ${data.invoiceNumber} from ${data.businessName || 'BillByDab'}`,
-      message: `Hi ${data.clientName || 'there'},\n\nPlease find attached your invoice ${data.invoiceNumber}${data.dueDate ? `, due on ${data.dueDate}` : ''}.\n\nThank you for your business!`,
+      message: `Hi ${data.clientName || 'there'},\n\nPlease find attached your invoice ${data.invoiceNumber}${data.dueDate ? `, due on ${new Date(data.dueDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}.\n\nThank you for your business!`,
       sending: false,
     })
   }

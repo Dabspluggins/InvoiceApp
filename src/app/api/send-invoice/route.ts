@@ -96,7 +96,7 @@ function buildPaymentDetailsHtml(pd?: PaymentDetails): string {
 }
 
 function buildEmailHtml(payload: InvoicePayload): string {
-  const { invoiceData, toName, message, shareToken } = payload
+  const { invoiceData, message, shareToken } = payload
   const { brandColor = '#4F46E5' } = invoiceData
 
   const lineItemRows = invoiceData.lineItems
@@ -140,8 +140,7 @@ function buildEmailHtml(payload: InvoicePayload): string {
         <tr>
           <td style="background:#ffffff;padding:32px 40px;">
 
-            <!-- Greeting -->
-            <p style="margin:0 0 16px;color:#374151;font-size:15px;">Hi ${toName || 'there'},</p>
+            <!-- Message -->
             <p style="margin:0 0 28px;color:#374151;font-size:15px;line-height:1.6;">${message.replace(/\n/g, '<br>')}</p>
 
             <!-- Invoice details -->

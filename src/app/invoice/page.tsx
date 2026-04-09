@@ -27,6 +27,14 @@ function todayStr() {
   return new Date().toISOString().split('T')[0]
 }
 
+function nextRecurringDate(fromDate: string, frequency: string): string {
+  const d = new Date(fromDate)
+  if (frequency === 'weekly') d.setDate(d.getDate() + 7)
+  else if (frequency === 'monthly') d.setMonth(d.getMonth() + 1)
+  else if (frequency === 'quarterly') d.setMonth(d.getMonth() + 3)
+  return d.toISOString().split('T')[0]
+}
+
 const defaultData: InvoiceData = {
   invoiceNumber: 'INV-0001',
   status: 'draft',
@@ -46,6 +54,8 @@ const defaultData: InvoiceData = {
   taxRate: 0,
   notes: '',
   brandColor: '#4F46E5',
+  isRecurring: false,
+  recurringFrequency: null,
 }
 
 function InvoicePageInner() {
@@ -119,6 +129,8 @@ function InvoicePageInner() {
           taxRate: inv.tax_rate || 0,
           notes: inv.notes || '',
           brandColor: inv.brand_color || '#4F46E5',
+          isRecurring: inv.is_recurring || false,
+          recurringFrequency: inv.recurring_frequency || null,
         })
       }
 
@@ -286,6 +298,12 @@ function InvoicePageInner() {
         total,
         notes: data.notes,
         brand_color: data.brandColor,
+        is_recurring: data.isRecurring,
+        recurring_frequency: data.isRecurring ? data.recurringFrequency : null,
+        recurring_next_date:
+          data.isRecurring && data.recurringFrequency && data.dueDate
+            ? nextRecurringDate(data.dueDate, data.recurringFrequency)
+            : null,
       }
 
       let currentId = savedInvoiceId

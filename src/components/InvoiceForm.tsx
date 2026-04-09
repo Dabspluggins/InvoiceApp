@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef } from 'react'
-import { InvoiceData, Currency } from '@/lib/types'
+import { InvoiceData, Currency, RecurringFrequency } from '@/lib/types'
 import { calcTotals } from '@/lib/utils'
 import LineItemsTable from './LineItemsTable'
 import Totals from './Totals'
@@ -138,6 +138,35 @@ export default function InvoiceForm({ data, onChange }: Props) {
             <label className={labelCls}>Due Date</label>
             <input className={inputCls} type="date" value={data.dueDate} onChange={(e) => set('dueDate', e.target.value)} />
           </div>
+          <div className="col-span-full">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={data.isRecurring}
+                onChange={(e) => {
+                  set('isRecurring', e.target.checked)
+                  if (!e.target.checked) set('recurringFrequency', null)
+                }}
+                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-400"
+              />
+              <span className="text-xs font-medium text-gray-700">Make Recurring</span>
+            </label>
+          </div>
+          {data.isRecurring && (
+            <div className="col-span-full">
+              <label className={labelCls}>Frequency</label>
+              <select
+                className={inputCls}
+                value={data.recurringFrequency || ''}
+                onChange={(e) => set('recurringFrequency', e.target.value as RecurringFrequency)}
+              >
+                <option value="" disabled>Select frequency…</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+              </select>
+            </div>
+          )}
         </div>
       </div>
 

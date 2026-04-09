@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import type { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { InvoiceStatus, Currency } from '@/lib/types'
 import { formatCurrency } from '@/lib/utils'
@@ -25,11 +26,6 @@ interface Template {
   created_at: string
 }
 
-interface User {
-  email?: string
-  user_metadata?: { full_name?: string }
-}
-
 const STATUS_COLORS: Record<InvoiceStatus, string> = {
   draft: 'bg-gray-100 text-gray-600',
   sent: 'bg-blue-100 text-blue-700',
@@ -37,7 +33,7 @@ const STATUS_COLORS: Record<InvoiceStatus, string> = {
   pending: 'bg-yellow-100 text-yellow-700',
 }
 
-export default function DashboardClient({ user }: { user: User }) {
+export default function DashboardClient({ user }: { user?: User | null }) {
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
@@ -97,9 +93,7 @@ export default function DashboardClient({ user }: { user: User }) {
     .filter((i) => i.status === 'sent' || i.status === 'pending')
     .reduce((sum, i) => sum + i.total, 0)
 
-  const displayName =
-    user.user_metadata?.full_name ||
-    (user.email ? user.email.split('@')[0] : 'there')
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there'
 
   if (loading) {
     return (
@@ -109,10 +103,9 @@ export default function DashboardClient({ user }: { user: User }) {
 
   return (
     <>
-      {/* Welcome heading */}
-      <div className="mb-6 md:mb-8">
-        <h2 className="text-2xl font-bold text-gray-900">Welcome back, {displayName}! 👋</h2>
-        <p className="text-gray-500 text-sm mt-1">Here&apos;s your invoice overview.</p>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Welcome back, {displayName}! 👋</h1>
+        <p className="text-gray-500 mt-1">Here's your invoice overview.</p>
       </div>
 
       {/* Stats — 2 columns on mobile, 3 on md+ */}

@@ -23,7 +23,7 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
-        <div className="flex justify-end mb-2">
+        <div className="flex justify-end mb-6 md:mb-8">
           <Link
             href="/invoice"
             className="self-start sm:self-auto bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700"

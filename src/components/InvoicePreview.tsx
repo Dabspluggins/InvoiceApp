@@ -44,12 +44,12 @@ export default function InvoicePreview({ data }: Props) {
             </div>
             <div>
               <span className="font-semibold text-white">Issue Date: </span>
-              {data.issueDate}
+              {new Date(data.issueDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
             </div>
             {data.dueDate && (
               <div>
                 <span className="font-semibold text-white">Due Date: </span>
-                {data.dueDate}
+                {new Date(data.dueDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
               </div>
             )}
             <div className="mt-2">

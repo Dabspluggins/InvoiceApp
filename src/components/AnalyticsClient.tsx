@@ -256,7 +256,7 @@ export default function AnalyticsClient() {
                             {fmt(inv.total || 0)}
                           </td>
                           <td className="px-5 py-3 text-gray-500 text-right whitespace-nowrap">
-                            {inv.due_date}
+                            {new Date(inv.due_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                           </td>
                           <td className="px-5 py-3 text-right">
                             <span className="text-red-600 font-semibold">{daysLate}d</span>

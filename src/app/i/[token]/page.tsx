@@ -194,12 +194,12 @@ export default async function PublicInvoicePage({
               </div>
               <div className="mb-3">
                 <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-0.5">Issue Date</p>
-                <p className="text-sm text-gray-700">{invoice.issue_date}</p>
+                <p className="text-sm text-gray-700">{new Date(invoice.issue_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
               </div>
               {invoice.due_date && (
                 <div>
                   <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-0.5">Due Date</p>
-                  <p className="text-sm font-semibold text-gray-900">{invoice.due_date}</p>
+                  <p className="text-sm font-semibold text-gray-900">{new Date(invoice.due_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                 </div>
               )}
             </div>

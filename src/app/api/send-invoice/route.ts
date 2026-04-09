@@ -41,6 +41,10 @@ function formatCurrency(amount: number, currency: string): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)
 }
 
+function formatDate(dateStr: string): string {
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
 function row(label: string, value?: string): string {
   if (!value) return ''
   return `<tr>
@@ -157,7 +161,7 @@ function buildEmailHtml(payload: InvoicePayload): string {
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td style="color:#6b7280;font-size:13px;font-weight:500;">Issue Date</td>
-                      <td style="color:#111827;font-size:13px;font-weight:600;text-align:right;">${invoiceData.issueDate}</td>
+                      <td style="color:#111827;font-size:13px;font-weight:600;text-align:right;">${formatDate(invoiceData.issueDate)}</td>
                     </tr>
                   </table>
                 </td>
@@ -167,7 +171,7 @@ function buildEmailHtml(payload: InvoicePayload): string {
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td style="color:#6b7280;font-size:13px;font-weight:500;">Due Date</td>
-                      <td style="color:#111827;font-size:13px;font-weight:600;text-align:right;">${invoiceData.dueDate}</td>
+                      <td style="color:#111827;font-size:13px;font-weight:600;text-align:right;">${formatDate(invoiceData.dueDate)}</td>
                     </tr>
                   </table>
                 </td>

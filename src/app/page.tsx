@@ -1,4 +1,35 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
+
+export const metadata: Metadata = {
+  alternates: {
+    canonical: 'https://www.billbydab.com',
+  },
+}
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'BillByDab',
+  url: 'https://www.billbydab.com',
+  description: 'Free invoice generator for freelancers and small businesses',
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web',
+  offers: {
+    '@type': 'Offer',
+    price: '0',
+    priceCurrency: 'USD',
+  },
+  featureList: [
+    'Create professional invoices',
+    'Send invoices by email',
+    'Track invoice status',
+    'Recurring invoices',
+    'Invoice templates',
+    'Client management',
+    'Revenue analytics',
+  ],
+}
 
 const features = [
   {
@@ -78,6 +109,11 @@ const steps = [
 export default function Home() {
   return (
     <main className="bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       {/* Hero */}
       <section className="border-b border-gray-100">
         <div className="max-w-5xl mx-auto px-6 pt-20 pb-16 text-center">
@@ -89,13 +125,13 @@ export default function Home() {
           </div>
 
           <h1 className="text-5xl sm:text-6xl font-extrabold text-gray-900 leading-[1.1] tracking-tight mb-6">
-            Invoice clients.<br />
-            <span className="text-indigo-600">Get paid faster.</span>
+            Free invoice generator<br />
+            <span className="text-indigo-600">for freelancers &amp; businesses.</span>
           </h1>
 
           <p className="text-xl text-gray-500 max-w-xl mx-auto mb-10 leading-relaxed">
-            Create professional invoices in seconds. Free, no account needed to start.
-            Download as PDF and send right away.
+            Create and send professional invoices online for free — no account needed to start.
+            Fill in your details, download as PDF, and get paid faster.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
@@ -231,9 +267,9 @@ export default function Home() {
       <section className="bg-gray-50 py-20 border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Everything you need to get paid</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">The free invoice generator built for freelancers</h2>
             <p className="text-gray-500 text-lg max-w-xl mx-auto">
-              Built for freelancers, consultants, and small businesses who want to look professional without the overhead.
+              Create invoices online in seconds — no overhead, no credit card, no limits. BillByDab is the free invoice maker trusted by freelancers, consultants, and small businesses.
             </p>
           </div>
 

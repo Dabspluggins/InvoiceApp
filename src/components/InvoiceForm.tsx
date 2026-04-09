@@ -1,7 +1,10 @@
+// SQL: Run this in your Supabase SQL editor to add payment details support:
+// ALTER TABLE invoices ADD COLUMN IF NOT EXISTS payment_details JSONB;
+
 'use client'
 
 import { useRef, useEffect, useState } from 'react'
-import { InvoiceData, Currency, RecurringFrequency } from '@/lib/types'
+import { InvoiceData, Currency, RecurringFrequency, PaymentDetails } from '@/lib/types'
 import { calcTotals } from '@/lib/utils'
 import LineItemsTable from './LineItemsTable'
 import Totals from './Totals'
@@ -23,11 +26,20 @@ interface SavedClient {
 
 const CURRENCIES: Currency[] = ['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']
 
+const MOBILE_MONEY_PROVIDERS = [
+  'Opay', 'PalmPay', 'Moniepoint', 'MTN MoMo',
+  'Airtel Money', 'Kuda', 'Carbon', 'Chipper Cash', 'Wave',
+]
+
+type PaymentTab = 'bankTransfer' | 'mobileMoney' | 'other'
+
 export default function InvoiceForm({ data, onChange }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [savedClients, setSavedClients] = useState<SavedClient[]>([])
   const [savingClient, setSavingClient] = useState(false)
   const [clientSaveMsg, setClientSaveMsg] = useState<string | null>(null)
+  const [paymentOpen, setPaymentOpen] = useState(false)
+  const [activePaymentTab, setActivePaymentTab] = useState<PaymentTab>('bankTransfer')
 
   useEffect(() => {
     const supabase = createClient()
@@ -45,6 +57,22 @@ export default function InvoiceForm({ data, onChange }: Props) {
 
   function set<K extends keyof InvoiceData>(key: K, value: InvoiceData[K]) {
     onChange({ ...data, [key]: value })
+  }
+
+  function setPayment(update: Partial<PaymentDetails>) {
+    onChange({ ...data, paymentDetails: { ...data.paymentDetails, ...update } })
+  }
+
+  function setBankTransfer(fields: Partial<NonNullable<PaymentDetails['bankTransfer']>>) {
+    setPayment({ bankTransfer: { ...data.paymentDetails?.bankTransfer, ...fields } })
+  }
+
+  function setMobileMoney(fields: Partial<NonNullable<PaymentDetails['mobileMoney']>>) {
+    setPayment({ mobileMoney: { ...data.paymentDetails?.mobileMoney, ...fields } })
+  }
+
+  function setOther(fields: Partial<NonNullable<PaymentDetails['other']>>) {
+    setPayment({ other: { ...data.paymentDetails?.other, ...fields } })
   }
 
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -118,6 +146,17 @@ export default function InvoiceForm({ data, onChange }: Props) {
   const labelCls = 'block text-xs font-medium text-gray-500 mb-1'
   const sectionCls = 'mb-6'
   const sectionHeadCls = 'text-sm font-semibold text-gray-700 mb-3 pb-1 border-b border-gray-100'
+
+  const pd = data.paymentDetails || {}
+  const bt = pd.bankTransfer || {}
+  const mm = pd.mobileMoney || {}
+  const ot = pd.other || {}
+
+  const TABS: { id: PaymentTab; label: string }[] = [
+    { id: 'bankTransfer', label: 'Bank Transfer' },
+    { id: 'mobileMoney', label: 'Mobile Money' },
+    { id: 'other', label: 'Other' },
+  ]
 
   return (
     <div className="p-6 overflow-y-auto h-full">
@@ -334,7 +373,7 @@ export default function InvoiceForm({ data, onChange }: Props) {
       />
 
       {/* Notes */}
-      <div className="mt-6">
+      <div className="mt-6 mb-6">
         <p className={sectionHeadCls}>Notes</p>
         <textarea
           className={inputCls + ' resize-none'}
@@ -343,6 +382,155 @@ export default function InvoiceForm({ data, onChange }: Props) {
           onChange={(e) => set('notes', e.target.value)}
           placeholder="Payment terms, bank details, thank you note..."
         />
+      </div>
+
+      {/* Payment Details */}
+      <div className="mb-6">
+        <button
+          type="button"
+          onClick={() => setPaymentOpen((v) => !v)}
+          className="w-full flex items-center justify-between py-2 border-b border-gray-100 group"
+        >
+          <span className="text-sm font-semibold text-gray-700">Payment Details</span>
+          <svg
+            className="w-4 h-4 text-gray-400 transition-transform duration-200"
+            style={{ transform: paymentOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {paymentOpen && (
+          <div className="mt-3">
+            {/* Tab selector */}
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-lg mb-4">
+              {TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActivePaymentTab(tab.id)}
+                  className={`flex-1 text-xs font-medium py-1.5 px-2 rounded-md transition ${
+                    activePaymentTab === tab.id
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Bank Transfer */}
+            {activePaymentTab === 'bankTransfer' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className={labelCls}>Account Name</label>
+                  <input
+                    className={inputCls}
+                    value={bt.accountName || ''}
+                    onChange={(e) => setBankTransfer({ accountName: e.target.value })}
+                    placeholder="John Doe"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className={labelCls}>Bank Name</label>
+                  <input
+                    className={inputCls}
+                    value={bt.bankName || ''}
+                    onChange={(e) => setBankTransfer({ bankName: e.target.value })}
+                    placeholder="First National Bank"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className={labelCls}>Account Number</label>
+                  <input
+                    className={inputCls}
+                    value={bt.accountNumber || ''}
+                    onChange={(e) => setBankTransfer({ accountNumber: e.target.value })}
+                    placeholder="0123456789"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className={labelCls}>Sort Code / Routing Number</label>
+                  <input
+                    className={inputCls}
+                    value={bt.routingNumber || ''}
+                    onChange={(e) => setBankTransfer({ routingNumber: e.target.value })}
+                    placeholder="021000021"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className={labelCls}>
+                    SWIFT / IBAN
+                    <span className="ml-1.5 text-gray-400 font-normal">For international clients</span>
+                  </label>
+                  <input
+                    className={inputCls}
+                    value={bt.swiftIban || ''}
+                    onChange={(e) => setBankTransfer({ swiftIban: e.target.value })}
+                    placeholder="GB29NWBK60161331926819"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Mobile Money */}
+            {activePaymentTab === 'mobileMoney' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className={labelCls}>Provider</label>
+                  <select
+                    className={inputCls}
+                    value={mm.provider || ''}
+                    onChange={(e) => setMobileMoney({ provider: e.target.value })}
+                  >
+                    <option value="">— Select provider —</option>
+                    {MOBILE_MONEY_PROVIDERS.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className={labelCls}>Phone Number / Account Number</label>
+                  <input
+                    className={inputCls}
+                    value={mm.phoneNumber || ''}
+                    onChange={(e) => setMobileMoney({ phoneNumber: e.target.value })}
+                    placeholder="+234 800 000 0000"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Other */}
+            {activePaymentTab === 'other' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className={labelCls}>Payment Method</label>
+                  <input
+                    className={inputCls}
+                    value={ot.paymentMethod || ''}
+                    onChange={(e) => setOther({ paymentMethod: e.target.value })}
+                    placeholder="PayPal, Wise, Cash…"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className={labelCls}>Details / Instructions</label>
+                  <textarea
+                    className={inputCls + ' resize-none'}
+                    rows={3}
+                    value={ot.details || ''}
+                    onChange={(e) => setOther({ details: e.target.value })}
+                    placeholder="Send to payments@example.com"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

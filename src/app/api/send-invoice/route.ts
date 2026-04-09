@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import { PaymentDetails } from '@/lib/types'
 
 interface LineItem {
   description: string
@@ -32,11 +33,62 @@ interface InvoicePayload {
     total: number
     notes: string
     brandColor: string
+    paymentDetails?: PaymentDetails
   }
 }
 
 function formatCurrency(amount: number, currency: string): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)
+}
+
+function row(label: string, value?: string): string {
+  if (!value) return ''
+  return `<tr>
+    <td style="padding:4px 0;color:#6b7280;font-size:13px;width:160px;vertical-align:top;">${label}</td>
+    <td style="padding:4px 0;color:#111827;font-size:13px;vertical-align:top;word-break:break-all;">${value}</td>
+  </tr>`
+}
+
+function buildPaymentDetailsHtml(pd?: PaymentDetails): string {
+  if (!pd) return ''
+  const bt = pd.bankTransfer
+  const mm = pd.mobileMoney
+  const ot = pd.other
+  const hasBT = bt && Object.values(bt).some(Boolean)
+  const hasMM = mm && (mm.provider || mm.phoneNumber)
+  const hasOT = ot && (ot.paymentMethod || ot.details)
+  if (!hasBT && !hasMM && !hasOT) return ''
+
+  let sections = ''
+
+  if (hasBT) {
+    sections += `<p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Bank Transfer</p>
+    <table cellpadding="0" cellspacing="0" style="margin-bottom:12px;">
+      ${row('Account Name', bt?.accountName)}
+      ${row('Bank Name', bt?.bankName)}
+      ${row('Account Number', bt?.accountNumber)}
+      ${row('Sort Code / Routing', bt?.routingNumber)}
+      ${row('SWIFT / IBAN', bt?.swiftIban)}
+    </table>`
+  }
+
+  if (hasMM) {
+    sections += `<p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Mobile Money</p>
+    <table cellpadding="0" cellspacing="0" style="margin-bottom:12px;">
+      ${row('Provider', mm?.provider)}
+      ${row('Phone / Account', mm?.phoneNumber)}
+    </table>`
+  }
+
+  if (hasOT) {
+    sections += `<p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">${ot?.paymentMethod || 'Other'}</p>
+    ${ot?.details ? `<p style="margin:0 0 12px;color:#374151;font-size:13px;line-height:1.5;">${ot.details.replace(/\n/g, '<br>')}</p>` : ''}`
+  }
+
+  return `<div style="margin:24px 0;padding:16px;background:#F9FAFB;border-radius:8px;border:1px solid #e5e7eb;">
+  <p style="margin:0 0 12px;font-weight:600;color:#111827;font-size:14px;">Payment Details</p>
+  ${sections}
+</div>`
 }
 
 function buildEmailHtml(payload: InvoicePayload): string {
@@ -152,6 +204,8 @@ function buildEmailHtml(payload: InvoicePayload): string {
               <p style="margin:0;color:#6b7280;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Notes</p>
               <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">${invoiceData.notes}</p>
             </div>` : ''}
+
+            ${buildPaymentDetailsHtml(invoiceData.paymentDetails)}
 
             <p style="margin:0;color:#6b7280;font-size:14px;">Questions? Reply to this email and we'll get back to you.</p>
 

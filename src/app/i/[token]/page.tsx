@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { Metadata } from 'next'
 import PrintButton from './PrintButton'
+import { PaymentDetails } from '@/lib/types'
 
 interface LineItem {
   description: string
@@ -29,6 +30,7 @@ interface InvoiceRow {
   total: number
   notes: string | null
   brand_color: string | null
+  payment_details: PaymentDetails | null
 }
 
 function getServiceClient() {
@@ -42,7 +44,7 @@ async function getInvoice(token: string) {
   const supabase = getServiceClient()
   const { data: invoice } = await supabase
     .from('invoices')
-    .select('*')
+    .select('*, payment_details')
     .eq('share_token', token)
     .single()
   if (!invoice) return null
@@ -105,6 +107,15 @@ export default async function PublicInvoicePage({
   }
 
   const { invoice, lineItems } = result
+
+  const pd = invoice.payment_details
+  const bt = pd?.bankTransfer
+  const mm = pd?.mobileMoney
+  const ot = pd?.other
+  const hasBT = bt && Object.values(bt).some(Boolean)
+  const hasMM = mm && (mm.provider || mm.phoneNumber)
+  const hasOT = ot && (ot.paymentMethod || ot.details)
+  const hasPayment = hasBT || hasMM || hasOT
 
   return (
     <>
@@ -258,6 +269,50 @@ export default async function PublicInvoicePage({
             </div>
           </div>
 
+          {/* Payment Details */}
+          {hasPayment && (
+            <div className="px-8 sm:px-10 pb-6">
+              <div className="rounded-lg border border-gray-200 overflow-hidden" style={{ background: '#F9FAFB' }}>
+                <div className="px-4 py-2.5 border-b border-gray-200">
+                  <p className="text-xs font-bold uppercase tracking-wider" style={{ color: brandColor }}>
+                    Payment Details
+                  </p>
+                </div>
+                <div className="px-4 py-3 text-xs space-y-3">
+                  {hasBT && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 mb-1">Bank Transfer</p>
+                      <div className="space-y-0.5">
+                        {bt?.accountName && <PayRow label="Account Name" value={bt.accountName} />}
+                        {bt?.bankName && <PayRow label="Bank Name" value={bt.bankName} />}
+                        {bt?.accountNumber && <PayRow label="Account Number" value={bt.accountNumber} />}
+                        {bt?.routingNumber && <PayRow label="Sort Code / Routing" value={bt.routingNumber} />}
+                        {bt?.swiftIban && <PayRow label="SWIFT / IBAN" value={bt.swiftIban} />}
+                      </div>
+                    </div>
+                  )}
+                  {hasMM && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 mb-1">Mobile Money</p>
+                      <div className="space-y-0.5">
+                        {mm?.provider && <PayRow label="Provider" value={mm.provider} />}
+                        {mm?.phoneNumber && <PayRow label="Phone / Account" value={mm.phoneNumber} />}
+                      </div>
+                    </div>
+                  )}
+                  {hasOT && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 mb-1">{ot?.paymentMethod || 'Other'}</p>
+                      {ot?.details && (
+                        <p className="text-gray-700 whitespace-pre-line">{ot.details}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Notes */}
           {invoice.notes && (
             <div className="px-8 sm:px-10 pb-6">
@@ -287,5 +342,14 @@ export default async function PublicInvoicePage({
         </div>
       </main>
     </>
+  )
+}
+
+function PayRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex gap-4">
+      <span className="w-36 flex-shrink-0 text-gray-400 sm:w-40">{label}</span>
+      <span className="text-gray-800 break-all">{value}</span>
+    </div>
   )
 }

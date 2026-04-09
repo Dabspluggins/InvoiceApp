@@ -9,6 +9,8 @@ export const CURRENCIES = [
   { code: 'KES', symbol: 'KSh', label: 'Kenyan Shilling' },
   { code: 'ZAR', symbol: 'R', label: 'South African Rand' },
   { code: 'XOF', symbol: 'CFA', label: 'West African CFA Franc' },
+  { code: 'CNY', symbol: 'CN¥', label: 'Chinese Yuan (RMB)' },
+  { code: 'JPY', symbol: 'JP¥', label: 'Japanese Yen' },
 ]
 
 export function getCurrencySymbol(code: string): string {

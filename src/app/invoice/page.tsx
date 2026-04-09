@@ -35,12 +35,15 @@ function nextRecurringDate(fromDate: string, frequency: string): string {
   return d.toISOString().split('T')[0]
 }
 
+// To add the currency column to Supabase, run:
+// ALTER TABLE invoices ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'NGN';
+
 const defaultData: InvoiceData = {
   invoiceNumber: 'INV-0001',
   status: 'draft',
   issueDate: todayStr(),
   dueDate: '',
-  currency: 'USD',
+  currency: 'NGN',
   businessName: '',
   businessAddress: '',
   businessEmail: '',

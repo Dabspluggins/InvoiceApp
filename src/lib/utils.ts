@@ -1,4 +1,5 @@
 import { LineItem, Currency } from './types'
+import { getCurrencySymbol } from './currencies'
 
 export function calcTotals(lineItems: LineItem[], taxRate: number) {
   const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0)
@@ -7,8 +8,10 @@ export function calcTotals(lineItems: LineItem[], taxRate: number) {
   return { subtotal, taxAmount, total }
 }
 
-export function formatCurrency(amount: number, currency: Currency): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)
+export function formatCurrency(amount: number, currency: Currency | string): string {
+  const symbol = getCurrencySymbol(currency)
+  const formatted = amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return `${symbol}${formatted}`
 }
 
 export function generateInvoiceNumber(): string {

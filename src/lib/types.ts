@@ -17,7 +17,7 @@ export interface PaymentDetails {
     details?: string
   }
 }
-export type Currency = 'USD' | 'EUR' | 'GBP' | 'NGN' | 'CAD' | 'AUD'
+export type Currency = 'USD' | 'EUR' | 'GBP' | 'NGN' | 'CAD' | 'AUD' | 'GHS' | 'KES' | 'ZAR' | 'XOF' | 'CNY' | 'JPY'
 
 export interface LineItem {
   id: string

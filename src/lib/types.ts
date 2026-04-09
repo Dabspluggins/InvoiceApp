@@ -9,6 +9,8 @@ export interface LineItem {
   amount: number
 }
 
+export type RecurringFrequency = 'weekly' | 'monthly' | 'quarterly'
+
 export interface InvoiceData {
   invoiceNumber: string
   status: InvoiceStatus
@@ -28,4 +30,6 @@ export interface InvoiceData {
   taxRate: number
   notes: string
   brandColor: string
+  isRecurring: boolean
+  recurringFrequency: RecurringFrequency | null
 }

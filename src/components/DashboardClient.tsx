@@ -16,6 +16,7 @@ interface Invoice {
   currency: Currency
   status: InvoiceStatus
   issue_date: string
+  is_recurring: boolean
 }
 
 interface Template {
@@ -46,7 +47,7 @@ export default function DashboardClient() {
     const supabase = createClient()
     const { data } = await supabase
       .from('invoices')
-      .select('id, invoice_number, client_name, client_company, total, currency, status, issue_date')
+      .select('id, invoice_number, client_name, client_company, total, currency, status, issue_date, is_recurring')
       .order('created_at', { ascending: false })
 
     setInvoices(data || [])
@@ -142,7 +143,10 @@ export default function DashboardClient() {
               >
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">{inv.invoice_number}</p>
+                    <p className="text-sm font-semibold text-gray-900 flex items-center gap-1">
+                      {inv.invoice_number}
+                      {inv.is_recurring && <span title="Recurring">🔄</span>}
+                    </p>
                     <p className="text-sm text-gray-600 mt-0.5">{inv.client_name || '—'}</p>
                     {inv.client_company && (
                       <p className="text-xs text-gray-400">{inv.client_company}</p>
@@ -198,7 +202,10 @@ export default function DashboardClient() {
                     onClick={() => router.push(`/invoice?id=${inv.id}`)}
                   >
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      {inv.invoice_number}
+                      <span className="flex items-center gap-1">
+                        {inv.invoice_number}
+                        {inv.is_recurring && <span title="Recurring">🔄</span>}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
                       <div>{inv.client_name || '—'}</div>

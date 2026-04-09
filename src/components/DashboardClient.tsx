@@ -18,6 +18,7 @@ interface Invoice {
   status: InvoiceStatus
   issue_date: string
   is_recurring: boolean
+  share_token: string | null
 }
 
 interface Template {
@@ -37,7 +38,15 @@ export default function DashboardClient({ user }: { user?: User | null }) {
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
   const router = useRouter()
+
+  async function handleCopyLink(inv: Invoice) {
+    if (!inv.share_token) return
+    await navigator.clipboard.writeText(`https://www.billbydab.com/i/${inv.share_token}`)
+    setCopiedId(inv.id)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
 
   useEffect(() => {
     loadInvoices()
@@ -48,7 +57,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
     const supabase = createClient()
     const { data } = await supabase
       .from('invoices')
-      .select('id, invoice_number, client_name, client_company, total, currency, status, issue_date, is_recurring')
+      .select('id, invoice_number, client_name, client_company, total, currency, status, issue_date, is_recurring, share_token')
       .order('created_at', { ascending: false })
 
     setInvoices(data || [])
@@ -194,12 +203,23 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                       <option value="pending">Pending</option>
                     </select>
                   </div>
-                  <button
-                    onClick={() => handleDelete(inv.id)}
-                    className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1"
-                  >
-                    Delete
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {inv.share_token && (
+                      <button
+                        onClick={() => handleCopyLink(inv)}
+                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1"
+                        title="Copy shareable link"
+                      >
+                        {copiedId === inv.id ? 'Copied!' : '🔗 Copy link'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(inv.id)}
+                      className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -262,12 +282,23 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                       className="px-6 py-4 text-right"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <button
-                        onClick={() => handleDelete(inv.id)}
-                        className="text-xs text-red-500 hover:text-red-700 font-medium"
-                      >
-                        Delete
-                      </button>
+                      <div className="flex items-center justify-end gap-4">
+                        {inv.share_token && (
+                          <button
+                            onClick={() => handleCopyLink(inv)}
+                            className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                            title="Copy shareable link"
+                          >
+                            {copiedId === inv.id ? 'Copied!' : '🔗 Copy link'}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDelete(inv.id)}
+                          className="text-xs text-red-500 hover:text-red-700 font-medium"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

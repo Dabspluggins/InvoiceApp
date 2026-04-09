@@ -33,7 +33,7 @@ export default function LineItemsTable({ items, currency, onChange }: Props) {
     ])
   }
 
-  const inputCls = 'border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400'
+  const inputCls = 'border border-gray-200 rounded px-2 py-1 text-sm text-gray-900 placeholder:text-gray-400 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400'
 
   return (
     <div className="mt-4">
@@ -109,7 +109,7 @@ export default function LineItemsTable({ items, currency, onChange }: Props) {
                     value={item.description}
                     onChange={(e) => updateItem(item.id, 'description', e.target.value)}
                     placeholder="Item description"
-                    className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                    className="w-full border border-gray-200 rounded px-2 py-1 text-sm text-gray-900 placeholder:text-gray-400 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400"
                   />
                 </td>
                 <td className="py-2 px-3">
@@ -118,7 +118,7 @@ export default function LineItemsTable({ items, currency, onChange }: Props) {
                     value={item.quantity}
                     min={0}
                     onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                    className="w-16 border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                    className="w-16 border border-gray-200 rounded px-2 py-1 text-sm text-gray-900 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400"
                   />
                 </td>
                 <td className="py-2 px-3">
@@ -128,7 +128,7 @@ export default function LineItemsTable({ items, currency, onChange }: Props) {
                     min={0}
                     step="0.01"
                     onChange={(e) => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
-                    className="w-24 border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                    className="w-24 border border-gray-200 rounded px-2 py-1 text-sm text-gray-900 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400"
                   />
                 </td>
                 <td className="py-2 px-3 text-right font-medium whitespace-nowrap">

@@ -1,5 +1,5 @@
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'pending'
-export type Currency = 'USD' | 'EUR' | 'GBP' | 'NGN' | 'CAD' | 'AUD'
+export type Currency = 'USD' | 'EUR' | 'GBP' | 'NGN' | 'CAD' | 'AUD' | 'GHS' | 'KES' | 'ZAR' | 'XOF'
 
 export interface LineItem {
   id: string

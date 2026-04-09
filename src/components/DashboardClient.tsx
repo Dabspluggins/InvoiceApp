@@ -108,11 +108,11 @@ export default function DashboardClient() {
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
           <p className="text-xs md:text-sm text-gray-500 mb-1">Paid</p>
-          <p className="text-xl md:text-2xl font-bold text-green-600">${paidAmount.toFixed(2)}</p>
+          <p className="text-xl md:text-2xl font-bold text-green-600">{paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
         <div className="col-span-2 md:col-span-1 bg-white rounded-xl border border-gray-200 p-4 md:p-6">
           <p className="text-xs md:text-sm text-gray-500 mb-1">Outstanding</p>
-          <p className="text-xl md:text-2xl font-bold text-orange-500">${outstandingAmount.toFixed(2)}</p>
+          <p className="text-xl md:text-2xl font-bold text-orange-500">{outstandingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
       </div>
 

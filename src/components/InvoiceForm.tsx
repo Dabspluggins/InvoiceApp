@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState } from 'react'
 import { InvoiceData, Currency, RecurringFrequency } from '@/lib/types'
 import { calcTotals } from '@/lib/utils'
+import { CURRENCIES } from '@/lib/currencies'
 import LineItemsTable from './LineItemsTable'
 import Totals from './Totals'
 import { createClient } from '@/lib/supabase/client'
@@ -21,7 +22,6 @@ interface SavedClient {
   address: string | null
 }
 
-const CURRENCIES: Currency[] = ['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']
 
 export default function InvoiceForm({ data, onChange }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -210,7 +210,9 @@ export default function InvoiceForm({ data, onChange }: Props) {
           <div>
             <label className={labelCls}>Currency</label>
             <select className={inputCls} value={data.currency} onChange={(e) => set('currency', e.target.value as Currency)}>
-              {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              {CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.label}</option>
+              ))}
             </select>
           </div>
           <div className="min-w-0">

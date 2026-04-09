@@ -20,7 +20,7 @@ export default function InvoicePreview({ data }: Props) {
       {/* Header banner */}
       <div
         className="px-10 py-8 flex justify-between items-start"
-        style={{ backgroundColor: brand }}
+        style={{ backgroundColor: brand, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', colorAdjust: 'exact' }}
       >
         {/* Left: logo + business */}
         <div className="flex flex-col gap-2">
@@ -64,7 +64,7 @@ export default function InvoicePreview({ data }: Props) {
       {/* Body */}
       <div className="px-10 pt-8 pb-10">
         {/* Bill To */}
-        <div className="mb-8 rounded-lg p-4" style={{ backgroundColor: `${brand}15` }}>
+        <div className="mb-8 rounded-lg p-4" style={{ backgroundColor: `${brand}15`, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', colorAdjust: 'exact' }}>
           <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: brand }}>Bill To</div>
           <div className="font-semibold text-gray-800">{data.clientName || 'Client Name'}</div>
           {data.clientCompany && <div className="text-sm text-gray-600">{data.clientCompany}</div>}
@@ -75,7 +75,7 @@ export default function InvoicePreview({ data }: Props) {
         {/* Line Items Table */}
         <table className="w-full text-sm mb-6" style={{ borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ backgroundColor: brand }}>
+            <tr style={{ backgroundColor: brand, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', colorAdjust: 'exact' }}>
               <th className="text-left px-3 py-2 text-xs font-semibold text-white">Description</th>
               <th className="text-center px-3 py-2 text-xs font-semibold text-white w-16">Qty</th>
               <th className="text-right px-3 py-2 text-xs font-semibold text-white w-24">Rate</th>
@@ -84,7 +84,7 @@ export default function InvoicePreview({ data }: Props) {
           </thead>
           <tbody>
             {data.lineItems.map((item, i) => (
-              <tr key={item.id} style={{ backgroundColor: i % 2 === 0 ? '#ffffff' : `${brand}0d` }}>
+              <tr key={item.id} style={{ backgroundColor: i % 2 === 0 ? '#ffffff' : `${brand}0d`, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', colorAdjust: 'exact' }}>
                 <td className="px-3 py-2 text-gray-700">{item.description || '—'}</td>
                 <td className="px-3 py-2 text-center text-gray-600">{item.quantity}</td>
                 <td className="px-3 py-2 text-right text-gray-600">{formatCurrency(item.rate, data.currency)}</td>
@@ -112,7 +112,7 @@ export default function InvoicePreview({ data }: Props) {
             </div>
             <div
               className="flex justify-between px-3 py-2 mt-1 font-bold text-white text-base rounded"
-              style={{ backgroundColor: brand }}
+              style={{ backgroundColor: brand, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', colorAdjust: 'exact' }}
             >
               <span>Total</span>
               <span>{formatCurrency(total, data.currency)}</span>

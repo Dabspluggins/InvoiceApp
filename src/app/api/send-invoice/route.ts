@@ -10,6 +10,7 @@ interface LineItem {
 
 interface InvoicePayload {
   invoiceId?: string
+  shareToken?: string
   toEmail: string
   toName: string
   subject: string
@@ -39,7 +40,7 @@ function formatCurrency(amount: number, currency: string): string {
 }
 
 function buildEmailHtml(payload: InvoicePayload): string {
-  const { invoiceData, toName, message } = payload
+  const { invoiceData, toName, message, shareToken } = payload
   const { brandColor = '#4F46E5' } = invoiceData
 
   const lineItemRows = invoiceData.lineItems
@@ -153,6 +154,11 @@ function buildEmailHtml(payload: InvoicePayload): string {
             </div>` : ''}
 
             <p style="margin:0;color:#6b7280;font-size:14px;">Questions? Reply to this email and we'll get back to you.</p>
+
+            ${shareToken ? `<div style="margin-top:24px; padding:16px; background:#F9FAFB; border-radius:8px; text-align:center;">
+              <p style="margin:0 0 8px; color:#6B7280; font-size:14px;">View this invoice online</p>
+              <a href="https://www.billbydab.com/i/${shareToken}" style="display:inline-block; background:#4F46E5; color:#fff; padding:10px 24px; border-radius:6px; text-decoration:none; font-weight:600;">View Invoice →</a>
+            </div>` : ''}
           </td>
         </tr>
 

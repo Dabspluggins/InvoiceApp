@@ -61,6 +61,7 @@ const defaultData: InvoiceData = {
 function InvoicePageInner() {
   const [data, setData] = useState<InvoiceData>(defaultData)
   const [savedInvoiceId, setSavedInvoiceId] = useState<string | null>(null)
+  const [savedShareToken, setSavedShareToken] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit')
@@ -97,6 +98,7 @@ function InvoicePageInner() {
           .single()
 
         if (error || !inv) return
+        if (inv.share_token) setSavedShareToken(inv.share_token)
 
         const { data: items } = await supabase
           .from('line_items')
@@ -217,6 +219,7 @@ function InvoicePageInner() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           invoiceId: savedInvoiceId,
+          shareToken: savedShareToken,
           toEmail: sendModal.toEmail,
           toName: sendModal.toName,
           subject: sendModal.subject,
@@ -317,15 +320,17 @@ function InvoicePageInner() {
         if (error) throw error
         await supabase.from('line_items').delete().eq('invoice_id', currentId)
       } else {
+        const shareToken = crypto.randomUUID().replace(/-/g, '').slice(0, 12)
         const { data: inserted, error } = await supabase
           .from('invoices')
-          .insert(invoicePayload)
-          .select('id')
+          .insert({ ...invoicePayload, share_token: shareToken })
+          .select('id, share_token')
           .single()
         if (error) throw error
 
         currentId = inserted.id
         setSavedInvoiceId(currentId)
+        setSavedShareToken(inserted.share_token)
         window.history.replaceState(null, '', `/invoice?id=${currentId}`)
 
         // Increment localStorage counter after saving a new invoice

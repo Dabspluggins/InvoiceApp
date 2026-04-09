@@ -30,6 +30,7 @@ interface InvoicePayload {
     total: number
     notes: string
     brandColor: string
+    logoUrl?: string | null
   }
 }
 
@@ -39,7 +40,7 @@ function formatCurrency(amount: number, currency: string): string {
 
 function buildEmailHtml(payload: InvoicePayload): string {
   const { invoiceData, toName, message } = payload
-  const { brandColor = '#4F46E5' } = invoiceData
+  const { brandColor = '#4F46E5', logoUrl } = invoiceData
 
   const lineItemRows = invoiceData.lineItems
     .map(
@@ -73,7 +74,7 @@ function buildEmailHtml(payload: InvoicePayload): string {
         <tr>
           <td style="background:${brandColor};padding:32px 40px;border-radius:12px 12px 0 0;">
             <p style="margin:0;color:rgba(255,255,255,0.8);font-size:13px;text-transform:uppercase;letter-spacing:1px;">Invoice from</p>
-            <h1 style="margin:4px 0 0;color:#ffffff;font-size:26px;font-weight:700;">${invoiceData.businessName || 'Your Business'}</h1>
+            ${logoUrl ? `<img src="${logoUrl}" alt="${invoiceData.businessName || 'Logo'}" style="display:block;max-height:60px;max-width:200px;width:auto;margin:8px 0 0;" />` : `<h1 style="margin:4px 0 0;color:#ffffff;font-size:26px;font-weight:700;">${invoiceData.businessName || 'Your Business'}</h1>`}
           </td>
         </tr>
 

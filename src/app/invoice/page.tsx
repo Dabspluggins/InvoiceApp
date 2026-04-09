@@ -237,6 +237,7 @@ function InvoicePageInner() {
             total,
             notes: data.notes,
             brandColor: data.brandColor,
+            logoUrl: data.logoUrl,
           },
         }),
       })

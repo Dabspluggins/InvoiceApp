@@ -1,20 +1,47 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import { InvoiceData, Currency, RecurringFrequency } from '@/lib/types'
 import { calcTotals } from '@/lib/utils'
 import LineItemsTable from './LineItemsTable'
 import Totals from './Totals'
+import { createClient } from '@/lib/supabase/client'
 
 interface Props {
   data: InvoiceData
   onChange: (data: InvoiceData) => void
 }
 
+interface SavedClient {
+  id: string
+  name: string
+  company: string | null
+  email: string | null
+  phone: string | null
+  address: string | null
+}
+
 const CURRENCIES: Currency[] = ['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']
 
 export default function InvoiceForm({ data, onChange }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
+  const [savedClients, setSavedClients] = useState<SavedClient[]>([])
+  const [savingClient, setSavingClient] = useState(false)
+  const [clientSaveMsg, setClientSaveMsg] = useState<string | null>(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase
+        .from('clients')
+        .select('id, name, company, email, phone, address')
+        .order('name')
+        .then(({ data }) => {
+          if (data) setSavedClients(data)
+        })
+    })
+  }, [])
 
   function set<K extends keyof InvoiceData>(key: K, value: InvoiceData[K]) {
     onChange({ ...data, [key]: value })
@@ -26,6 +53,49 @@ export default function InvoiceForm({ data, onChange }: Props) {
     const reader = new FileReader()
     reader.onload = () => set('logoUrl', reader.result as string)
     reader.readAsDataURL(file)
+  }
+
+  function handleSelectClient(id: string) {
+    if (!id) return
+    const client = savedClients.find((c) => c.id === id)
+    if (!client) return
+    onChange({
+      ...data,
+      clientName: client.name,
+      clientCompany: client.company || '',
+      clientEmail: client.email || '',
+      clientAddress: client.address || '',
+    })
+  }
+
+  async function handleSaveAsClient() {
+    if (!data.clientName.trim()) {
+      setClientSaveMsg('Client name is required to save.')
+      setTimeout(() => setClientSaveMsg(null), 3000)
+      return
+    }
+    setSavingClient(true)
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.clientName,
+          company: data.clientCompany || null,
+          email: data.clientEmail || null,
+          address: data.clientAddress || null,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to save')
+      setSavedClients((prev) => [...prev, json].sort((a, b) => a.name.localeCompare(b.name)))
+      setClientSaveMsg('Client saved!')
+    } catch {
+      setClientSaveMsg('Failed to save client.')
+    } finally {
+      setSavingClient(false)
+      setTimeout(() => setClientSaveMsg(null), 3000)
+    }
   }
 
   const { subtotal, taxAmount, total } = calcTotals(data.lineItems, data.taxRate)
@@ -173,6 +243,26 @@ export default function InvoiceForm({ data, onChange }: Props) {
       {/* Client Info */}
       <div className={sectionCls}>
         <p className={sectionHeadCls}>Bill To</p>
+
+        {/* Saved Clients dropdown */}
+        {savedClients.length > 0 && (
+          <div className="mb-3">
+            <label className={labelCls}>Saved Clients</label>
+            <select
+              className={inputCls}
+              defaultValue=""
+              onChange={(e) => handleSelectClient(e.target.value)}
+            >
+              <option value="">— Select a saved client —</option>
+              {savedClients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}{c.company ? ` (${c.company})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={labelCls}>Client Name</label>
@@ -190,6 +280,23 @@ export default function InvoiceForm({ data, onChange }: Props) {
             <label className={labelCls}>Email</label>
             <input className={inputCls} type="email" value={data.clientEmail} onChange={(e) => set('clientEmail', e.target.value)} placeholder="client@example.com" />
           </div>
+        </div>
+
+        {/* Save as Client */}
+        <div className="mt-3 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleSaveAsClient}
+            disabled={savingClient}
+            className="text-xs text-indigo-600 hover:text-indigo-800 border border-indigo-200 hover:border-indigo-400 px-3 py-1.5 rounded-lg disabled:opacity-50 transition"
+          >
+            {savingClient ? 'Saving...' : '+ Save as Client'}
+          </button>
+          {clientSaveMsg && (
+            <span className={`text-xs ${clientSaveMsg.includes('Failed') || clientSaveMsg.includes('required') ? 'text-red-500' : 'text-green-600'}`}>
+              {clientSaveMsg}
+            </span>
+          )}
         </div>
       </div>
 

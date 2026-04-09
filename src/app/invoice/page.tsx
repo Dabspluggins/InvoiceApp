@@ -228,6 +228,7 @@ function InvoicePageInner() {
             currency: data.currency,
             businessName: data.businessName,
             businessEmail: data.businessEmail,
+            logoUrl: data.logoUrl,
             clientName: data.clientName,
             clientCompany: data.clientCompany,
             lineItems: data.lineItems,

@@ -47,12 +47,25 @@ export default function InvoiceForm({ data, onChange }: Props) {
     onChange({ ...data, [key]: value })
   }
 
-  function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => set('logoUrl', reader.result as string)
-    reader.readAsDataURL(file)
+
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const ext = file.name.split('.').pop()
+    const path = `${user.id}/${Date.now()}.${ext}`
+
+    const { error } = await supabase.storage.from('logos').upload(path, file, { upsert: true })
+    if (error) {
+      console.error('Logo upload failed:', error.message)
+      return
+    }
+
+    const { data: urlData } = supabase.storage.from('logos').getPublicUrl(path)
+    set('logoUrl', urlData.publicUrl)
   }
 
   function handleSelectClient(id: string) {

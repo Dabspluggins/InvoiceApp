@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrencySymbol } from '@/lib/currencies'
 
 interface Invoice {
   id: string
@@ -10,6 +11,7 @@ interface Invoice {
   client_name: string
   client_company: string
   total: number
+  currency: string
   status: string
   issue_date: string
   due_date: string
@@ -17,7 +19,11 @@ interface Invoice {
 }
 
 function fmt(amount: number) {
-  return '$' + amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function fmtWithCurrency(amount: number, currency: string) {
+  return `${getCurrencySymbol(currency)}${fmt(amount)}`
 }
 
 function monthKey(dateStr: string) {
@@ -54,7 +60,7 @@ export default function AnalyticsClient() {
     const supabase = createClient()
     supabase
       .from('invoices')
-      .select('id, invoice_number, client_name, client_company, total, status, issue_date, due_date, created_at')
+      .select('id, invoice_number, client_name, client_company, total, currency, status, issue_date, due_date, created_at')
       .then(({ data }) => {
         setInvoices(data || [])
         setLoading(false)
@@ -163,7 +169,7 @@ export default function AnalyticsClient() {
                     stroke="#f3f4f6" strokeWidth="1"
                   />
                   <text x={padL - 6} y={y + 4} textAnchor="end" fontSize="10" fill="#9ca3af">
-                    {val >= 1000 ? `$${(val / 1000).toFixed(0)}k` : `$${val.toFixed(0)}`}
+                    {val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val.toFixed(0)}
                   </text>
                 </g>
               )
@@ -253,7 +259,7 @@ export default function AnalyticsClient() {
                             {inv.client_name || inv.client_company || '—'}
                           </td>
                           <td className="px-5 py-3 text-gray-900 font-medium text-right">
-                            {fmt(inv.total || 0)}
+                            {fmtWithCurrency(inv.total || 0, inv.currency || 'NGN')}
                           </td>
                           <td className="px-5 py-3 text-gray-500 text-right whitespace-nowrap">
                             {new Date(inv.due_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { PaymentDetails } from '@/lib/types'
+import { getCurrencySymbol } from '@/lib/currencies'
 
 interface LineItem {
   description: string
@@ -38,7 +39,9 @@ interface InvoicePayload {
 }
 
 function formatCurrency(amount: number, currency: string): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)
+  const symbol = getCurrencySymbol(currency)
+  const formatted = amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return `${symbol}${formatted}`
 }
 
 function formatDate(dateStr: string): string {
@@ -198,7 +201,7 @@ function buildEmailHtml(payload: InvoicePayload): string {
                 ${taxRow}
                 <tr style="background:#f9fafb;">
                   <td colspan="3" style="padding:12px;text-align:right;color:#111827;font-size:16px;font-weight:700;border-top:2px solid #e5e7eb;">Total Due</td>
-                  <td style="padding:12px;text-align:right;color:${brandColor};font-size:18px;font-weight:700;border-top:2px solid #e5e7eb;">${formatCurrency(invoiceData.total, invoiceData.currency)}</td>
+                  <td style="padding:12px;text-align:right;color:${brandColor};font-size:18px;font-weight:700;border-top:2px solid #e5e7eb;">${formatCurrency(invoiceData.total, invoiceData.currency)} ${invoiceData.currency}</td>
                 </tr>
               </tfoot>
             </table>

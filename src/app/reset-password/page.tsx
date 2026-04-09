@@ -28,17 +28,14 @@ export default function ResetPasswordPage() {
         if (event === 'PASSWORD_RECOVERY' || (session && event === 'SIGNED_IN')) {
           setStatus('ready')
           subscription.unsubscribe()
-        } else if (event === 'SIGNED_OUT' || (!session && event !== 'INITIAL_SESSION')) {
-          setError('This link has expired or is invalid.')
-          setStatus('error')
-          subscription.unsubscribe()
         }
       })
 
+      // Give it 5 seconds; if still no session, the link is expired/invalid
       const timeout = setTimeout(() => {
+        subscription.unsubscribe()
         setError('This link has expired or is invalid. Please request a new one.')
         setStatus('error')
-        subscription.unsubscribe()
       }, 5000)
 
       return () => {

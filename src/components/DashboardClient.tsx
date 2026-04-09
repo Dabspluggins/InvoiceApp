@@ -191,7 +191,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                 </div>
                 <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-gray-400">{inv.issue_date}</span>
+                    <span className="text-xs text-gray-400">{new Date(inv.issue_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                     <select
                       value={inv.status}
                       onChange={(e) => handleStatusChange(inv.id, e.target.value as InvoiceStatus)}
@@ -257,7 +257,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                         <div className="text-xs text-gray-400">{inv.client_company}</div>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{inv.issue_date}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{new Date(inv.issue_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</td>
                     <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right">
                       {formatCurrency(inv.total, inv.currency)}
                     </td>
@@ -329,7 +329,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                     <div>
                       <p className="text-sm font-semibold text-gray-900">{tmpl.name}</p>
                       <p className="text-xs text-gray-400 mt-0.5">
-                        {new Date(tmpl.created_at).toLocaleDateString()}
+                        {new Date(tmpl.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </p>
                     </div>
                   </div>
@@ -369,7 +369,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                     >
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">{tmpl.name}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">
-                        {new Date(tmpl.created_at).toLocaleDateString()}
+                        {new Date(tmpl.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </td>
                       <td className="px-6 py-4 text-right flex items-center justify-end gap-4">
                         <button

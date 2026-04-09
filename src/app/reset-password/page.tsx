@@ -31,12 +31,12 @@ export default function ResetPasswordPage() {
         }
       })
 
-      // Give it 5 seconds; if still no session, the link is expired/invalid
+      // Give it 8 seconds (slow devices need more time after PKCE redirect)
       const timeout = setTimeout(() => {
         subscription.unsubscribe()
         setError('This link has expired or is invalid. Please request a new one.')
         setStatus('error')
-      }, 5000)
+      }, 8000)
 
       return () => {
         clearTimeout(timeout)

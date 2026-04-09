@@ -56,6 +56,7 @@ const defaultData: InvoiceData = {
   brandColor: '#4F46E5',
   isRecurring: false,
   recurringFrequency: null,
+  paymentDetails: undefined,
 }
 
 function InvoicePageInner() {
@@ -133,6 +134,7 @@ function InvoicePageInner() {
           brandColor: inv.brand_color || '#4F46E5',
           isRecurring: inv.is_recurring || false,
           recurringFrequency: inv.recurring_frequency || null,
+          paymentDetails: inv.payment_details || undefined,
         })
       }
 
@@ -241,6 +243,7 @@ function InvoicePageInner() {
             total,
             notes: data.notes,
             brandColor: data.brandColor,
+            paymentDetails: data.paymentDetails,
           },
         }),
       })
@@ -304,6 +307,7 @@ function InvoicePageInner() {
         brand_color: data.brandColor,
         is_recurring: data.isRecurring,
         recurring_frequency: data.isRecurring ? data.recurringFrequency : null,
+        payment_details: data.paymentDetails ?? null,
         recurring_next_date:
           data.isRecurring && data.recurringFrequency && data.dueDate
             ? nextRecurringDate(data.dueDate, data.recurringFrequency)

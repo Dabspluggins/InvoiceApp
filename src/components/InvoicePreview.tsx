@@ -120,6 +120,60 @@ export default function InvoicePreview({ data }: Props) {
           </div>
         </div>
 
+        {/* Payment Details */}
+        {(() => {
+          const pd = data.paymentDetails
+          if (!pd) return null
+          const bt = pd.bankTransfer
+          const mm = pd.mobileMoney
+          const ot = pd.other
+          const hasBT = bt && Object.values(bt).some(Boolean)
+          const hasMM = mm && (mm.provider || mm.phoneNumber)
+          const hasOT = ot && (ot.paymentMethod || ot.details)
+          if (!hasBT && !hasMM && !hasOT) return null
+
+          const Row = ({ label, value }: { label: string; value?: string }) =>
+            value ? (
+              <div className="flex gap-4 py-0.5">
+                <span className="w-40 flex-shrink-0 text-gray-400">{label}</span>
+                <span className="text-gray-800 break-all">{value}</span>
+              </div>
+            ) : null
+
+          return (
+            <div className="mb-6 rounded-lg border border-gray-200 overflow-hidden" style={{ background: '#F9FAFB' }}>
+              <div className="px-4 py-2.5 border-b border-gray-200">
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: brand }}>Payment Details</span>
+              </div>
+              <div className="px-4 py-3 text-xs space-y-3">
+                {hasBT && (
+                  <div>
+                    <div className="text-xs font-semibold text-gray-500 mb-1">Bank Transfer</div>
+                    <Row label="Account Name" value={bt?.accountName} />
+                    <Row label="Bank Name" value={bt?.bankName} />
+                    <Row label="Account Number" value={bt?.accountNumber} />
+                    <Row label="Sort Code / Routing" value={bt?.routingNumber} />
+                    <Row label="SWIFT / IBAN" value={bt?.swiftIban} />
+                  </div>
+                )}
+                {hasMM && (
+                  <div>
+                    <div className="text-xs font-semibold text-gray-500 mb-1">Mobile Money</div>
+                    <Row label="Provider" value={mm?.provider} />
+                    <Row label="Phone / Account" value={mm?.phoneNumber} />
+                  </div>
+                )}
+                {hasOT && (
+                  <div>
+                    <div className="text-xs font-semibold text-gray-500 mb-1">{ot?.paymentMethod || 'Other'}</div>
+                    {ot?.details && <p className="text-gray-700 whitespace-pre-line">{ot.details}</p>}
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })()}
+
         {/* Notes */}
         {data.notes && (
           <div className="border-t border-gray-200 pt-4">

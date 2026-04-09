@@ -1,4 +1,22 @@
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'pending'
+
+export interface PaymentDetails {
+  bankTransfer?: {
+    accountName?: string
+    bankName?: string
+    accountNumber?: string
+    routingNumber?: string
+    swiftIban?: string
+  }
+  mobileMoney?: {
+    provider?: string
+    phoneNumber?: string
+  }
+  other?: {
+    paymentMethod?: string
+    details?: string
+  }
+}
 export type Currency = 'USD' | 'EUR' | 'GBP' | 'NGN' | 'CAD' | 'AUD'
 
 export interface LineItem {
@@ -32,4 +50,5 @@ export interface InvoiceData {
   brandColor: string
   isRecurring: boolean
   recurringFrequency: RecurringFrequency | null
+  paymentDetails?: PaymentDetails
 }

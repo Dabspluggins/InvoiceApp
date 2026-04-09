@@ -32,3 +32,10 @@ input, textarea, select {
 input::placeholder, textarea::placeholder {
   color: #9ca3af; /* gray-400 */
 }
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

@@ -16,7 +16,9 @@ interface Invoice {
   currency: Currency
   status: InvoiceStatus
   issue_date: string
+  due_date: string | null
   is_recurring: boolean
+  reminders_sent: number | null
 }
 
 interface Template {
@@ -32,10 +34,17 @@ const STATUS_COLORS: Record<InvoiceStatus, string> = {
   pending: 'bg-yellow-100 text-yellow-700',
 }
 
+const TODAY = new Date().toISOString().split('T')[0]
+
+function isOverdue(inv: Invoice): boolean {
+  return !!inv.due_date && inv.due_date < TODAY && inv.status !== 'paid'
+}
+
 export default function DashboardClient() {
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
+  const [remindingIds, setRemindingIds] = useState<Set<string>>(new Set())
   const router = useRouter()
 
   useEffect(() => {
@@ -47,7 +56,7 @@ export default function DashboardClient() {
     const supabase = createClient()
     const { data } = await supabase
       .from('invoices')
-      .select('id, invoice_number, client_name, client_company, total, currency, status, issue_date, is_recurring')
+      .select('id, invoice_number, client_name, client_company, total, currency, status, issue_date, due_date, is_recurring, reminders_sent')
       .order('created_at', { ascending: false })
 
     setInvoices(data || [])
@@ -66,6 +75,28 @@ export default function DashboardClient() {
     await supabase.from('line_items').delete().eq('invoice_id', id)
     await supabase.from('invoices').delete().eq('id', id)
     setInvoices((prev) => prev.filter((inv) => inv.id !== id))
+  }
+
+  async function handleSendReminder(id: string) {
+    setRemindingIds((prev) => new Set(prev).add(id))
+    try {
+      const res = await fetch(`/api/invoices/${id}/remind`, { method: 'POST' })
+      if (res.ok) {
+        setInvoices((prev) =>
+          prev.map((inv) =>
+            inv.id === id
+              ? { ...inv, reminders_sent: (inv.reminders_sent ?? 0) + 1 }
+              : inv
+          )
+        )
+      }
+    } finally {
+      setRemindingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    }
   }
 
   async function loadTemplates() {
@@ -159,13 +190,19 @@ export default function DashboardClient() {
               >
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <p className="text-sm font-semibold text-gray-900 flex items-center gap-1">
+                    <p className="text-sm font-semibold text-gray-900 flex items-center gap-1 flex-wrap">
                       {inv.invoice_number}
                       {inv.is_recurring && <span title="Recurring">🔄</span>}
+                      {isOverdue(inv) && (
+                        <span className="text-xs font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded">OVERDUE</span>
+                      )}
                     </p>
                     <p className="text-sm text-gray-600 mt-0.5">{inv.client_name || '—'}</p>
                     {inv.client_company && (
                       <p className="text-xs text-gray-400">{inv.client_company}</p>
+                    )}
+                    {(inv.reminders_sent ?? 0) > 0 && (
+                      <p className="text-xs text-gray-400 mt-0.5">{inv.reminders_sent} reminder{inv.reminders_sent === 1 ? '' : 's'} sent</p>
                     )}
                   </div>
                   <p className="text-sm font-bold text-gray-900">
@@ -186,12 +223,23 @@ export default function DashboardClient() {
                       <option value="pending">Pending</option>
                     </select>
                   </div>
-                  <button
-                    onClick={() => handleDelete(inv.id)}
-                    className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1"
-                  >
-                    Delete
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {isOverdue(inv) && (
+                      <button
+                        onClick={() => handleSendReminder(inv.id)}
+                        disabled={remindingIds.has(inv.id)}
+                        className="text-xs text-gray-500 hover:text-indigo-600 font-medium px-2 py-1 border border-gray-200 hover:border-indigo-300 rounded-md transition disabled:opacity-50"
+                      >
+                        {remindingIds.has(inv.id) ? 'Sending…' : 'Send Reminder'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(inv.id)}
+                      className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -218,10 +266,16 @@ export default function DashboardClient() {
                     onClick={() => router.push(`/invoice?id=${inv.id}`)}
                   >
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      <span className="flex items-center gap-1">
+                      <span className="flex items-center gap-1.5 flex-wrap">
                         {inv.invoice_number}
                         {inv.is_recurring && <span title="Recurring">🔄</span>}
+                        {isOverdue(inv) && (
+                          <span className="text-xs font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded">OVERDUE</span>
+                        )}
                       </span>
+                      {(inv.reminders_sent ?? 0) > 0 && (
+                        <span className="text-xs text-gray-400">{inv.reminders_sent} reminder{inv.reminders_sent === 1 ? '' : 's'} sent</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
                       <div>{inv.client_name || '—'}</div>
@@ -254,12 +308,23 @@ export default function DashboardClient() {
                       className="px-6 py-4 text-right"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <button
-                        onClick={() => handleDelete(inv.id)}
-                        className="text-xs text-red-500 hover:text-red-700 font-medium"
-                      >
-                        Delete
-                      </button>
+                      <div className="flex items-center justify-end gap-3">
+                        {isOverdue(inv) && (
+                          <button
+                            onClick={() => handleSendReminder(inv.id)}
+                            disabled={remindingIds.has(inv.id)}
+                            className="text-xs text-gray-500 hover:text-indigo-600 font-medium border border-gray-200 hover:border-indigo-300 px-2 py-1 rounded-md transition disabled:opacity-50"
+                          >
+                            {remindingIds.has(inv.id) ? 'Sending…' : 'Send Reminder'}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDelete(inv.id)}
+                          className="text-xs text-red-500 hover:text-red-700 font-medium"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

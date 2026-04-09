@@ -20,6 +20,11 @@ export default function SettingsClient({ user }: { user: User }) {
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileMsg, setProfileMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  // Email section
+  const [newEmail, setNewEmail] = useState('')
+  const [emailSaving, setEmailSaving] = useState(false)
+  const [emailMsg, setEmailMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
   // Password section
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -42,6 +47,28 @@ export default function SettingsClient({ user }: { user: User }) {
       setProfileMsg({ type: 'error', text: error.message })
     } else {
       setProfileMsg({ type: 'success', text: 'Profile updated successfully.' })
+    }
+  }
+
+  async function updateEmail(e: React.FormEvent) {
+    e.preventDefault()
+    setEmailMsg(null)
+    if (!newEmail.trim()) {
+      setEmailMsg({ type: 'error', text: 'Please enter a new email address.' })
+      return
+    }
+    if (newEmail.trim() === user.email) {
+      setEmailMsg({ type: 'error', text: 'New email must be different from your current email.' })
+      return
+    }
+    setEmailSaving(true)
+    const { error } = await supabase.auth.updateUser({ email: newEmail.trim() })
+    setEmailSaving(false)
+    if (error) {
+      setEmailMsg({ type: 'error', text: error.message })
+    } else {
+      setEmailMsg({ type: 'success', text: `Confirmation email sent to ${newEmail.trim()}. Please click the link in that email to complete the change.` })
+      setNewEmail('')
     }
   }
 
@@ -131,6 +158,51 @@ export default function SettingsClient({ user }: { user: User }) {
               className="text-sm bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
             >
               {profileSaving ? 'Saving...' : 'Save Profile'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Update Email section */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <h2 className="text-base font-semibold text-gray-900">Update Email</h2>
+        </div>
+        <form onSubmit={updateEmail} className="p-6 space-y-4">
+          <div>
+            <label className={labelCls}>Current email address</label>
+            <div className="w-full border border-gray-100 rounded-lg px-3 py-2.5 text-sm text-gray-500 bg-gray-50">
+              {user.email}
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>New email address</label>
+            <input
+              type="email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              placeholder="new@example.com"
+              className={inputCls}
+            />
+          </div>
+          {emailMsg && (
+            <div
+              className={`text-sm px-4 py-3 rounded-lg border ${
+                emailMsg.type === 'success'
+                  ? 'bg-green-50 border-green-200 text-green-700'
+                  : 'bg-red-50 border-red-200 text-red-600'
+              }`}
+            >
+              {emailMsg.text}
+            </div>
+          )}
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={emailSaving}
+              className="text-sm bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+            >
+              {emailSaving ? 'Sending...' : 'Update Email'}
             </button>
           </div>
         </form>

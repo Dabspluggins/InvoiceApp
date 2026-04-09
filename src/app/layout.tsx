@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: {
-    default: 'BillByDab — Free Invoice Generator Online',
+    default: 'BillByDab — Free Invoice Generator for Freelancers',
     template: '%s | BillByDab',
   },
   description:
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: 'https://www.billbydab.com',
     siteName: 'BillByDab',
-    title: 'BillByDab — Free Invoice Generator Online',
+    title: 'BillByDab — Free Invoice Generator for Freelancers',
     description:
       'Create and send professional invoices for free. The easiest invoice generator for freelancers and small businesses.',
     images: [

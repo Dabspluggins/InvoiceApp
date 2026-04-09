@@ -21,6 +21,7 @@ interface InvoicePayload {
     currency: string
     businessName: string
     businessEmail: string
+    logoUrl?: string | null
     clientName: string
     clientCompany: string
     lineItems: LineItem[]
@@ -72,6 +73,7 @@ function buildEmailHtml(payload: InvoicePayload): string {
         <!-- Header -->
         <tr>
           <td style="background:${brandColor};padding:32px 40px;border-radius:12px 12px 0 0;">
+            ${invoiceData.logoUrl ? `<img src="${invoiceData.logoUrl}" alt="Logo" style="display:block;max-height:64px;max-width:200px;object-fit:contain;margin-bottom:12px;background:rgba(255,255,255,0.1);border-radius:4px;padding:4px;">` : ''}
             <p style="margin:0;color:rgba(255,255,255,0.8);font-size:13px;text-transform:uppercase;letter-spacing:1px;">Invoice from</p>
             <h1 style="margin:4px 0 0;color:#ffffff;font-size:26px;font-weight:700;">${invoiceData.businessName || 'Your Business'}</h1>
           </td>

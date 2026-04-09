@@ -58,6 +58,9 @@ export const metadata: Metadata = {
   alternates: {
     canonical: 'https://www.billbydab.com',
   },
+  verification: {
+    google: 'Vj2ZbW5Vaauc_l98V1ZsAVbgQnfWyeeivmzwvjY2F94',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

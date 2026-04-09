@@ -4,29 +4,48 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
+type Status = 'verifying' | 'ready' | 'success' | 'error'
+
 export default function ResetPasswordPage() {
+  const [status, setStatus] = useState<Status>('verifying')
+  const [error, setError] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [sessionReady, setSessionReady] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
     const supabase = createClient()
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setSessionReady(true)
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setStatus('ready')
+        return
+      }
+
+      // Fall back to onAuthStateChange — handles async cookie propagation after PKCE redirect
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'PASSWORD_RECOVERY' || (session && event === 'SIGNED_IN')) {
+          setStatus('ready')
+          subscription.unsubscribe()
+        } else if (event === 'SIGNED_OUT' || (!session && event !== 'INITIAL_SESSION')) {
+          setError('This link has expired or is invalid.')
+          setStatus('error')
+          subscription.unsubscribe()
+        }
+      })
+
+      const timeout = setTimeout(() => {
+        setError('This link has expired or is invalid. Please request a new one.')
+        setStatus('error')
+        subscription.unsubscribe()
+      }, 5000)
+
+      return () => {
+        clearTimeout(timeout)
+        subscription.unsubscribe()
       }
     })
-
-    // Also check if a session already exists (e.g. page reload after hash processed)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setSessionReady(true)
-    })
-
-    return () => subscription.unsubscribe()
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,12 +70,42 @@ export default function ResetPasswordPage() {
       setError(error.message)
       setLoading(false)
     } else {
-      setSuccess(true)
+      setStatus('success')
       setTimeout(() => router.push('/dashboard'), 2000)
     }
   }
 
-  if (success) {
+  if (status === 'verifying') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-md text-center">
+          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500 text-sm">Verifying your reset link...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (status === 'error') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-md text-center">
+          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Link expired</h2>
+          <p className="text-gray-500 text-sm mb-6">{error}</p>
+          <Link href="/forgot-password" className="text-blue-600 hover:underline text-sm font-medium">
+            Request a new reset link
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  if (status === 'success') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-md text-center">
@@ -68,21 +117,11 @@ export default function ResetPasswordPage() {
     )
   }
 
-  if (!sessionReady) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-md text-center">
-          <p className="text-gray-500 text-sm">Verifying your reset link...</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold text-blue-600">InvoiceFree</Link>
+          <Link href="/" className="text-2xl font-bold text-blue-600">BillByDab</Link>
           <p className="text-gray-500 text-sm mt-2">Choose a new password</p>
         </div>
 

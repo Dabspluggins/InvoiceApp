@@ -16,7 +16,7 @@ export default function ForgotPasswordPage() {
 
     const supabase = createClient()
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://www.billbydab.com/reset-password',
+      redirectTo: 'https://www.billbydab.com/auth/callback?next=/reset-password',
     })
 
     if (error) {
@@ -47,7 +47,7 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold text-blue-600">InvoiceFree</Link>
+          <Link href="/" className="text-2xl font-bold text-blue-600">BillByDab</Link>
           <p className="text-gray-500 text-sm mt-2">Reset your password</p>
         </div>
 

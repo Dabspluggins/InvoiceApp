@@ -8,6 +8,15 @@ import { createClient } from '@/lib/supabase/client'
 import InvoiceForm from '@/components/InvoiceForm'
 import InvoicePreview from '@/components/InvoicePreview'
 
+interface SendModalState {
+  open: boolean
+  toEmail: string
+  toName: string
+  subject: string
+  message: string
+  sending: boolean
+}
+
 function todayStr() {
   return new Date().toISOString().split('T')[0]
 }
@@ -39,6 +48,14 @@ function InvoicePageInner() {
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit')
+  const [sendModal, setSendModal] = useState<SendModalState>({
+    open: false,
+    toEmail: '',
+    toName: '',
+    subject: '',
+    message: '',
+    sending: false,
+  })
   const searchParams = useSearchParams()
   const router = useRouter()
   const invoiceId = searchParams.get('id')
@@ -119,6 +136,73 @@ function InvoicePageInner() {
   function showToast(message: string, type: 'success' | 'error') {
     setToast({ message, type })
     setTimeout(() => setToast(null), 3000)
+  }
+
+  function openSendModal() {
+    setSendModal({
+      open: true,
+      toEmail: data.clientEmail || '',
+      toName: data.clientName || '',
+      subject: `Invoice ${data.invoiceNumber} from ${data.businessName || 'BillByDab'}`,
+      message: `Hi ${data.clientName || 'there'},\n\nPlease find attached your invoice ${data.invoiceNumber}${data.dueDate ? `, due on ${data.dueDate}` : ''}.\n\nThank you for your business!`,
+      sending: false,
+    })
+  }
+
+  async function handleSend() {
+    setSendModal((s) => ({ ...s, sending: true }))
+    try {
+      const { subtotal, taxAmount, total } = calcTotals(data.lineItems, data.taxRate)
+
+      const res = await fetch('/api/send-invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoiceId: savedInvoiceId,
+          toEmail: sendModal.toEmail,
+          toName: sendModal.toName,
+          subject: sendModal.subject,
+          message: sendModal.message,
+          invoiceData: {
+            invoiceNumber: data.invoiceNumber,
+            issueDate: data.issueDate,
+            dueDate: data.dueDate,
+            currency: data.currency,
+            businessName: data.businessName,
+            businessEmail: data.businessEmail,
+            clientName: data.clientName,
+            clientCompany: data.clientCompany,
+            lineItems: data.lineItems,
+            taxRate: data.taxRate,
+            subtotal,
+            taxAmount,
+            total,
+            notes: data.notes,
+            brandColor: data.brandColor,
+          },
+        }),
+      })
+
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Failed to send')
+
+      // Update status to 'sent' in Supabase if invoice is saved
+      if (savedInvoiceId) {
+        const supabase = createClient()
+        await supabase
+          .from('invoices')
+          .update({ status: 'sent', updated_at: new Date().toISOString() })
+          .eq('id', savedInvoiceId)
+        setData((prev) => ({ ...prev, status: 'sent' }))
+      }
+
+      setSendModal((s) => ({ ...s, open: false, sending: false }))
+      showToast(`Invoice sent to ${sendModal.toEmail}!`, 'success')
+    } catch (err) {
+      console.error(err)
+      setSendModal((s) => ({ ...s, sending: false }))
+      showToast('Failed to send invoice. Check your Resend API key.', 'error')
+    }
   }
 
   async function handleSave() {
@@ -220,6 +304,83 @@ function InvoicePageInner() {
         </div>
       )}
 
+      {/* Send Invoice Modal */}
+      {sendModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 print:hidden">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-gray-900">Send Invoice to Client</h2>
+              <button
+                onClick={() => setSendModal((s) => ({ ...s, open: false }))}
+                className="text-gray-400 hover:text-gray-600 transition"
+                aria-label="Close"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">To (email)</label>
+                <input
+                  type="email"
+                  value={sendModal.toEmail}
+                  onChange={(e) => setSendModal((s) => ({ ...s, toEmail: e.target.value }))}
+                  placeholder="client@example.com"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Client name</label>
+                <input
+                  type="text"
+                  value={sendModal.toName}
+                  onChange={(e) => setSendModal((s) => ({ ...s, toName: e.target.value }))}
+                  placeholder="Client name"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                <input
+                  type="text"
+                  value={sendModal.subject}
+                  onChange={(e) => setSendModal((s) => ({ ...s, subject: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                <textarea
+                  value={sendModal.message}
+                  onChange={(e) => setSendModal((s) => ({ ...s, message: e.target.value }))}
+                  rows={4}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setSendModal((s) => ({ ...s, open: false }))}
+                className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSend}
+                disabled={sendModal.sending || !sendModal.toEmail}
+                className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition"
+              >
+                {sendModal.sending ? 'Sending...' : 'Send Invoice'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mobile tab toggle */}
       <div className="md:hidden flex border-b border-gray-200 bg-white sticky top-0 z-10 print:hidden">
         <button
@@ -278,6 +439,12 @@ function InvoicePageInner() {
           >
             Download PDF
           </button>
+          <button
+            onClick={openSendModal}
+            className="bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition"
+          >
+            Send to Client
+          </button>
         </div>
       </div>
 
@@ -295,6 +462,12 @@ function InvoicePageInner() {
           className="flex-1 bg-indigo-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
         >
           Download PDF
+        </button>
+        <button
+          onClick={openSendModal}
+          className="flex-1 bg-emerald-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition"
+        >
+          Send
         </button>
       </div>
     </div>

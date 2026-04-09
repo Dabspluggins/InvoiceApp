@@ -46,6 +46,7 @@ export default function Nav() {
         <Link href="/" className="text-gray-600 hover:text-blue-600 text-sm">Home</Link>
         <Link href="/invoice" className="text-gray-600 hover:text-blue-600 text-sm">Invoice Generator</Link>
         {user && <Link href="/dashboard" className="text-gray-600 hover:text-blue-600 text-sm">Dashboard</Link>}
+        {user && <Link href="/analytics" className="text-gray-600 hover:text-blue-600 text-sm">Analytics</Link>}
         {user && <Link href="/clients" className="text-gray-600 hover:text-blue-600 text-sm">Clients</Link>}
       </div>
 
@@ -93,6 +94,9 @@ export default function Nav() {
           <Link href="/invoice" className="text-gray-700 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Invoice Generator</Link>
           {user && (
             <Link href="/dashboard" className="text-gray-700 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Dashboard</Link>
+          )}
+          {user && (
+            <Link href="/analytics" className="text-gray-700 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Analytics</Link>
           )}
           {user && (
             <Link href="/clients" className="text-gray-700 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Clients</Link>

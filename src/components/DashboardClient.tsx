@@ -124,6 +124,12 @@ export default function DashboardClient() {
         >
           Manage Clients →
         </Link>
+        <Link
+          href="/analytics"
+          className="text-sm text-indigo-600 hover:text-indigo-800 font-medium border border-indigo-200 hover:border-indigo-400 px-4 py-2 rounded-lg transition"
+        >
+          View Analytics →
+        </Link>
       </div>
 
       {/* Invoice list */}

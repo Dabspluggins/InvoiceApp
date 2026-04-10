@@ -35,6 +35,15 @@ function nextRecurringDate(fromDate: string, frequency: string): string {
   return d.toISOString().split('T')[0]
 }
 
+function parseNextInvoiceNumber(last: string): string {
+  const match = last.match(/^(.*?)(\d+)$/)
+  if (!match) return 'INV-001'
+  const prefix = match[1]
+  const numStr = match[2]
+  const next = parseInt(numStr, 10) + 1
+  return prefix + String(next).padStart(numStr.length, '0')
+}
+
 // To add the currency column to Supabase, run:
 // ALTER TABLE invoices ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'NGN';
 
@@ -99,7 +108,7 @@ function InvoicePageInner() {
   const duplicateId = searchParams.get('duplicate')
 
   // Load invoice from Supabase if ?id= present, load template if ?template= present,
-  // else set invoice number from localStorage
+  // else auto-fill next invoice number from Supabase
   useEffect(() => {
     if (invoiceId) {
       setSavedInvoiceId(invoiceId)
@@ -177,9 +186,16 @@ function InvoicePageInner() {
           .eq('invoice_id', duplicateId)
           .order('sort_order')
 
-        const stored = localStorage.getItem('invoice_counter')
-        const count = stored ? parseInt(stored) : 0
-        const nextInvoiceNumber = `INV-${String(count + 1).padStart(4, '0')}`
+        const { data: latestForDup } = await supabase
+          .from('invoices')
+          .select('invoice_number')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        const nextInvoiceNumber = latestForDup?.invoice_number
+          ? parseNextInvoiceNumber(latestForDup.invoice_number)
+          : 'INV-001'
 
         setData({
           invoiceNumber: nextInvoiceNumber,

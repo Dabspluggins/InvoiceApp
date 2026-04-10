@@ -4,10 +4,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-type Status = 'verifying' | 'ready' | 'success' | 'error'
+type Status = 'loading' | 'ready' | 'success' | 'error'
 
 export default function ResetPasswordPage() {
-  const [status, setStatus] = useState<Status>('verifying')
+  const [status, setStatus] = useState<Status>('loading')
   const [error, setError] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -16,33 +16,30 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     const supabase = createClient()
+    const params = new URLSearchParams(window.location.search)
+    const access_token = params.get('access_token')
+    const refresh_token = params.get('refresh_token')
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setStatus('ready')
-        return
-      }
-
-      // Fall back to onAuthStateChange — handles async cookie propagation after PKCE redirect
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'PASSWORD_RECOVERY' || (session && event === 'SIGNED_IN')) {
+    if (access_token && refresh_token) {
+      supabase.auth.setSession({ access_token, refresh_token }).then(({ error }) => {
+        if (error) {
+          setStatus('error')
+        } else {
           setStatus('ready')
-          subscription.unsubscribe()
+          // Remove tokens from URL so they don't linger in history
+          window.history.replaceState({}, '', '/reset-password')
         }
       })
-
-      // Give it 8 seconds (slow devices need more time after PKCE redirect)
-      const timeout = setTimeout(() => {
-        subscription.unsubscribe()
-        setError('This link has expired or is invalid. Please request a new one.')
-        setStatus('error')
-      }, 8000)
-
-      return () => {
-        clearTimeout(timeout)
-        subscription.unsubscribe()
-      }
-    })
+    } else {
+      // Fallback: check if there's already a valid session (cookie-based)
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          setStatus('ready')
+        } else {
+          setStatus('error')
+        }
+      })
+    }
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -72,7 +69,7 @@ export default function ResetPasswordPage() {
     }
   }
 
-  if (status === 'verifying') {
+  if (status === 'loading') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-md text-center">
@@ -93,7 +90,7 @@ export default function ResetPasswordPage() {
             </svg>
           </div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Link expired</h2>
-          <p className="text-gray-500 text-sm mb-6">{error}</p>
+          <p className="text-gray-500 text-sm mb-6">This link has expired or is invalid. Please request a new one.</p>
           <Link href="/forgot-password" className="text-blue-600 hover:underline text-sm font-medium">
             Request a new reset link
           </Link>

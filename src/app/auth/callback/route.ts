@@ -10,6 +10,17 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
+      if (next === '/reset-password') {
+        // Pass tokens in the URL so the reset page doesn't rely on cookies being
+        // propagated before the redirect fires (fixes intermittent cookie race).
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          const resetUrl = new URL('/reset-password', requestUrl.origin)
+          resetUrl.searchParams.set('access_token', session.access_token)
+          resetUrl.searchParams.set('refresh_token', session.refresh_token)
+          return NextResponse.redirect(resetUrl.toString())
+        }
+      }
       // Success — redirect to the intended destination
       return NextResponse.redirect(new URL(next, requestUrl.origin))
     }

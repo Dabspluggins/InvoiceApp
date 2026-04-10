@@ -38,6 +38,15 @@ function nextRecurringDate(fromDate: string, frequency: string): string {
 // To add the currency column to Supabase, run:
 // ALTER TABLE invoices ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'NGN';
 
+function parseNextInvoiceNumber(last: string): string {
+  const match = last.match(/^(.*?)(\d+)$/)
+  if (!match) return 'INV-001'
+  const prefix = match[1]
+  const numStr = match[2]
+  const next = parseInt(numStr, 10) + 1
+  return prefix + String(next).padStart(numStr.length, '0')
+}
+
 const defaultData: InvoiceData = {
   invoiceNumber: 'INV-0001',
   status: 'draft',
@@ -209,13 +218,26 @@ function InvoicePageInner() {
       return
     }
 
-    const stored = localStorage.getItem('invoice_counter')
-    const count = stored ? parseInt(stored) : 0
-    const nextInvoiceNumber = `INV-${String(count + 1).padStart(4, '0')}`
+    // Auto-fill next invoice number from Supabase for new invoices
+    const init = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
 
-    if (templateId) {
-      const loadTemplate = async () => {
-        const supabase = createClient()
+      let nextNumber = 'INV-001'
+      if (user) {
+        const { data: latest } = await supabase
+          .from('invoices')
+          .select('invoice_number')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        if (latest?.invoice_number) {
+          nextNumber = parseNextInvoiceNumber(latest.invoice_number)
+        }
+      }
+
+      if (templateId) {
         const { data: tmpl, error } = await supabase
           .from('templates')
           .select('data')
@@ -227,7 +249,7 @@ function InvoicePageInner() {
         const d = tmpl.data as Partial<InvoiceData>
         setData((prev) => ({
           ...prev,
-          invoiceNumber: nextInvoiceNumber,
+          invoiceNumber: nextNumber,
           businessName: d.businessName ?? prev.businessName,
           businessAddress: d.businessAddress ?? prev.businessAddress,
           businessEmail: d.businessEmail ?? prev.businessEmail,
@@ -238,16 +260,16 @@ function InvoicePageInner() {
           notes: d.notes ?? prev.notes,
           brandColor: d.brandColor ?? prev.brandColor,
         }))
+        return
       }
 
-      loadTemplate()
-      return
+      setData((prev) => {
+        if (prev.invoiceNumber !== defaultData.invoiceNumber) return prev
+        return { ...prev, invoiceNumber: nextNumber }
+      })
     }
 
-    setData((prev) => ({
-      ...prev,
-      invoiceNumber: nextInvoiceNumber,
-    }))
+    init()
   }, [invoiceId, templateId, duplicateId])
 
   // Auto-recalc line item amounts when qty or rate change
@@ -403,11 +425,6 @@ function InvoicePageInner() {
         setSavedInvoiceId(currentId)
         setSavedShareToken(inserted.share_token)
         window.history.replaceState(null, '', `/invoice?id=${currentId}`)
-
-        // Increment localStorage counter after saving a new invoice
-        const stored = localStorage.getItem('invoice_counter')
-        const count = stored ? parseInt(stored) : 0
-        localStorage.setItem('invoice_counter', String(count + 1))
       }
 
       if (data.lineItems.length > 0) {

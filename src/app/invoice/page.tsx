@@ -47,7 +47,6 @@ function parseNextInvoiceNumber(last: string): string {
 // To add the currency column to Supabase, run:
 // ALTER TABLE invoices ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'NGN';
 
-
 const defaultData: InvoiceData = {
   invoiceNumber: 'INV-0001',
   status: 'draft',

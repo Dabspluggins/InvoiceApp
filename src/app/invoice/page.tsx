@@ -67,6 +67,7 @@ function InvoicePageInner() {
   const [savedInvoiceId, setSavedInvoiceId] = useState<string | null>(null)
   const [savedShareToken, setSavedShareToken] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [duplicateBanner, setDuplicateBanner] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit')
   const [sendModal, setSendModal] = useState<SendModalState>({
@@ -86,6 +87,7 @@ function InvoicePageInner() {
   const router = useRouter()
   const invoiceId = searchParams.get('id')
   const templateId = searchParams.get('template')
+  const duplicateId = searchParams.get('duplicate')
 
   // Load invoice from Supabase if ?id= present, load template if ?template= present,
   // else set invoice number from localStorage
@@ -145,6 +147,68 @@ function InvoicePageInner() {
       return
     }
 
+    if (duplicateId) {
+      const loadDuplicate = async () => {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        const { data: inv, error } = await supabase
+          .from('invoices')
+          .select('*')
+          .eq('id', duplicateId)
+          .eq('user_id', user.id)
+          .single()
+
+        if (error || !inv) return
+
+        const { data: items } = await supabase
+          .from('line_items')
+          .select('*')
+          .eq('invoice_id', duplicateId)
+          .order('sort_order')
+
+        const stored = localStorage.getItem('invoice_counter')
+        const count = stored ? parseInt(stored) : 0
+        const nextInvoiceNumber = `INV-${String(count + 1).padStart(4, '0')}`
+
+        setData({
+          invoiceNumber: nextInvoiceNumber,
+          status: 'draft',
+          issueDate: todayStr(),
+          dueDate: '',
+          currency: inv.currency,
+          businessName: inv.business_name || '',
+          businessAddress: inv.business_address || '',
+          businessEmail: inv.business_email || '',
+          businessPhone: inv.business_phone || '',
+          logoUrl: inv.logo_url || null,
+          clientName: inv.client_name || '',
+          clientCompany: inv.client_company || '',
+          clientAddress: inv.client_address || '',
+          clientEmail: inv.client_email || '',
+          lineItems: (items || []).map((item) => ({
+            id: crypto.randomUUID(),
+            description: item.description || '',
+            quantity: item.quantity,
+            rate: item.rate,
+            amount: item.amount,
+          })),
+          taxRate: inv.tax_rate || 0,
+          notes: inv.notes || '',
+          brandColor: inv.brand_color || '#4F46E5',
+          isRecurring: inv.is_recurring || false,
+          recurringFrequency: inv.recurring_frequency || null,
+        })
+
+        setDuplicateBanner(`Duplicated from invoice #${inv.invoice_number} — review and save as new`)
+        window.history.replaceState(null, '', '/invoice')
+      }
+
+      loadDuplicate()
+      return
+    }
+
     const stored = localStorage.getItem('invoice_counter')
     const count = stored ? parseInt(stored) : 0
     const nextInvoiceNumber = `INV-${String(count + 1).padStart(4, '0')}`
@@ -184,7 +248,7 @@ function InvoicePageInner() {
       ...prev,
       invoiceNumber: nextInvoiceNumber,
     }))
-  }, [invoiceId, templateId])
+  }, [invoiceId, templateId, duplicateId])
 
   // Auto-recalc line item amounts when qty or rate change
   useEffect(() => {
@@ -575,6 +639,18 @@ function InvoicePageInner() {
           activeTab === 'edit' ? 'block' : 'hidden md:block'
         }`}
       >
+        {duplicateBanner && (
+          <div className="mx-4 mt-4 px-4 py-2.5 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-700 flex items-center justify-between gap-3">
+            <span>{duplicateBanner}</span>
+            <button
+              onClick={() => setDuplicateBanner(null)}
+              className="text-indigo-400 hover:text-indigo-600 shrink-0"
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <InvoiceForm data={data} onChange={setData} />
       </div>
 

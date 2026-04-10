@@ -186,12 +186,20 @@ export default function DashboardClient() {
                       <option value="pending">Pending</option>
                     </select>
                   </div>
-                  <button
-                    onClick={() => handleDelete(inv.id)}
-                    className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1"
-                  >
-                    Delete
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => router.push(`/invoice?duplicate=${inv.id}`)}
+                      className="text-xs text-indigo-500 hover:text-indigo-700 font-medium px-2 py-1"
+                    >
+                      ⧉ Duplicate
+                    </button>
+                    <button
+                      onClick={() => handleDelete(inv.id)}
+                      className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -254,6 +262,12 @@ export default function DashboardClient() {
                       className="px-6 py-4 text-right"
                       onClick={(e) => e.stopPropagation()}
                     >
+                      <button
+                        onClick={() => router.push(`/invoice?duplicate=${inv.id}`)}
+                        className="text-xs text-indigo-500 hover:text-indigo-700 font-medium"
+                      >
+                        ⧉ Duplicate
+                      </button>
                       <button
                         onClick={() => handleDelete(inv.id)}
                         className="text-xs text-red-500 hover:text-red-700 font-medium"

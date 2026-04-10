@@ -33,7 +33,7 @@ export default function LoginPage() {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold text-blue-600">InvoiceFree</Link>
+          <Link href="/" className="text-2xl font-bold text-blue-600">BillByDab</Link>
           <p className="text-gray-500 text-sm mt-2">Sign in to your account</p>
         </div>
 

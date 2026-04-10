@@ -232,6 +232,7 @@ function InvoicePageInner() {
 
       let nextNumber = 'INV-001'
       let defaultTaxRate = 0
+      let defaultNotes = ''
       if (user) {
         const [{ data: latest }, { data: profile }] = await Promise.all([
           supabase
@@ -243,7 +244,7 @@ function InvoicePageInner() {
             .maybeSingle(),
           supabase
             .from('profiles')
-            .select('default_tax_rate')
+            .select('default_tax_rate, default_notes, default_terms')
             .eq('id', user.id)
             .maybeSingle(),
         ])
@@ -252,6 +253,9 @@ function InvoicePageInner() {
         }
         if (profile?.default_tax_rate != null) {
           defaultTaxRate = Number(profile.default_tax_rate)
+        }
+        if (profile?.default_notes) {
+          defaultNotes = profile.default_notes
         }
       }
 
@@ -283,7 +287,12 @@ function InvoicePageInner() {
 
       setData((prev) => {
         if (prev.invoiceNumber !== defaultData.invoiceNumber) return prev
-        return { ...prev, invoiceNumber: nextNumber, taxRate: defaultTaxRate }
+        return {
+          ...prev,
+          invoiceNumber: nextNumber,
+          taxRate: defaultTaxRate,
+          notes: defaultNotes || prev.notes,
+        }
       })
     }
 

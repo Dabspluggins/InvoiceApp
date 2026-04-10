@@ -8,6 +8,23 @@ import { createClient } from '@/lib/supabase/client'
 import InvoiceForm from '@/components/InvoiceForm'
 import InvoicePreview from '@/components/InvoicePreview'
 
+interface ImportableExpense {
+  id: string
+  description: string
+  amount: number
+  date: string
+  category: string
+  client_id: string | null
+}
+
+interface ImportExpensesModalState {
+  open: boolean
+  expenses: ImportableExpense[]
+  selected: Set<string>
+  loading: boolean
+  importing: boolean
+}
+
 interface SendModalState {
   open: boolean
   toEmail: string
@@ -96,6 +113,13 @@ function InvoicePageInner() {
     open: false,
     name: '',
     saving: false,
+  })
+  const [importExpensesModal, setImportExpensesModal] = useState<ImportExpensesModalState>({
+    open: false,
+    expenses: [],
+    selected: new Set(),
+    loading: false,
+    importing: false,
   })
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -599,6 +623,77 @@ function InvoicePageInner() {
     }
   }
 
+  async function openImportExpenses() {
+    setImportExpensesModal({ open: true, expenses: [], selected: new Set(), loading: true, importing: false })
+    const supabase = createClient()
+
+    // Try to find client_id from invoice's clientEmail
+    let clientId: string | null = null
+    if (data.clientEmail) {
+      const { data: clientData } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('email', data.clientEmail)
+        .maybeSingle()
+      if (clientData?.id) clientId = clientData.id
+    }
+
+    let query = supabase
+      .from('expenses')
+      .select('id, description, amount, date, category, client_id')
+      .eq('billable', true)
+      .eq('billed', false)
+      .order('date', { ascending: false })
+
+    if (clientId) {
+      query = query.eq('client_id', clientId)
+    }
+
+    const { data: expenses } = await query
+    setImportExpensesModal((m) => ({ ...m, expenses: expenses || [], loading: false }))
+  }
+
+  function toggleImportExpense(id: string) {
+    setImportExpensesModal((m) => {
+      const next = new Set(m.selected)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return { ...m, selected: next }
+    })
+  }
+
+  async function handleImportExpenses() {
+    const toAdd = importExpensesModal.expenses.filter((e) => importExpensesModal.selected.has(e.id))
+    if (toAdd.length === 0) return
+
+    setImportExpensesModal((m) => ({ ...m, importing: true }))
+
+    const newLineItems = toAdd.map((exp) => ({
+      id: crypto.randomUUID(),
+      description: exp.description,
+      quantity: 1,
+      rate: exp.amount,
+      amount: exp.amount,
+    }))
+
+    setData((prev) => ({
+      ...prev,
+      lineItems: [...prev.lineItems, ...newLineItems],
+    }))
+
+    // Mark as billed and link to this invoice
+    if (savedInvoiceId) {
+      const supabase = createClient()
+      await supabase
+        .from('expenses')
+        .update({ billed: true, invoice_id: savedInvoiceId })
+        .in('id', toAdd.map((e) => e.id))
+    }
+
+    setImportExpensesModal({ open: false, expenses: [], selected: new Set(), loading: false, importing: false })
+    showToast(`${toAdd.length} expense${toAdd.length !== 1 ? 's' : ''} added as line items`, 'success')
+  }
+
   return (
     <div className="flex flex-col md:flex-row md:h-[calc(100vh-64px)] md:overflow-hidden relative print:block print:h-auto print:overflow-visible">
       {/* Toast */}
@@ -736,6 +831,87 @@ function InvoicePageInner() {
         </div>
       )}
 
+      {/* Import Expenses Modal */}
+      {importExpensesModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 print:hidden">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900">Import Unbilled Expenses</h2>
+              <button
+                onClick={() => setImportExpensesModal((m) => ({ ...m, open: false }))}
+                className="text-gray-400 hover:text-gray-600 transition"
+                aria-label="Close"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {importExpensesModal.loading ? (
+              <div className="flex-1 flex items-center justify-center py-8 text-gray-400 text-sm">
+                Loading expenses...
+              </div>
+            ) : importExpensesModal.expenses.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center py-8 text-center">
+                <p className="text-gray-500 text-sm">No unbilled billable expenses found{data.clientEmail ? ' for this client' : ''}.</p>
+                <p className="text-gray-400 text-xs mt-1">Log expenses at <span className="text-indigo-600">/expenses</span> first.</p>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto space-y-2 mb-4">
+                {importExpensesModal.expenses.map((exp) => (
+                  <label
+                    key={exp.id}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${
+                      importExpensesModal.selected.has(exp.id)
+                        ? 'border-indigo-400 bg-indigo-50'
+                        : 'border-gray-200 hover:border-indigo-300'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={importExpensesModal.selected.has(exp.id)}
+                      onChange={() => toggleImportExpense(exp.id)}
+                      className="accent-indigo-600 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{exp.description}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {new Date(exp.date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {' · '}{exp.category}
+                      </p>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900 shrink-0">
+                      ₦{exp.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {!importExpensesModal.loading && importExpensesModal.expenses.length > 0 && (
+              <div className="flex gap-3 pt-2 border-t border-gray-100">
+                <button
+                  onClick={() => setImportExpensesModal((m) => ({ ...m, open: false }))}
+                  className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleImportExpenses}
+                  disabled={importExpensesModal.selected.size === 0 || importExpensesModal.importing}
+                  className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition"
+                >
+                  {importExpensesModal.importing
+                    ? 'Adding...'
+                    : `Add Selected (${importExpensesModal.selected.size})`}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Mobile tab toggle */}
       <div className="md:hidden flex border-b border-gray-200 bg-white sticky top-0 z-10 print:hidden">
         <button
@@ -775,6 +951,19 @@ function InvoicePageInner() {
               aria-label="Dismiss"
             >
               ✕
+            </button>
+          </div>
+        )}
+        {savedInvoiceId && (
+          <div className="mx-4 mt-4">
+            <button
+              onClick={openImportExpenses}
+              className="w-full flex items-center justify-center gap-2 border border-dashed border-indigo-300 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-400 px-4 py-2.5 rounded-lg text-sm font-semibold transition"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+              </svg>
+              Import Expenses as Line Items
             </button>
           </div>
         )}

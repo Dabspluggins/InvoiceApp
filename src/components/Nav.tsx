@@ -48,6 +48,7 @@ export default function Nav() {
         {user && <Link href="/dashboard" className="text-gray-600 hover:text-blue-600 text-sm">Dashboard</Link>}
         {user && <Link href="/analytics" className="text-gray-600 hover:text-blue-600 text-sm">Analytics</Link>}
         {user && <Link href="/clients" className="text-gray-600 hover:text-blue-600 text-sm">Clients</Link>}
+        {user && <Link href="/expenses" className="text-gray-600 hover:text-blue-600 text-sm">Expenses</Link>}
         {user && <Link href="/settings" className="text-gray-600 hover:text-blue-600 text-sm">Settings</Link>}
       </div>
 
@@ -102,6 +103,9 @@ export default function Nav() {
           )}
           {user && (
             <Link href="/clients" className="text-gray-700 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Clients</Link>
+          )}
+          {user && (
+            <Link href="/expenses" className="text-gray-700 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Expenses</Link>
           )}
           {user && (
             <Link href="/settings" className="text-gray-700 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Settings</Link>

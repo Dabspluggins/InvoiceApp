@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { InvoiceData } from '@/lib/types'
+import { InvoiceData, Payment } from '@/lib/types'
 import { newLineItem, calcTotals } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import InvoiceForm from '@/components/InvoiceForm'
@@ -78,6 +78,10 @@ function InvoicePageInner() {
   const [saving, setSaving] = useState(false)
   const [duplicateBanner, setDuplicateBanner] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [payments, setPayments] = useState<Payment[]>([])
+  const [showPaymentForm, setShowPaymentForm] = useState(false)
+  const [paymentForm, setPaymentForm] = useState({ amount: '', paid_at: todayStr(), note: '' })
+  const [savingPayment, setSavingPayment] = useState(false)
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit')
   const [sendModal, setSendModal] = useState<SendModalState>({
     open: false,
@@ -120,6 +124,14 @@ function InvoicePageInner() {
           .select('*')
           .eq('invoice_id', invoiceId)
           .order('sort_order')
+
+        const { data: pmts } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('invoice_id', invoiceId)
+          .order('paid_at', { ascending: true })
+
+        setPayments(pmts || [])
 
         setData({
           invoiceNumber: inv.invoice_number,
@@ -516,6 +528,74 @@ function InvoicePageInner() {
     }
   }
 
+  async function handleRecordPayment() {
+    if (!savedInvoiceId) return
+    const amt = parseFloat(paymentForm.amount)
+    if (isNaN(amt) || amt <= 0) return
+    setSavingPayment(true)
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: inserted, error } = await supabase
+        .from('payments')
+        .insert({
+          invoice_id: savedInvoiceId,
+          user_id: user.id,
+          amount: amt,
+          paid_at: paymentForm.paid_at,
+          note: paymentForm.note.trim() || null,
+        })
+        .select('*')
+        .single()
+
+      if (error) throw error
+
+      const newPayments = [...payments, inserted]
+      setPayments(newPayments)
+
+      const { total } = calcTotals(data.lineItems, data.taxRate)
+      const totalPaid = newPayments.reduce((sum, p) => sum + p.amount, 0)
+      const newStatus = totalPaid >= total ? 'paid' : totalPaid > 0 ? 'partial' : data.status
+      if (newStatus !== data.status) {
+        await supabase.from('invoices').update({ status: newStatus }).eq('id', savedInvoiceId)
+        setData((prev) => ({ ...prev, status: newStatus as typeof prev.status }))
+      }
+
+      setPaymentForm({ amount: '', paid_at: todayStr(), note: '' })
+      setShowPaymentForm(false)
+      showToast('Payment recorded!', 'success')
+    } catch (err) {
+      console.error(err)
+      showToast('Failed to record payment.', 'error')
+    } finally {
+      setSavingPayment(false)
+    }
+  }
+
+  async function handleDeletePayment(paymentId: string) {
+    if (!savedInvoiceId) return
+    try {
+      const supabase = createClient()
+      await supabase.from('payments').delete().eq('id', paymentId)
+
+      const newPayments = payments.filter((p) => p.id !== paymentId)
+      setPayments(newPayments)
+
+      const { total } = calcTotals(data.lineItems, data.taxRate)
+      const totalPaid = newPayments.reduce((sum, p) => sum + p.amount, 0)
+      const newStatus = totalPaid >= total ? 'paid' : totalPaid > 0 ? 'partial' : 'sent'
+      if (newStatus !== data.status) {
+        await supabase.from('invoices').update({ status: newStatus }).eq('id', savedInvoiceId)
+        setData((prev) => ({ ...prev, status: newStatus as typeof prev.status }))
+      }
+    } catch (err) {
+      console.error(err)
+      showToast('Failed to delete payment.', 'error')
+    }
+  }
+
   return (
     <div className="flex flex-col md:flex-row md:h-[calc(100vh-64px)] md:overflow-hidden relative print:block print:h-auto print:overflow-visible">
       {/* Toast */}
@@ -696,6 +776,115 @@ function InvoicePageInner() {
           </div>
         )}
         <InvoiceForm data={data} onChange={setData} />
+
+        {savedInvoiceId && (() => {
+          const { total } = calcTotals(data.lineItems, data.taxRate)
+          const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
+          const outstanding = total - totalPaid
+          return (
+            <div className="mx-4 mb-6 mt-2 border border-gray-200 rounded-xl bg-gray-50 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-gray-800">Payments</h3>
+                {!showPaymentForm && (
+                  <button
+                    onClick={() => {
+                      setPaymentForm({ amount: outstanding > 0 ? outstanding.toFixed(2) : '', paid_at: todayStr(), note: '' })
+                      setShowPaymentForm(true)
+                    }}
+                    className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-indigo-700 transition"
+                  >
+                    + Record Payment
+                  </button>
+                )}
+              </div>
+
+              {payments.length > 0 && (
+                <div className="mb-3 space-y-1.5">
+                  {payments.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between bg-white rounded-lg border border-gray-200 px-3 py-2">
+                      <div>
+                        <span className="text-sm font-medium text-gray-800">{data.currency} {p.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                        <span className="text-xs text-gray-400 ml-2">{new Date(p.paid_at + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                        {p.note && <span className="text-xs text-gray-500 ml-2 italic">{p.note}</span>}
+                      </div>
+                      <button
+                        onClick={() => handleDeletePayment(p.id)}
+                        className="text-gray-300 hover:text-red-500 transition text-base leading-none ml-3"
+                        title="Delete payment"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex justify-between text-sm mb-3 border-t border-gray-200 pt-2">
+                <span className="text-gray-500">Total Paid</span>
+                <span className="font-semibold text-green-600">{data.currency} {totalPaid.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Outstanding</span>
+                <span className={`font-bold ${outstanding > 0 ? 'text-orange-500' : 'text-green-600'}`}>
+                  {data.currency} {outstanding.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              {showPaymentForm && (
+                <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Amount</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={paymentForm.amount}
+                        onChange={(e) => setPaymentForm((s) => ({ ...s, amount: e.target.value }))}
+                        placeholder="0.00"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
+                      <input
+                        type="date"
+                        value={paymentForm.paid_at}
+                        onChange={(e) => setPaymentForm((s) => ({ ...s, paid_at: e.target.value }))}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Note (optional)</label>
+                    <input
+                      type="text"
+                      value={paymentForm.note}
+                      onChange={(e) => setPaymentForm((s) => ({ ...s, note: e.target.value }))}
+                      placeholder="e.g. Bank transfer, Cash deposit"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    />
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={() => setShowPaymentForm(false)}
+                      className="flex-1 border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-100 transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleRecordPayment}
+                      disabled={savingPayment || !paymentForm.amount}
+                      className="flex-1 bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-indigo-700 disabled:opacity-50 transition"
+                    >
+                      {savingPayment ? 'Saving...' : 'Save Payment'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })()}
       </div>
 
       {/* Right: Preview + Actions */}

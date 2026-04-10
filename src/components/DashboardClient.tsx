@@ -24,9 +24,10 @@ interface Invoice {
   reminders_sent: number | null
   viewed_at: string | null
   view_count: number | null
+  payments?: { amount: number }[]
 }
 
-type StatusFilter = 'all' | 'unpaid' | 'paid' | 'overdue'
+type StatusFilter = 'all' | 'unpaid' | 'paid' | 'overdue' | 'partial'
 
 interface Template {
   id: string
@@ -39,9 +40,19 @@ const STATUS_COLORS: Record<InvoiceStatus, string> = {
   sent: 'bg-blue-100 text-blue-700',
   paid: 'bg-green-100 text-green-700',
   pending: 'bg-yellow-100 text-yellow-700',
+  partial: 'bg-purple-100 text-purple-700',
 }
 
 const TODAY = new Date().toISOString().split('T')[0]
+
+function getAmountPaid(inv: Invoice): number {
+  return (inv.payments || []).reduce((sum, p) => sum + p.amount, 0)
+}
+
+function isPartial(inv: Invoice): boolean {
+  const paid = getAmountPaid(inv)
+  return paid > 0 && paid < inv.total
+}
 
 function isOverdue(inv: Invoice): boolean {
   return !!inv.due_date && inv.due_date < TODAY && inv.status !== 'paid'
@@ -78,6 +89,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
       // Status filter
       if (statusFilter === 'paid') return inv.status === 'paid'
       if (statusFilter === 'unpaid') return inv.status === 'sent' || inv.status === 'pending'
+      if (statusFilter === 'partial') return isPartial(inv)
       if (statusFilter === 'overdue') {
         const isUnpaid = inv.status === 'sent' || inv.status === 'pending'
         const isPastDue = inv.due_date != null && inv.due_date < TODAY
@@ -103,7 +115,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
     const supabase = createClient()
     const { data } = await supabase
       .from('invoices')
-      .select('id, invoice_number, client_name, client_company, total, currency, status, issue_date, due_date, notes, is_recurring, share_token, reminders_sent, viewed_at, view_count')
+      .select('id, invoice_number, client_name, client_company, total, currency, status, issue_date, due_date, notes, is_recurring, share_token, reminders_sent, viewed_at, view_count, payments(amount)')
       .order('created_at', { ascending: false })
 
     setInvoices(data || [])
@@ -261,6 +273,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
   const STATUS_PILLS: { label: string; value: StatusFilter }[] = [
     { label: 'All', value: 'all' },
     { label: 'Unpaid', value: 'unpaid' },
+    { label: 'Partial', value: 'partial' },
     { label: 'Paid', value: 'paid' },
     { label: 'Overdue', value: 'overdue' },
   ]
@@ -442,23 +455,36 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                       )}
                     </div>
                   </div>
-                  <p className="text-sm font-bold text-gray-900">
-                    {formatCurrency(inv.total, inv.currency)}
-                  </p>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-gray-900">
+                      {formatCurrency(inv.total, inv.currency)}
+                    </p>
+                    {isPartial(inv) && (
+                      <p className="text-xs text-purple-600 mt-0.5">
+                        {formatCurrency(getAmountPaid(inv), inv.currency)} paid
+                      </p>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs text-gray-400">{formatDateLong(inv.issue_date)}</span>
-                    <select
-                      value={inv.status}
-                      onChange={(e) => handleStatusChange(inv.id, e.target.value as InvoiceStatus)}
-                      className={`text-xs font-medium px-2 py-1 rounded-full cursor-pointer border-0 outline-none ${STATUS_COLORS[inv.status]}`}
-                    >
-                      <option value="draft">Draft</option>
-                      <option value="sent">Sent</option>
-                      <option value="paid">Paid</option>
-                      <option value="pending">Pending</option>
-                    </select>
+                    {inv.status === 'partial' ? (
+                      <span className="bg-purple-100 text-purple-700 text-xs font-semibold px-2 py-1 rounded-full">
+                        PARTIAL
+                      </span>
+                    ) : (
+                      <select
+                        value={inv.status}
+                        onChange={(e) => handleStatusChange(inv.id, e.target.value as InvoiceStatus)}
+                        className={`text-xs font-medium px-2 py-1 rounded-full cursor-pointer border-0 outline-none ${STATUS_COLORS[inv.status]}`}
+                      >
+                        <option value="draft">Draft</option>
+                        <option value="sent">Sent</option>
+                        <option value="paid">Paid</option>
+                        <option value="pending">Pending</option>
+                      </select>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     {inv.share_token && (
@@ -567,6 +593,11 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                     <td className="px-6 py-4 text-sm text-gray-500">{formatDateLong(inv.issue_date)}</td>
                     <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right">
                       {formatCurrency(inv.total, inv.currency)}
+                      {isPartial(inv) && (
+                        <div className="text-xs text-purple-600 mt-0.5">
+                          {formatCurrency(getAmountPaid(inv), inv.currency)} paid
+                        </div>
+                      )}
                     </td>
                     <td
                       className="px-6 py-4 text-center"
@@ -575,6 +606,10 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                       {inv.status === 'paid' ? (
                         <span className="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full">
                           PAID
+                        </span>
+                      ) : inv.status === 'partial' ? (
+                        <span className="bg-purple-100 text-purple-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                          PARTIAL
                         </span>
                       ) : (
                         <select

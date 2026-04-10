@@ -18,6 +18,7 @@ interface Invoice {
   status: InvoiceStatus
   issue_date: string
   due_date: string | null
+  notes: string | null
   is_recurring: boolean
   share_token: string | null
   reminders_sent: number | null
@@ -42,12 +43,21 @@ function isOverdue(inv: Invoice): boolean {
   return !!inv.due_date && inv.due_date < TODAY && inv.status !== 'paid'
 }
 
+function formatDateLong(dateStr: string | null): string {
+  if (!dateStr) return ''
+  const d = new Date(dateStr + 'T00:00:00')
+  if (isNaN(d.getTime())) return dateStr
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
 export default function DashboardClient({ user }: { user?: User | null }) {
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [remindingIds, setRemindingIds] = useState<Set<string>>(new Set())
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [toast, setToast] = useState<{ message: string; color: 'green' | 'indigo' } | null>(null)
   const router = useRouter()
 
   async function handleCopyLink(inv: Invoice) {
@@ -66,7 +76,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
     const supabase = createClient()
     const { data } = await supabase
       .from('invoices')
-      .select('id, invoice_number, client_name, client_company, total, currency, status, issue_date, due_date, is_recurring, share_token, reminders_sent')
+      .select('id, invoice_number, client_name, client_company, total, currency, status, issue_date, due_date, notes, is_recurring, share_token, reminders_sent')
       .order('created_at', { ascending: false })
 
     setInvoices(data || [])
@@ -85,6 +95,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
     await supabase.from('line_items').delete().eq('invoice_id', id)
     await supabase.from('invoices').delete().eq('id', id)
     setInvoices((prev) => prev.filter((inv) => inv.id !== id))
+    setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next })
   }
 
   async function handleSendReminder(id: string) {
@@ -125,6 +136,85 @@ export default function DashboardClient({ user }: { user?: User | null }) {
     setTemplates((prev) => prev.filter((t) => t.id !== id))
   }
 
+  function showToast(message: string, color: 'green' | 'indigo') {
+    setToast({ message, color })
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === invoices.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(invoices.map((inv) => inv.id)))
+    }
+  }
+
+  async function handleBulkMarkPaid() {
+    const supabase = createClient()
+    const unpaidSelected = invoices.filter(
+      (inv) => selectedIds.has(inv.id) && inv.status !== 'paid'
+    )
+    if (unpaidSelected.length === 0) return
+
+    const results = await Promise.allSettled(
+      unpaidSelected.map((inv) =>
+        supabase.from('invoices').update({ status: 'paid' as InvoiceStatus }).eq('id', inv.id)
+      )
+    )
+
+    const successIds = new Set(
+      unpaidSelected
+        .filter((_, i) => results[i].status === 'fulfilled')
+        .map((inv) => inv.id)
+    )
+
+    setInvoices((prev) =>
+      prev.map((inv) =>
+        successIds.has(inv.id) ? { ...inv, status: 'paid' as InvoiceStatus } : inv
+      )
+    )
+    setSelectedIds(new Set())
+    showToast(`${successIds.size} invoice${successIds.size !== 1 ? 's' : ''} marked as paid ✓`, 'green')
+  }
+
+  function handleExportCSV() {
+    const selected = invoices.filter((inv) => selectedIds.has(inv.id))
+    const header = 'Invoice Number,Client Name,Client Company,Issue Date,Due Date,Total,Currency,Status,Notes'
+    const rows = selected.map((inv) => {
+      const cols = [
+        inv.invoice_number,
+        inv.client_name || '',
+        inv.client_company || '',
+        formatDateLong(inv.issue_date),
+        formatDateLong(inv.due_date),
+        inv.total.toFixed(2),
+        inv.currency,
+        inv.status,
+        (inv.notes || '').replace(/"/g, '""'),
+      ]
+      return cols.map((c) => `"${c}"`).join(',')
+    })
+    const csv = [header, ...rows].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const today = new Date().toISOString().slice(0, 10)
+    a.href = url
+    a.download = `billbydab-invoices-${today}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    showToast(`${selected.length} invoice${selected.length !== 1 ? 's' : ''} exported ✓`, 'indigo')
+  }
+
   const totalInvoices = invoices.length
   const paidAmount = invoices
     .filter((i) => i.status === 'paid')
@@ -134,6 +224,12 @@ export default function DashboardClient({ user }: { user?: User | null }) {
     .reduce((sum, i) => sum + i.total, 0)
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there'
+
+  const hasSelection = selectedIds.size > 0
+  const hasUnpaidSelected = invoices.some(
+    (inv) => selectedIds.has(inv.id) && inv.status !== 'paid'
+  )
+  const allSelected = invoices.length > 0 && selectedIds.size === invoices.length
 
   if (loading) {
     return (
@@ -197,6 +293,34 @@ export default function DashboardClient({ user }: { user?: User | null }) {
         </div>
       ) : (
         <>
+          {/* Bulk action bar */}
+          {hasSelection && (
+            <div className="bg-white border border-gray-200 rounded-lg px-4 py-2 flex items-center gap-3 mb-3 shadow-sm flex-wrap">
+              <span className="text-sm text-gray-700 font-medium">
+                {selectedIds.size} selected
+              </span>
+              <button
+                onClick={handleBulkMarkPaid}
+                disabled={!hasUnpaidSelected}
+                className="bg-green-600 text-white text-sm px-3 py-1.5 rounded-md hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                ✓ Mark as Paid
+              </button>
+              <button
+                onClick={handleExportCSV}
+                className="border border-indigo-600 text-indigo-600 text-sm px-3 py-1.5 rounded-md hover:bg-indigo-50 transition"
+              >
+                ↓ Export CSV
+              </button>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="text-sm text-gray-400 hover:text-gray-600 ml-auto"
+              >
+                ✕ Deselect all
+              </button>
+            </div>
+          )}
+
           {/* Mobile: card list */}
           <div className="md:hidden flex flex-col gap-3">
             {invoices.map((inv) => (
@@ -206,21 +330,31 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                 onClick={() => router.push(`/invoice?id=${inv.id}`)}
               >
                 <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 flex items-center gap-1 flex-wrap">
-                      {inv.invoice_number}
-                      {inv.is_recurring && <span title="Recurring">🔄</span>}
-                      {isOverdue(inv) && (
-                        <span className="text-xs font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded">OVERDUE</span>
+                  <div className="flex items-start gap-2">
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(inv.id)}
+                        onChange={() => toggleSelect(inv.id)}
+                        className="accent-indigo-600 mt-0.5"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 flex items-center gap-1 flex-wrap">
+                        {inv.invoice_number}
+                        {inv.is_recurring && <span title="Recurring">🔄</span>}
+                        {isOverdue(inv) && (
+                          <span className="text-xs font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded">OVERDUE</span>
+                        )}
+                      </p>
+                      <p className="text-sm text-gray-600 mt-0.5">{inv.client_name || '—'}</p>
+                      {inv.client_company && (
+                        <p className="text-xs text-gray-400">{inv.client_company}</p>
                       )}
-                    </p>
-                    <p className="text-sm text-gray-600 mt-0.5">{inv.client_name || '—'}</p>
-                    {inv.client_company && (
-                      <p className="text-xs text-gray-400">{inv.client_company}</p>
-                    )}
-                    {(inv.reminders_sent ?? 0) > 0 && (
-                      <p className="text-xs text-gray-400 mt-0.5">{inv.reminders_sent} reminder{inv.reminders_sent === 1 ? '' : 's'} sent</p>
-                    )}
+                      {(inv.reminders_sent ?? 0) > 0 && (
+                        <p className="text-xs text-gray-400 mt-0.5">{inv.reminders_sent} reminder{inv.reminders_sent === 1 ? '' : 's'} sent</p>
+                      )}
+                    </div>
                   </div>
                   <p className="text-sm font-bold text-gray-900">
                     {formatCurrency(inv.total, inv.currency)}
@@ -228,7 +362,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                 </div>
                 <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs text-gray-400">{new Date(inv.issue_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                    <span className="text-xs text-gray-400">{formatDateLong(inv.issue_date)}</span>
                     <select
                       value={inv.status}
                       onChange={(e) => handleStatusChange(inv.id, e.target.value as InvoiceStatus)}
@@ -276,6 +410,15 @@ export default function DashboardClient({ user }: { user?: User | null }) {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wide bg-gray-50">
+                  <th className="px-4 py-3 w-8">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      className="accent-indigo-600"
+                      title="Select all"
+                    />
+                  </th>
                   <th className="text-left px-6 py-3">Invoice</th>
                   <th className="text-left px-6 py-3">Client</th>
                   <th className="text-left px-6 py-3">Date</th>
@@ -288,9 +431,21 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                 {invoices.map((inv) => (
                   <tr
                     key={inv.id}
-                    className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition cursor-pointer"
+                    className={`border-b border-gray-50 last:border-0 hover:bg-gray-50 transition cursor-pointer group ${selectedIds.has(inv.id) ? 'bg-indigo-50/40' : ''}`}
                     onClick={() => router.push(`/invoice?id=${inv.id}`)}
                   >
+                    <td
+                      className="px-4 py-4 w-8"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(inv.id)}
+                        onChange={() => toggleSelect(inv.id)}
+                        className="accent-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={selectedIds.has(inv.id) ? { opacity: 1 } : undefined}
+                      />
+                    </td>
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">
                       <span className="flex items-center gap-1.5 flex-wrap">
                         {inv.invoice_number}
@@ -309,7 +464,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                         <div className="text-xs text-gray-400">{inv.client_company}</div>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{new Date(inv.issue_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{formatDateLong(inv.issue_date)}</td>
                     <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right">
                       {formatCurrency(inv.total, inv.currency)}
                     </td>
@@ -460,6 +615,17 @@ export default function DashboardClient({ user }: { user?: User | null }) {
           </>
         )}
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <div
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 px-5 py-3 rounded-xl text-white text-sm font-medium shadow-lg z-50 transition-all ${
+            toast.color === 'green' ? 'bg-green-600' : 'bg-indigo-600'
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
     </>
   )
 }

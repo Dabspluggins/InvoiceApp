@@ -394,6 +394,12 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                       </button>
                     )}
                     <button
+                      onClick={() => router.push(`/invoice?duplicate=${inv.id}`)}
+                      className="text-xs text-indigo-500 hover:text-indigo-700 font-medium px-2 py-1"
+                    >
+                      ⧉ Duplicate
+                    </button>
+                    <button
                       onClick={() => handleDelete(inv.id)}
                       className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1"
                     >
@@ -514,6 +520,12 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                             {remindingIds.has(inv.id) ? 'Sending…' : 'Send Reminder'}
                           </button>
                         )}
+                        <button
+                          onClick={() => router.push(`/invoice?duplicate=${inv.id}`)}
+                          className="text-xs text-indigo-500 hover:text-indigo-700 font-medium"
+                        >
+                          ⧉ Duplicate
+                        </button>
                         <button
                           onClick={() => handleDelete(inv.id)}
                           className="text-xs text-red-500 hover:text-red-700 font-medium"

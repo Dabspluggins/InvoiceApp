@@ -22,6 +22,8 @@ interface Invoice {
   is_recurring: boolean
   share_token: string | null
   reminders_sent: number | null
+  viewed_at: string | null
+  view_count: number | null
 }
 
 type StatusFilter = 'all' | 'unpaid' | 'paid' | 'overdue'
@@ -101,7 +103,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
     const supabase = createClient()
     const { data } = await supabase
       .from('invoices')
-      .select('id, invoice_number, client_name, client_company, total, currency, status, issue_date, due_date, notes, is_recurring, share_token, reminders_sent')
+      .select('id, invoice_number, client_name, client_company, total, currency, status, issue_date, due_date, notes, is_recurring, share_token, reminders_sent, viewed_at, view_count')
       .order('created_at', { ascending: false })
 
     setInvoices(data || [])
@@ -430,6 +432,14 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                       {(inv.reminders_sent ?? 0) > 0 && (
                         <p className="text-xs text-gray-400 mt-0.5">{inv.reminders_sent} reminder{inv.reminders_sent === 1 ? '' : 's'} sent</p>
                       )}
+                      {inv.viewed_at && (
+                        <p
+                          className="text-xs text-indigo-500 mt-0.5"
+                          title={`Last viewed: ${new Date(inv.viewed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`}
+                        >
+                          👁 {(inv.view_count ?? 0) > 1 ? `${inv.view_count}×` : 'Viewed'}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <p className="text-sm font-bold text-gray-900">
@@ -538,6 +548,14 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                       </span>
                       {(inv.reminders_sent ?? 0) > 0 && (
                         <span className="text-xs text-gray-400">{inv.reminders_sent} reminder{inv.reminders_sent === 1 ? '' : 's'} sent</span>
+                      )}
+                      {inv.viewed_at && (
+                        <span
+                          className="block text-xs text-indigo-500 mt-0.5"
+                          title={`Last viewed: ${new Date(inv.viewed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`}
+                        >
+                          👁 {(inv.view_count ?? 0) > 1 ? `${inv.view_count}×` : 'Viewed'}
+                        </span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">

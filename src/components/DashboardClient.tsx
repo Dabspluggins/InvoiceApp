@@ -48,8 +48,6 @@ export default function DashboardClient({ user }: { user?: User | null }) {
   const [loading, setLoading] = useState(true)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [remindingIds, setRemindingIds] = useState<Set<string>>(new Set())
-  const [markingPaid, setMarkingPaid] = useState<Record<string, boolean>>({})
-  const [toast, setToast] = useState<string | null>(null)
   const router = useRouter()
 
   async function handleCopyLink(inv: Invoice) {
@@ -111,31 +109,6 @@ export default function DashboardClient({ user }: { user?: User | null }) {
     }
   }
 
-  async function handleMarkPaid(id: string) {
-    setMarkingPaid((prev) => ({ ...prev, [id]: true }))
-    try {
-      const res = await fetch(`/api/invoices/${id}/mark-paid`, { method: 'POST' })
-      if (!res.ok) {
-        const body = await res.json()
-        throw new Error(body.error || 'Failed to mark as paid')
-      }
-      setInvoices((prev) =>
-        prev.map((inv) => (inv.id === id ? { ...inv, status: 'paid' } : inv))
-      )
-      showToast('Marked as paid ✓')
-    } catch (err) {
-      console.error(err)
-      showToast('Failed to mark as paid')
-    } finally {
-      setMarkingPaid((prev) => ({ ...prev, [id]: false }))
-    }
-  }
-
-  function showToast(message: string) {
-    setToast(message)
-    setTimeout(() => setToast(null), 3000)
-  }
-
   async function loadTemplates() {
     const supabase = createClient()
     const { data } = await supabase
@@ -170,13 +143,6 @@ export default function DashboardClient({ user }: { user?: User | null }) {
 
   return (
     <>
-      {/* Toast */}
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-sm px-4 py-2 rounded-full shadow-lg transition-opacity">
-          {toast}
-        </div>
-      )}
-
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Welcome back, {displayName}! 👋</h1>
         <p className="text-gray-500 mt-1">Here&apos;s your invoice overview.</p>
@@ -273,20 +239,6 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                       <option value="paid">Paid</option>
                       <option value="pending">Pending</option>
                     </select>
-                    {inv.status !== 'paid' && (
-                      <button
-                        onClick={() => handleMarkPaid(inv.id)}
-                        disabled={markingPaid[inv.id]}
-                        className="text-xs text-green-600 border border-green-200 hover:bg-green-50 font-medium px-2 py-0.5 rounded-full transition disabled:opacity-50"
-                      >
-                        {markingPaid[inv.id] ? '...' : '✓ Mark as Paid'}
-                      </button>
-                    )}
-                    {inv.status === 'paid' && (
-                      <span className="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full">
-                        PAID
-                      </span>
-                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     {inv.share_token && (
@@ -405,15 +357,6 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                             className="text-xs text-gray-500 hover:text-indigo-600 font-medium border border-gray-200 hover:border-indigo-300 px-2 py-1 rounded-md transition disabled:opacity-50"
                           >
                             {remindingIds.has(inv.id) ? 'Sending…' : 'Send Reminder'}
-                          </button>
-                        )}
-                        {inv.status !== 'paid' && (
-                          <button
-                            onClick={() => handleMarkPaid(inv.id)}
-                            disabled={markingPaid[inv.id]}
-                            className="text-xs text-green-600 border border-green-200 hover:bg-green-50 font-medium px-2 py-0.5 rounded-full transition disabled:opacity-50"
-                          >
-                            {markingPaid[inv.id] ? '...' : '✓ Mark as Paid'}
                           </button>
                         )}
                         <button

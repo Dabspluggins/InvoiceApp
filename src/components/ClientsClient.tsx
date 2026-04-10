@@ -166,26 +166,26 @@ export default function ClientsClient() {
                       <p className="text-xs text-gray-500 mt-0.5">{client.company}</p>
                     )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     {client.portal_token && (
                       <button
                         onClick={() => handleCopyPortalLink(client)}
-                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1"
+                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium border border-indigo-200 hover:border-indigo-400 px-2 py-1 rounded-md transition"
                       >
                         {copiedId === client.id ? 'Copied!' : '🔗 Portal link'}
                       </button>
                     )}
                     <button
                       onClick={() => openEdit(client)}
-                      className="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1"
+                      className="text-xs text-indigo-600 hover:text-indigo-800 font-medium border border-indigo-200 hover:border-indigo-400 px-2 py-1 rounded-md transition"
                     >
-                      Edit
+                      ✎ Edit
                     </button>
                     <button
                       onClick={() => handleDelete(client.id)}
-                      className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1"
+                      className="text-xs text-red-500 hover:text-red-700 font-medium border border-red-200 hover:border-red-400 px-2 py-1 rounded-md transition"
                     >
-                      Delete
+                      ✕ Delete
                     </button>
                   </div>
                 </div>
@@ -222,26 +222,26 @@ export default function ClientsClient() {
                     <td className="px-6 py-4 text-sm text-gray-600">{client.email || '—'}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{client.phone || '—'}</td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-3">
+                      <div className="flex justify-end gap-2">
                         {client.portal_token && (
                           <button
                             onClick={() => handleCopyPortalLink(client)}
-                            className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                            className="text-xs text-indigo-600 hover:text-indigo-800 font-medium border border-indigo-200 hover:border-indigo-400 px-2 py-1 rounded-md transition"
                           >
                             {copiedId === client.id ? 'Copied!' : '🔗 Portal link'}
                           </button>
                         )}
                         <button
                           onClick={() => openEdit(client)}
-                          className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                          className="text-xs text-indigo-600 hover:text-indigo-800 font-medium border border-indigo-200 hover:border-indigo-400 px-2 py-1 rounded-md transition"
                         >
-                          Edit
+                          ✎ Edit
                         </button>
                         <button
                           onClick={() => handleDelete(client.id)}
-                          className="text-xs text-red-500 hover:text-red-700 font-medium"
+                          className="text-xs text-red-500 hover:text-red-700 font-medium border border-red-200 hover:border-red-400 px-2 py-1 rounded-md transition"
                         >
-                          Delete
+                          ✕ Delete
                         </button>
                       </div>
                     </td>

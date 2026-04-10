@@ -69,6 +69,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
+  const [unbilledExpenseTotal, setUnbilledExpenseTotal] = useState<number | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [remindingIds, setRemindingIds] = useState<Set<string>>(new Set())
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -109,7 +110,20 @@ export default function DashboardClient({ user }: { user?: User | null }) {
   useEffect(() => {
     loadInvoices()
     loadTemplates()
+    loadUnbilledExpenses()
   }, [])
+
+  async function loadUnbilledExpenses() {
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('expenses')
+      .select('amount')
+      .eq('billable', true)
+      .eq('billed', false)
+    if (data) {
+      setUnbilledExpenseTotal(data.reduce((sum, e) => sum + (e.amount ?? 0), 0))
+    }
+  }
 
   async function loadInvoices() {
     const supabase = createClient()
@@ -310,6 +324,27 @@ export default function DashboardClient({ user }: { user?: User | null }) {
           <p className="text-xl md:text-2xl font-bold text-orange-500">{outstandingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
       </div>
+
+      {/* Unbilled expenses banner */}
+      {unbilledExpenseTotal !== null && unbilledExpenseTotal > 0 && (
+        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl px-5 py-3.5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+            </svg>
+            <p className="text-sm text-amber-800">
+              <span className="font-semibold">{formatCurrency(unbilledExpenseTotal, 'NGN')}</span>
+              {' '}in unbilled expenses
+            </p>
+          </div>
+          <Link
+            href="/expenses"
+            className="text-xs text-amber-700 font-semibold hover:text-amber-900 whitespace-nowrap border border-amber-300 hover:border-amber-500 px-3 py-1.5 rounded-lg transition"
+          >
+            View Expenses →
+          </Link>
+        </div>
+      )}
 
       {/* Quick links */}
       <div className="flex gap-3 mb-6">

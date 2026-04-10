@@ -47,3 +47,5 @@ export async function PUT(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }
+
+export { PUT as PATCH }

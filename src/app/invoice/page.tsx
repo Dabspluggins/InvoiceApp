@@ -231,16 +231,27 @@ function InvoicePageInner() {
       const { data: { user } } = await supabase.auth.getUser()
 
       let nextNumber = 'INV-001'
+      let defaultTaxRate = 0
       if (user) {
-        const { data: latest } = await supabase
-          .from('invoices')
-          .select('invoice_number')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
+        const [{ data: latest }, { data: profile }] = await Promise.all([
+          supabase
+            .from('invoices')
+            .select('invoice_number')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from('profiles')
+            .select('default_tax_rate')
+            .eq('id', user.id)
+            .maybeSingle(),
+        ])
         if (latest?.invoice_number) {
           nextNumber = parseNextInvoiceNumber(latest.invoice_number)
+        }
+        if (profile?.default_tax_rate != null) {
+          defaultTaxRate = Number(profile.default_tax_rate)
         }
       }
 
@@ -272,7 +283,7 @@ function InvoicePageInner() {
 
       setData((prev) => {
         if (prev.invoiceNumber !== defaultData.invoiceNumber) return prev
-        return { ...prev, invoiceNumber: nextNumber }
+        return { ...prev, invoiceNumber: nextNumber, taxRate: defaultTaxRate }
       })
     }
 

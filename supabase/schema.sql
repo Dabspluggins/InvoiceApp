@@ -1,3 +1,8 @@
+-- Run this migration in the Supabase SQL editor to add portal tokens to clients:
+--
+-- ALTER TABLE clients ADD COLUMN IF NOT EXISTS portal_token TEXT UNIQUE;
+-- UPDATE clients SET portal_token = substr(md5(random()::text), 1, 16) WHERE portal_token IS NULL;
+
 create table invoices (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete cascade,

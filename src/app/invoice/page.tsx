@@ -47,14 +47,6 @@ function parseNextInvoiceNumber(last: string): string {
 // To add the currency column to Supabase, run:
 // ALTER TABLE invoices ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'NGN';
 
-function parseNextInvoiceNumber(last: string): string {
-  const match = last.match(/^(.*?)(\d+)$/)
-  if (!match) return 'INV-001'
-  const prefix = match[1]
-  const numStr = match[2]
-  const next = parseInt(numStr, 10) + 1
-  return prefix + String(next).padStart(numStr.length, '0')
-}
 
 const defaultData: InvoiceData = {
   invoiceNumber: 'INV-0001',

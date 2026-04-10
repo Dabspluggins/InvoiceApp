@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { User } from '@supabase/supabase-js'
@@ -23,6 +23,8 @@ interface Invoice {
   share_token: string | null
   reminders_sent: number | null
 }
+
+type StatusFilter = 'all' | 'unpaid' | 'paid' | 'overdue'
 
 interface Template {
   id: string
@@ -58,7 +60,30 @@ export default function DashboardClient({ user }: { user?: User | null }) {
   const [remindingIds, setRemindingIds] = useState<Set<string>>(new Set())
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [toast, setToast] = useState<{ message: string; color: 'green' | 'indigo' } | null>(null)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const router = useRouter()
+
+  const filteredInvoices = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return invoices.filter((inv) => {
+      // Search filter
+      if (q) {
+        const name = (inv.client_name || '').toLowerCase()
+        const company = (inv.client_company || '').toLowerCase()
+        if (!name.includes(q) && !company.includes(q)) return false
+      }
+      // Status filter
+      if (statusFilter === 'paid') return inv.status === 'paid'
+      if (statusFilter === 'unpaid') return inv.status === 'sent' || inv.status === 'pending'
+      if (statusFilter === 'overdue') {
+        const isUnpaid = inv.status === 'sent' || inv.status === 'pending'
+        const isPastDue = inv.due_date != null && inv.due_date < TODAY
+        return isUnpaid && isPastDue
+      }
+      return true
+    })
+  }, [invoices, search, statusFilter])
 
   async function handleCopyLink(inv: Invoice) {
     if (!inv.share_token) return
@@ -231,6 +256,13 @@ export default function DashboardClient({ user }: { user?: User | null }) {
   )
   const allSelected = invoices.length > 0 && selectedIds.size === invoices.length
 
+  const STATUS_PILLS: { label: string; value: StatusFilter }[] = [
+    { label: 'All', value: 'all' },
+    { label: 'Unpaid', value: 'unpaid' },
+    { label: 'Paid', value: 'paid' },
+    { label: 'Overdue', value: 'overdue' },
+  ]
+
   if (loading) {
     return (
       <div className="text-center py-16 text-gray-400 text-sm">Loading invoices...</div>
@@ -248,7 +280,11 @@ export default function DashboardClient({ user }: { user?: User | null }) {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
         <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
           <p className="text-xs md:text-sm text-gray-500 mb-1">Total Invoices</p>
-          <p className="text-xl md:text-2xl font-bold text-blue-600">{totalInvoices}</p>
+          <p className="text-xl md:text-2xl font-bold text-blue-600">
+            {filteredInvoices.length !== totalInvoices
+              ? `${filteredInvoices.length} / ${totalInvoices}`
+              : totalInvoices}
+          </p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
           <p className="text-xs md:text-sm text-gray-500 mb-1">Paid</p>
@@ -276,6 +312,42 @@ export default function DashboardClient({ user }: { user?: User | null }) {
         </Link>
       </div>
 
+      {/* Search + filter */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <div className="relative flex-1">
+          <svg
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+          </svg>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by client or company…"
+            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition"
+          />
+        </div>
+        <div className="flex gap-1.5">
+          {STATUS_PILLS.map(({ label, value }) => (
+            <button
+              key={value}
+              onClick={() => setStatusFilter(value)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition whitespace-nowrap ${
+                statusFilter === value
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Invoice list */}
       {invoices.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-8 md:p-12 text-center">
@@ -290,6 +362,10 @@ export default function DashboardClient({ user }: { user?: User | null }) {
           >
             Create Invoice
           </Link>
+        </div>
+      ) : filteredInvoices.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-500">
+          No invoices match your search or filter.
         </div>
       ) : (
         <>
@@ -323,7 +399,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
 
           {/* Mobile: card list */}
           <div className="md:hidden flex flex-col gap-3">
-            {invoices.map((inv) => (
+            {filteredInvoices.map((inv) => (
               <div
                 key={inv.id}
                 className="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer"
@@ -434,7 +510,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                 </tr>
               </thead>
               <tbody>
-                {invoices.map((inv) => (
+                {filteredInvoices.map((inv) => (
                   <tr
                     key={inv.id}
                     className={`border-b border-gray-50 last:border-0 hover:bg-gray-50 transition cursor-pointer group ${selectedIds.has(inv.id) ? 'bg-indigo-50/40' : ''}`}

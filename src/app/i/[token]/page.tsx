@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { Metadata } from 'next'
+import { Resend } from 'resend'
 import PrintButton from './PrintButton'
 import { PaymentDetails } from '@/lib/types'
 
@@ -31,6 +32,8 @@ interface InvoiceRow {
   notes: string | null
   brand_color: string | null
   payment_details: PaymentDetails | null
+  view_count: number | null
+  viewed_at: string | null
 }
 
 function getServiceClient() {
@@ -56,6 +59,64 @@ async function getInvoice(token: string) {
     .order('sort_order')
 
   return { invoice: invoice as InvoiceRow, lineItems: (items || []) as LineItem[] }
+}
+
+async function recordView(token: string, invoice: InvoiceRow) {
+  const supabase = getServiceClient()
+  const isFirstView = (invoice.view_count || 0) === 0
+
+  await supabase
+    .from('invoices')
+    .update({
+      viewed_at: new Date().toISOString(),
+      view_count: (invoice.view_count || 0) + 1,
+    })
+    .eq('share_token', token)
+
+  if (isFirstView && invoice.business_email && process.env.RESEND_API_KEY) {
+    try {
+      const resend = new Resend(process.env.RESEND_API_KEY)
+      await resend.emails.send({
+        from: 'BillByDab <invoices@billbydab.com>',
+        to: [invoice.business_email],
+        subject: `Your invoice ${invoice.invoice_number} was viewed by ${invoice.client_name || 'your client'}`,
+        html: `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Invoice Viewed</title></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+        <tr>
+          <td style="background:#4F46E5;padding:28px 36px;">
+            <p style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">BillByDab</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px 36px;">
+            <p style="margin:0 0 16px;color:#111827;font-size:16px;font-weight:600;">Invoice viewed 👁</p>
+            <p style="margin:0 0 24px;color:#374151;font-size:15px;line-height:1.6;">
+              <strong>${invoice.client_name || 'Your client'}</strong> just opened invoice <strong>${invoice.invoice_number}</strong>.
+              Log in to check the status.
+            </p>
+            <a href="https://www.billbydab.com/dashboard" style="display:inline-block;background:#4F46E5;color:#ffffff;padding:11px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Go to Dashboard →</a>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#f9fafb;padding:16px 36px;border-top:1px solid #e5e7eb;text-align:center;">
+            <p style="margin:0;color:#9ca3af;font-size:12px;">Sent via <strong style="color:#6b7280;">BillByDab</strong></p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+      })
+    } catch (e) {
+      console.error('Failed to send view notification email:', e)
+    }
+  }
 }
 
 function fmt(amount: number, currency: string) {
@@ -84,6 +145,10 @@ export default async function PublicInvoicePage({
   const { token } = await params
   const result = await getInvoice(token)
   const brandColor = result?.invoice.brand_color || '#4F46E5'
+
+  if (result) {
+    await recordView(token, result.invoice)
+  }
 
   if (!result) {
     return (

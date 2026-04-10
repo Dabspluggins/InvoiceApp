@@ -8,6 +8,8 @@ import type { User } from '@supabase/supabase-js'
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 transition'
 const labelCls = 'block text-sm font-medium text-gray-700 mb-1'
+const textareaCls =
+  'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 transition resize-none'
 
 export default function SettingsClient({ user }: { user: User }) {
   const router = useRouter()
@@ -31,37 +33,44 @@ export default function SettingsClient({ user }: { user: User }) {
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  // Default Tax Rate section
+  // Invoice Defaults section
   const [defaultTaxRate, setDefaultTaxRate] = useState<number>(0)
-  const [taxSaving, setTaxSaving] = useState(false)
-  const [taxMsg, setTaxMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [defaultNotes, setDefaultNotes] = useState('')
+  const [defaultTerms, setDefaultTerms] = useState('')
+  const [defaultsSaving, setDefaultsSaving] = useState(false)
+  const [defaultsMsg, setDefaultsMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
     const supabaseClient = createClient()
     supabaseClient
       .from('profiles')
-      .select('default_tax_rate')
+      .select('default_tax_rate, default_notes, default_terms')
       .eq('id', user.id)
       .maybeSingle()
       .then(({ data }) => {
-        if (data?.default_tax_rate != null) {
-          setDefaultTaxRate(Number(data.default_tax_rate))
-        }
+        if (data?.default_tax_rate != null) setDefaultTaxRate(Number(data.default_tax_rate))
+        if (data?.default_notes != null) setDefaultNotes(data.default_notes)
+        if (data?.default_terms != null) setDefaultTerms(data.default_terms)
       })
   }, [user.id])
 
-  async function saveTaxRate(e: React.FormEvent) {
+  async function saveInvoiceDefaults(e: React.FormEvent) {
     e.preventDefault()
-    setTaxSaving(true)
-    setTaxMsg(null)
+    setDefaultsSaving(true)
+    setDefaultsMsg(null)
     const { error } = await supabase
       .from('profiles')
-      .upsert({ id: user.id, default_tax_rate: defaultTaxRate }, { onConflict: 'id' })
-    setTaxSaving(false)
+      .upsert({
+        id: user.id,
+        default_tax_rate: defaultTaxRate,
+        default_notes: defaultNotes || null,
+        default_terms: defaultTerms || null,
+      }, { onConflict: 'id' })
+    setDefaultsSaving(false)
     if (error) {
-      setTaxMsg({ type: 'error', text: error.message })
+      setDefaultsMsg({ type: 'error', text: error.message })
     } else {
-      setTaxMsg({ type: 'success', text: 'Default tax rate saved.' })
+      setDefaultsMsg({ type: 'success', text: 'Invoice defaults saved.' })
     }
   }
 
@@ -291,14 +300,15 @@ export default function SettingsClient({ user }: { user: User }) {
         </form>
       </div>
 
-      {/* Default Tax Rate section */}
+      {/* Invoice Defaults section */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100">
           <h2 className="text-base font-semibold text-gray-900">Invoice Defaults</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Pre-fill new invoices with these values</p>
         </div>
-        <form onSubmit={saveTaxRate} className="p-6 space-y-4">
+        <form onSubmit={saveInvoiceDefaults} className="p-6 space-y-4">
           <div>
-            <label className={labelCls}>Default Tax Rate (%)</label>
+            <label className={labelCls}>Default tax rate (%)</label>
             <input
               type="number"
               min={0}
@@ -310,24 +320,44 @@ export default function SettingsClient({ user }: { user: User }) {
               className={inputCls}
             />
           </div>
-          {taxMsg && (
+          <div>
+            <label className={labelCls}>Default notes</label>
+            <textarea
+              value={defaultNotes}
+              onChange={(e) => setDefaultNotes(e.target.value)}
+              rows={3}
+              placeholder="e.g. Thank you for your business!"
+              className={textareaCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Default terms</label>
+            <textarea
+              value={defaultTerms}
+              onChange={(e) => setDefaultTerms(e.target.value)}
+              rows={3}
+              placeholder="e.g. Payment due within 30 days. Late payments subject to 1.5% monthly interest."
+              className={textareaCls}
+            />
+          </div>
+          {defaultsMsg && (
             <div
               className={`text-sm px-4 py-3 rounded-lg border ${
-                taxMsg.type === 'success'
+                defaultsMsg.type === 'success'
                   ? 'bg-green-50 border-green-200 text-green-700'
                   : 'bg-red-50 border-red-200 text-red-600'
               }`}
             >
-              {taxMsg.text}
+              {defaultsMsg.text}
             </div>
           )}
           <div className="flex justify-end">
             <button
               type="submit"
-              disabled={taxSaving}
+              disabled={defaultsSaving}
               className="text-sm bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
             >
-              {taxSaving ? 'Saving...' : 'Save Default'}
+              {defaultsSaving ? 'Saving...' : 'Save Defaults'}
             </button>
           </div>
         </form>

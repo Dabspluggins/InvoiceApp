@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
@@ -30,6 +30,40 @@ export default function SettingsClient({ user }: { user: User }) {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // Default Tax Rate section
+  const [defaultTaxRate, setDefaultTaxRate] = useState<number>(0)
+  const [taxSaving, setTaxSaving] = useState(false)
+  const [taxMsg, setTaxMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  useEffect(() => {
+    const supabaseClient = createClient()
+    supabaseClient
+      .from('profiles')
+      .select('default_tax_rate')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.default_tax_rate != null) {
+          setDefaultTaxRate(Number(data.default_tax_rate))
+        }
+      })
+  }, [user.id])
+
+  async function saveTaxRate(e: React.FormEvent) {
+    e.preventDefault()
+    setTaxSaving(true)
+    setTaxMsg(null)
+    const { error } = await supabase
+      .from('profiles')
+      .upsert({ id: user.id, default_tax_rate: defaultTaxRate }, { onConflict: 'id' })
+    setTaxSaving(false)
+    if (error) {
+      setTaxMsg({ type: 'error', text: error.message })
+    } else {
+      setTaxMsg({ type: 'success', text: 'Default tax rate saved.' })
+    }
+  }
 
   // Danger zone
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -252,6 +286,48 @@ export default function SettingsClient({ user }: { user: User }) {
               className="text-sm bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
             >
               {passwordSaving ? 'Updating...' : 'Update Password'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Default Tax Rate section */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <h2 className="text-base font-semibold text-gray-900">Invoice Defaults</h2>
+        </div>
+        <form onSubmit={saveTaxRate} className="p-6 space-y-4">
+          <div>
+            <label className={labelCls}>Default Tax Rate (%)</label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={0.01}
+              value={defaultTaxRate}
+              onChange={(e) => setDefaultTaxRate(Number(e.target.value))}
+              placeholder="0"
+              className={inputCls}
+            />
+          </div>
+          {taxMsg && (
+            <div
+              className={`text-sm px-4 py-3 rounded-lg border ${
+                taxMsg.type === 'success'
+                  ? 'bg-green-50 border-green-200 text-green-700'
+                  : 'bg-red-50 border-red-200 text-red-600'
+              }`}
+            >
+              {taxMsg.text}
+            </div>
+          )}
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={taxSaving}
+              className="text-sm bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+            >
+              {taxSaving ? 'Saving...' : 'Save Default'}
             </button>
           </div>
         </form>

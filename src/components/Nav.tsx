@@ -72,7 +72,8 @@ export default function Nav() {
 
       {/* Hamburger button (mobile only) */}
       <button
-        className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+        type="button"
+        className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors touch-manipulation"
         onClick={() => setMenuOpen(!menuOpen)}
         aria-label="Toggle menu"
         aria-expanded={menuOpen}

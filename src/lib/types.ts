@@ -39,6 +39,8 @@ export interface LineItem {
 
 export type RecurringFrequency = 'weekly' | 'monthly' | 'quarterly'
 
+export type InvoiceTemplate = 'minimal' | 'classic' | 'bold'
+
 export interface InvoiceData {
   invoiceNumber: string
   status: InvoiceStatus
@@ -61,4 +63,5 @@ export interface InvoiceData {
   isRecurring: boolean
   recurringFrequency: RecurringFrequency | null
   paymentDetails?: PaymentDetails
+  template?: InvoiceTemplate
 }

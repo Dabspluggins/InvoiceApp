@@ -69,6 +69,7 @@ const defaultData: InvoiceData = {
   isRecurring: false,
   recurringFrequency: null,
   paymentDetails: undefined,
+  template: 'classic',
 }
 
 function InvoicePageInner() {
@@ -161,6 +162,7 @@ function InvoicePageInner() {
           isRecurring: inv.is_recurring || false,
           recurringFrequency: inv.recurring_frequency || null,
           paymentDetails: inv.payment_details || undefined,
+          template: (inv.template as InvoiceData['template']) || 'classic',
         })
       }
 
@@ -436,6 +438,7 @@ function InvoicePageInner() {
         is_recurring: data.isRecurring,
         recurring_frequency: data.isRecurring ? data.recurringFrequency : null,
         payment_details: data.paymentDetails ?? null,
+        template: data.template || 'classic',
         recurring_next_date:
           data.isRecurring && data.recurringFrequency && data.dueDate
             ? nextRecurringDate(data.dueDate, data.recurringFrequency)
@@ -894,6 +897,67 @@ function InvoicePageInner() {
         }`}
       >
         <div className="flex-1 md:overflow-y-auto p-4 md:p-6 print:overflow-visible print:p-0">
+          {/* Template picker */}
+          <div className="mb-4 print:hidden">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Template</p>
+            <div className="flex gap-3">
+              {(['minimal', 'classic', 'bold'] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setData((prev) => ({ ...prev, template: t }))}
+                  className={`flex flex-col items-center gap-1.5 p-2 rounded-lg border-2 transition-all ${
+                    (data.template || 'classic') === t
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  {/* Thumbnail mock */}
+                  {t === 'minimal' && (
+                    <div className="w-16 h-11 bg-white border border-gray-200 rounded overflow-hidden p-1 flex flex-col gap-0.5">
+                      <div className="h-1.5 w-8 bg-gray-800 rounded-sm" />
+                      <div className="h-0.5 w-full bg-gray-200 mt-0.5" />
+                      <div className="h-0.5 w-10 bg-gray-200" />
+                      <div className="h-0.5 w-10 bg-gray-200" />
+                      <div className="h-0.5 w-full bg-gray-100 mt-0.5" />
+                      <div className="h-0.5 w-12 bg-gray-100" />
+                      <div className="h-0.5 w-8 bg-gray-300 mt-0.5" />
+                    </div>
+                  )}
+                  {t === 'classic' && (
+                    <div className="w-16 h-11 rounded overflow-hidden flex flex-col">
+                      <div className="h-3.5 w-full flex items-center px-1" style={{ backgroundColor: data.brandColor || '#4F46E5' }}>
+                        <div className="h-1 w-5 bg-white/70 rounded-sm" />
+                      </div>
+                      <div className="flex-1 bg-white p-1 flex flex-col gap-0.5">
+                        <div className="h-0.5 w-8 rounded-sm" style={{ backgroundColor: `${data.brandColor || '#4F46E5'}80` }} />
+                        <div className="h-0.5 w-10 bg-gray-200" />
+                        <div className="h-0.5 w-10 bg-gray-100" />
+                        <div className="h-1.5 w-full rounded-sm mt-0.5" style={{ backgroundColor: `${data.brandColor || '#4F46E5'}40` }} />
+                      </div>
+                    </div>
+                  )}
+                  {t === 'bold' && (
+                    <div className="w-16 h-11 rounded overflow-hidden flex flex-col">
+                      <div className="h-4 w-full flex items-end px-1 pb-1" style={{ backgroundColor: data.brandColor || '#4F46E5' }}>
+                        <div className="h-1.5 w-7 bg-white/90 rounded-sm font-bold" />
+                      </div>
+                      <div className="flex-1 bg-white p-1 flex flex-col gap-0.5">
+                        <div className="h-0.5 w-10 bg-gray-200" />
+                        <div className="h-0.5 w-10 bg-gray-100" />
+                        <div className="flex items-center gap-0.5 mt-0.5">
+                          <div className="w-0.5 h-2 rounded-sm" style={{ backgroundColor: data.brandColor || '#4F46E5' }} />
+                          <div className="h-2 flex-1 bg-gray-800 rounded-sm" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <span className={`text-xs font-medium capitalize ${(data.template || 'classic') === t ? 'text-blue-600' : 'text-gray-500'}`}>
+                    {t}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
             <InvoicePreview data={data} />
           </div>

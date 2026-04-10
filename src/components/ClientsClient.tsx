@@ -11,6 +11,7 @@ interface Client {
   phone: string | null
   address: string | null
   created_at: string
+  portal_token: string | null
 }
 
 const emptyForm = { name: '', company: '', email: '', phone: '', address: '' }
@@ -23,6 +24,7 @@ export default function ClientsClient() {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   useEffect(() => {
     loadClients()
@@ -32,10 +34,18 @@ export default function ClientsClient() {
     const supabase = createClient()
     const { data } = await supabase
       .from('clients')
-      .select('*')
+      .select('id, name, company, email, phone, address, created_at, portal_token')
       .order('created_at', { ascending: false })
     setClients(data || [])
     setLoading(false)
+  }
+
+  async function handleCopyPortalLink(client: Client) {
+    if (!client.portal_token) return
+    const url = `https://www.billbydab.com/portal/${client.portal_token}`
+    await navigator.clipboard.writeText(url)
+    setCopiedId(client.id)
+    setTimeout(() => setCopiedId(null), 2000)
   }
 
   function openAdd() {
@@ -157,6 +167,14 @@ export default function ClientsClient() {
                     )}
                   </div>
                   <div className="flex gap-2">
+                    {client.portal_token && (
+                      <button
+                        onClick={() => handleCopyPortalLink(client)}
+                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1"
+                      >
+                        {copiedId === client.id ? 'Copied!' : '🔗 Portal link'}
+                      </button>
+                    )}
                     <button
                       onClick={() => openEdit(client)}
                       className="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1"
@@ -205,6 +223,14 @@ export default function ClientsClient() {
                     <td className="px-6 py-4 text-sm text-gray-600">{client.phone || '—'}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-3">
+                        {client.portal_token && (
+                          <button
+                            onClick={() => handleCopyPortalLink(client)}
+                            className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                          >
+                            {copiedId === client.id ? 'Copied!' : '🔗 Portal link'}
+                          </button>
+                        )}
                         <button
                           onClick={() => openEdit(client)}
                           className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"

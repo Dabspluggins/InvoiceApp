@@ -27,9 +27,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Name is required' }, { status: 400 })
   }
 
+  const portal_token = crypto.randomUUID().replace(/-/g, '').slice(0, 16)
+
   const { data, error } = await supabase
     .from('clients')
-    .insert({ user_id: user.id, name: name.trim(), company, email, phone, address })
+    .insert({ user_id: user.id, name: name.trim(), company, email, phone, address, portal_token })
     .select()
     .single()
 

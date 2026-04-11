@@ -81,6 +81,8 @@ const defaultData: InvoiceData = {
   clientEmail: '',
   lineItems: [newLineItem()],
   taxRate: 0,
+  discount: 0,
+  discountType: 'percent',
   notes: '',
   brandColor: '#4F46E5',
   isRecurring: false,
@@ -181,6 +183,8 @@ function InvoicePageInner() {
             amount: item.amount,
           })),
           taxRate: inv.tax_rate || 0,
+          discount: inv.discount || 0,
+          discountType: (inv.discount_type as InvoiceData['discountType']) || 'percent',
           notes: inv.notes || '',
           brandColor: inv.brand_color || '#4F46E5',
           isRecurring: inv.is_recurring || false,
@@ -249,6 +253,8 @@ function InvoicePageInner() {
             amount: item.amount,
           })),
           taxRate: inv.tax_rate || 0,
+          discount: inv.discount || 0,
+          discountType: (inv.discount_type as InvoiceData['discountType']) || 'percent',
           notes: inv.notes || '',
           brandColor: inv.brand_color || '#4F46E5',
           isRecurring: inv.is_recurring || false,
@@ -368,7 +374,7 @@ function InvoicePageInner() {
   async function handleSend() {
     setSendModal((s) => ({ ...s, sending: true }))
     try {
-      const { subtotal, taxAmount, total } = calcTotals(data.lineItems, data.taxRate)
+      const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
 
       const res = await fetch('/api/send-invoice', {
         method: 'POST',
@@ -435,7 +441,7 @@ function InvoicePageInner() {
         return
       }
 
-      const { subtotal, taxAmount, total } = calcTotals(data.lineItems, data.taxRate)
+      const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
 
       const invoicePayload = {
         user_id: user.id,
@@ -454,6 +460,9 @@ function InvoicePageInner() {
         client_address: data.clientAddress,
         client_email: data.clientEmail,
         subtotal,
+        discount: data.discount,
+        discount_type: data.discountType,
+        discount_amount: discountAmount,
         tax_rate: data.taxRate,
         tax_amount: taxAmount,
         total,
@@ -582,7 +591,7 @@ function InvoicePageInner() {
       const newPayments = [...payments, inserted]
       setPayments(newPayments)
 
-      const { total } = calcTotals(data.lineItems, data.taxRate)
+      const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
       const totalPaid = newPayments.reduce((sum, p) => sum + p.amount, 0)
       const newStatus = totalPaid >= total ? 'paid' : totalPaid > 0 ? 'partial' : data.status
       if (newStatus !== data.status) {
@@ -610,7 +619,7 @@ function InvoicePageInner() {
       const newPayments = payments.filter((p) => p.id !== paymentId)
       setPayments(newPayments)
 
-      const { total } = calcTotals(data.lineItems, data.taxRate)
+      const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
       const totalPaid = newPayments.reduce((sum, p) => sum + p.amount, 0)
       const newStatus = totalPaid >= total ? 'paid' : totalPaid > 0 ? 'partial' : 'sent'
       if (newStatus !== data.status) {
@@ -972,7 +981,7 @@ function InvoicePageInner() {
         <InvoiceForm data={data} onChange={setData} />
 
         {savedInvoiceId && (() => {
-          const { total } = calcTotals(data.lineItems, data.taxRate)
+          const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
           const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
           const outstanding = total - totalPaid
           return (

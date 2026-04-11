@@ -26,6 +26,9 @@ interface InvoiceRow {
   client_company: string | null
   client_address: string | null
   subtotal: number
+  discount: number | null
+  discount_type: string | null
+  discount_amount: number | null
   tax_rate: number
   tax_amount: number
   total: number
@@ -281,6 +284,12 @@ export default async function PublicInvoicePage({
                       <span>Subtotal</span>
                       <span>{fmt(invoice.subtotal, invoice.currency)}</span>
                     </div>
+                    {(invoice.discount ?? 0) > 0 && (
+                      <div className="flex justify-between text-gray-500">
+                        <span>Discount{invoice.discount_type === 'percent' ? ` (${invoice.discount}%)` : ''}</span>
+                        <span className="text-red-500">-{fmt(invoice.discount_amount ?? 0, invoice.currency)}</span>
+                      </div>
+                    )}
                     {invoice.tax_rate > 0 && (
                       <div className="flex justify-between text-gray-500">
                         <span>Tax ({invoice.tax_rate}%)</span>
@@ -380,6 +389,12 @@ export default async function PublicInvoicePage({
                       <span>Subtotal</span>
                       <span>{fmt(invoice.subtotal, invoice.currency)}</span>
                     </div>
+                    {(invoice.discount ?? 0) > 0 && (
+                      <div className="flex justify-between text-gray-500 border-b border-gray-100 pb-1.5">
+                        <span>Discount{invoice.discount_type === 'percent' ? ` (${invoice.discount}%)` : ''}</span>
+                        <span className="text-red-500">-{fmt(invoice.discount_amount ?? 0, invoice.currency)}</span>
+                      </div>
+                    )}
                     {invoice.tax_rate > 0 && (
                       <div className="flex justify-between text-gray-500 border-b border-gray-100 pb-1.5">
                         <span>Tax ({invoice.tax_rate}%)</span>
@@ -483,6 +498,12 @@ export default async function PublicInvoicePage({
                       <span>Subtotal</span>
                       <span>{fmt(invoice.subtotal, invoice.currency)}</span>
                     </div>
+                    {(invoice.discount ?? 0) > 0 && (
+                      <div className="flex justify-between text-sm text-gray-500">
+                        <span>Discount{invoice.discount_type === 'percent' ? ` (${invoice.discount}%)` : ''}</span>
+                        <span className="text-red-500">-{fmt(invoice.discount_amount ?? 0, invoice.currency)}</span>
+                      </div>
+                    )}
                     {invoice.tax_rate > 0 && (
                       <div className="flex justify-between text-sm text-gray-500">
                         <span>Tax ({invoice.tax_rate}%)</span>

@@ -58,6 +58,8 @@ export interface InvoiceData {
   clientEmail: string
   lineItems: LineItem[]
   taxRate: number
+  discount: number
+  discountType: 'percent' | 'fixed'
   notes: string
   brandColor: string
   isRecurring: boolean

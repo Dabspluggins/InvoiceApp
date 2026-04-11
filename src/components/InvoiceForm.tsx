@@ -139,7 +139,7 @@ export default function InvoiceForm({ data, onChange }: Props) {
     }
   }
 
-  const { subtotal, taxAmount, total } = calcTotals(data.lineItems, data.taxRate)
+  const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
 
   const inputCls =
     'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 transition'
@@ -367,11 +367,16 @@ export default function InvoiceForm({ data, onChange }: Props) {
       {/* Totals */}
       <Totals
         subtotal={subtotal}
+        discount={data.discount}
+        discountType={data.discountType}
+        discountAmount={discountAmount}
         taxRate={data.taxRate}
         taxAmount={taxAmount}
         total={total}
         currency={data.currency}
         onTaxRateChange={(rate) => set('taxRate', rate)}
+        onDiscountChange={(d) => set('discount', d)}
+        onDiscountTypeChange={(t) => set('discountType', t)}
       />
 
       {/* Notes */}

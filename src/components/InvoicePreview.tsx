@@ -65,7 +65,7 @@ function PaymentBlock({ data, accentColor }: { data: InvoiceData; accentColor: s
 // ─── Minimal Template ──────────────────────────────────────────────────────────
 
 function MinimalPreview({ data }: Props) {
-  const { subtotal, taxAmount, total } = calcTotals(data.lineItems, data.taxRate)
+  const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
 
   return (
     <div
@@ -157,6 +157,12 @@ function MinimalPreview({ data }: Props) {
             <span>Subtotal</span>
             <span>{formatCurrency(subtotal, data.currency)}</span>
           </div>
+          {data.discount > 0 && (
+            <div className="flex justify-between py-1 text-gray-500">
+              <span>Discount{data.discountType === 'percent' ? ` (${data.discount}%)` : ''}</span>
+              <span className="text-red-500">-{formatCurrency(discountAmount, data.currency)}</span>
+            </div>
+          )}
           {data.taxRate > 0 && (
             <div className="flex justify-between py-1 text-gray-500">
               <span>Tax ({data.taxRate}%)</span>
@@ -193,7 +199,7 @@ function MinimalPreview({ data }: Props) {
 // ─── Classic Template (existing layout) ──────────────────────────────────────
 
 function ClassicPreview({ data }: Props) {
-  const { subtotal, taxAmount, total } = calcTotals(data.lineItems, data.taxRate)
+  const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
   const brand = data.brandColor || '#4F46E5'
 
   return (
@@ -288,6 +294,12 @@ function ClassicPreview({ data }: Props) {
               <span>Subtotal</span>
               <span>{formatCurrency(subtotal, data.currency)}</span>
             </div>
+            {data.discount > 0 && (
+              <div className="flex justify-between py-1 text-gray-600">
+                <span>Discount{data.discountType === 'percent' ? ` (${data.discount}%)` : ''}</span>
+                <span className="text-red-500">-{formatCurrency(discountAmount, data.currency)}</span>
+              </div>
+            )}
             <div className="flex justify-between py-1 text-gray-600">
               <span>Tax ({data.taxRate}%)</span>
               <span>{formatCurrency(taxAmount, data.currency)}</span>
@@ -322,7 +334,7 @@ function ClassicPreview({ data }: Props) {
 // ─── Bold Template ────────────────────────────────────────────────────────────
 
 function BoldPreview({ data }: Props) {
-  const { subtotal, taxAmount, total } = calcTotals(data.lineItems, data.taxRate)
+  const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
   const brand = data.brandColor || '#4F46E5'
 
   return (
@@ -416,6 +428,12 @@ function BoldPreview({ data }: Props) {
               <span>Subtotal</span>
               <span>{formatCurrency(subtotal, data.currency)}</span>
             </div>
+            {data.discount > 0 && (
+              <div className="flex justify-between py-1.5 text-gray-500 border-b border-gray-100">
+                <span>Discount{data.discountType === 'percent' ? ` (${data.discount}%)` : ''}</span>
+                <span className="text-red-500">-{formatCurrency(discountAmount, data.currency)}</span>
+              </div>
+            )}
             {data.taxRate > 0 && (
               <div className="flex justify-between py-1.5 text-gray-500 border-b border-gray-100">
                 <span>Tax ({data.taxRate}%)</span>

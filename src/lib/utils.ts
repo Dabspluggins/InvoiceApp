@@ -1,11 +1,13 @@
 import { LineItem, Currency } from './types'
 import { getCurrencySymbol } from './currencies'
 
-export function calcTotals(lineItems: LineItem[], taxRate: number) {
+export function calcTotals(lineItems: LineItem[], taxRate: number, discount = 0, discountType: 'percent' | 'fixed' = 'percent') {
   const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0)
-  const taxAmount = subtotal * (taxRate / 100)
-  const total = subtotal + taxAmount
-  return { subtotal, taxAmount, total }
+  const discountAmount = discountType === 'percent' ? subtotal * (discount / 100) : discount
+  const discountedSubtotal = subtotal - discountAmount
+  const taxAmount = discountedSubtotal * (taxRate / 100)
+  const total = discountedSubtotal + taxAmount
+  return { subtotal, discountAmount, taxAmount, total }
 }
 
 export function formatCurrency(amount: number, currency: Currency | string): string {

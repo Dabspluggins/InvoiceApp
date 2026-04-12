@@ -4,7 +4,7 @@
 'use client'
 
 import { useRef, useEffect, useState } from 'react'
-import { InvoiceData, Currency, RecurringFrequency, PaymentDetails } from '@/lib/types'
+import { InvoiceData, Currency, RecurringFrequency, PaymentDetails, SavedPaymentMethod } from '@/lib/types'
 import { calcTotals } from '@/lib/utils'
 import { CURRENCIES } from '@/lib/currencies'
 import LineItemsTable from './LineItemsTable'
@@ -40,17 +40,31 @@ export default function InvoiceForm({ data, onChange }: Props) {
   const [clientSaveMsg, setClientSaveMsg] = useState<string | null>(null)
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [activePaymentTab, setActivePaymentTab] = useState<PaymentTab>('bankTransfer')
+  const [savedPaymentMethods, setSavedPaymentMethods] = useState<SavedPaymentMethod[]>([])
+  const [activeChip, setActiveChip] = useState<string | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
+
       supabase
         .from('clients')
         .select('id, name, company, email, phone, address')
         .order('name')
         .then(({ data }) => {
           if (data) setSavedClients(data)
+        })
+
+      supabase
+        .from('profiles')
+        .select('payment_methods')
+        .eq('id', user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (!data) return
+          const pm = (data as { payment_methods?: unknown }).payment_methods
+          if (Array.isArray(pm)) setSavedPaymentMethods(pm as SavedPaymentMethod[])
         })
     })
   }, [])
@@ -137,6 +151,13 @@ export default function InvoiceForm({ data, onChange }: Props) {
       setSavingClient(false)
       setTimeout(() => setClientSaveMsg(null), 3000)
     }
+  }
+
+  function handleApplySavedPayment(method: SavedPaymentMethod) {
+    setActiveChip(method.id)
+    setPaymentOpen(true)
+    setActivePaymentTab('other')
+    setOther({ paymentMethod: method.label, details: method.details })
   }
 
   const { subtotal, taxAmount, total } = calcTotals(data.lineItems, data.taxRate)
@@ -385,6 +406,26 @@ export default function InvoiceForm({ data, onChange }: Props) {
           placeholder="Payment terms, bank details, thank you note..."
         />
       </div>
+
+      {/* Saved payment method chips */}
+      {savedPaymentMethods.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {savedPaymentMethods.map((method) => (
+            <button
+              key={method.id}
+              type="button"
+              onClick={() => handleApplySavedPayment(method)}
+              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                activeChip === method.id
+                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                  : 'border-gray-300 hover:border-indigo-400 hover:bg-indigo-50 cursor-pointer'
+              }`}
+            >
+              {method.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Payment Details */}
       <div className="mb-6">

@@ -1,5 +1,11 @@
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'pending'
 
+export interface SavedPaymentMethod {
+  id: string
+  label: string
+  details: string
+}
+
 export interface PaymentDetails {
   bankTransfer?: {
     accountName?: string

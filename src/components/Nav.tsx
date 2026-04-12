@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import type { User } from '@supabase/supabase-js'
+import ProfileDropdown from './ProfileDropdown'
 
 export default function Nav() {
   const [user, setUser] = useState<User | null>(null)
@@ -52,16 +53,11 @@ export default function Nav() {
       </div>
 
       {/* Desktop auth buttons */}
-      <div className="hidden md:flex gap-3">
+      <div className="hidden md:flex gap-3 items-center">
         {loading ? (
-          <div className="w-20 h-9 bg-gray-100 rounded-lg animate-pulse" />
+          <div className="w-9 h-9 bg-gray-100 rounded-full animate-pulse" />
         ) : user ? (
-          <>
-            <span className="text-sm text-gray-500 flex items-center">{user.email}</span>
-            <button onClick={handleLogout} className="text-sm text-gray-600 hover:text-red-600 px-4 py-2 rounded-lg border border-gray-300 hover:border-red-300">
-              Log out
-            </button>
-          </>
+          <ProfileDropdown user={user} />
         ) : (
           <>
             <Link href="/auth/login" className="text-sm text-gray-600 hover:text-blue-600 px-4 py-2 rounded-lg border border-gray-300 hover:border-blue-300">Login</Link>

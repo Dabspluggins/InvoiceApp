@@ -4,7 +4,7 @@
 'use client'
 
 import { useRef, useEffect, useState } from 'react'
-import { InvoiceData, Currency, RecurringFrequency, PaymentDetails } from '@/lib/types'
+import { InvoiceData, Currency, RecurringFrequency, PaymentDetails, SavedPaymentMethod } from '@/lib/types'
 import { calcTotals } from '@/lib/utils'
 import { CURRENCIES } from '@/lib/currencies'
 import LineItemsTable from './LineItemsTable'
@@ -42,7 +42,7 @@ export default function InvoiceForm({ data, onChange, isSignedIn }: Props) {
   const [clientSaveMsg, setClientSaveMsg] = useState<string | null>(null)
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [activePaymentTab, setActivePaymentTab] = useState<PaymentTab>('bankTransfer')
-  const [savedPaymentMethods, setSavedPaymentMethods] = useState<Array<{ id: string; label: string; details: string }>>([])
+  const [savedPaymentMethods, setSavedPaymentMethods] = useState<SavedPaymentMethod[]>([])
 
   useEffect(() => {
     const supabase = createClient()
@@ -61,7 +61,7 @@ export default function InvoiceForm({ data, onChange, isSignedIn }: Props) {
         .eq('id', user.id)
         .single()
         .then(({ data: profileData }) => {
-          const methods = (profileData?.payment_methods as Array<{ id: string; label: string; details: string }>) || []
+          const methods = (profileData?.payment_methods as SavedPaymentMethod[]) || []
           setSavedPaymentMethods(methods)
         })
     })
@@ -87,30 +87,31 @@ export default function InvoiceForm({ data, onChange, isSignedIn }: Props) {
     setPayment({ other: { ...data.paymentDetails?.other, ...fields } })
   }
 
-  function applyPaymentMethod(details: string) {
-    const parsed: Record<string, string> = {}
-    for (const line of details.split('\n')) {
-      const idx = line.indexOf(':')
-      if (idx > -1) {
-        const key = line.slice(0, idx).trim().toLowerCase()
-        const val = line.slice(idx + 1).trim()
-        if (val) parsed[key] = val
-      }
-    }
-    const updates: NonNullable<PaymentDetails['bankTransfer']> = {}
-    const accountName = parsed['account name'] || parsed['name']
-    const bankName = parsed['bank'] || parsed['bank name']
-    const accountNumber = parsed['account no'] || parsed['account number'] || parsed['account no.']
-    if (accountName) updates.accountName = accountName
-    if (bankName) updates.bankName = bankName
-    if (accountNumber) updates.accountNumber = accountNumber
-
-    if (accountName || bankName || accountNumber) {
-      setPayment({ bankTransfer: { ...data.paymentDetails?.bankTransfer, ...updates } })
+  function applyPaymentMethod(method: SavedPaymentMethod) {
+    if (method.type === 'bank_transfer') {
+      setPayment({
+        bankTransfer: {
+          accountName: method.accountName || '',
+          accountNumber: method.accountNumber || '',
+          bankName: method.bankName || '',
+        },
+      })
       setActivePaymentTab('bankTransfer')
+    } else if (method.type === 'mobile_money') {
+      setPayment({
+        mobileMoney: {
+          provider: method.mmNetwork || '',
+          phoneNumber: method.mmPhone || '',
+        },
+      })
+      setActivePaymentTab('mobileMoney')
     } else {
-      // Pattern matching failed — dump raw text into Other > Details
-      setOther({ details })
+      setPayment({
+        other: {
+          paymentMethod: method.otherLabel || '',
+          details: method.otherDetails || '',
+        },
+      })
       setActivePaymentTab('other')
     }
     setPaymentOpen(true)
@@ -446,7 +447,7 @@ export default function InvoiceForm({ data, onChange, isSignedIn }: Props) {
               <button
                 key={m.id}
                 type="button"
-                onClick={() => applyPaymentMethod(m.details)}
+                onClick={() => applyPaymentMethod(m)}
                 className="px-3 py-1 rounded-full text-xs font-medium border border-gray-300 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
               >
                 {m.label}

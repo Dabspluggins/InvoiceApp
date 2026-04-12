@@ -10,6 +10,23 @@ export interface Payment {
   created_at: string
 }
 
+export type SavedPaymentMethod = {
+  id: string
+  type: 'bank_transfer' | 'mobile_money' | 'other'
+  label: string
+  // Bank Transfer
+  accountName?: string
+  accountNumber?: string
+  bankName?: string
+  // Mobile Money
+  mmAccountName?: string
+  mmPhone?: string
+  mmNetwork?: string
+  // Other
+  otherLabel?: string
+  otherDetails?: string
+}
+
 export interface PaymentDetails {
   bankTransfer?: {
     accountName?: string

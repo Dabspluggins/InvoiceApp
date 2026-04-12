@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
+import type { SavedPaymentMethod } from '@/lib/types'
 
 interface Profile {
   profile_picture_url: string | null
@@ -26,6 +27,8 @@ export const THEME_OPTIONS = [
   { name: 'Slate', value: 'slate', color: '#64748B' },
 ]
 
+const MM_NETWORKS = ['MTN', 'Airtel', 'Glo', '9mobile', 'Opay', 'Other']
+
 function applyThemeCssVars(color: string) {
   if (typeof document !== 'undefined') {
     document.documentElement.style.setProperty('--dashboard-accent', color)
@@ -40,6 +43,17 @@ function getInitials(user: User): string {
     return parts[0].slice(0, 2).toUpperCase()
   }
   return (user.email || 'U').slice(0, 2).toUpperCase()
+}
+
+function buildLabel(
+  type: SavedPaymentMethod['type'],
+  bankName: string,
+  mmNetwork: string,
+  otherLabel: string,
+): string {
+  if (type === 'bank_transfer') return bankName ? `${bankName} — Bank Transfer` : 'Bank Transfer'
+  if (type === 'mobile_money') return mmNetwork ? `${mmNetwork} — Mobile Money` : 'Mobile Money'
+  return otherLabel || 'Other'
 }
 
 interface ProfileDropdownProps {
@@ -61,11 +75,21 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
   const [brandColorInput, setBrandColorInput] = useState('#4F46E5')
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
-  const [paymentMethods, setPaymentMethods] = useState<Array<{ id: string; label: string; details: string }>>([])
+  const [paymentMethods, setPaymentMethods] = useState<SavedPaymentMethod[]>([])
   const [showPaymentForm, setShowPaymentForm] = useState(false)
-  const [editingPayment, setEditingPayment] = useState<{ id: string; label: string; details: string } | null>(null)
-  const [pmLabel, setPmLabel] = useState('')
-  const [pmDetails, setPmDetails] = useState('')
+  const [editingPayment, setEditingPayment] = useState<SavedPaymentMethod | null>(null)
+
+  // Structured form fields
+  const [pmType, setPmType] = useState<SavedPaymentMethod['type']>('bank_transfer')
+  const [pmAccountName, setPmAccountName] = useState('')
+  const [pmAccountNumber, setPmAccountNumber] = useState('')
+  const [pmBankName, setPmBankName] = useState('')
+  const [pmMmAccountName, setPmMmAccountName] = useState('')
+  const [pmMmPhone, setPmMmPhone] = useState('')
+  const [pmMmNetwork, setPmMmNetwork] = useState('')
+  const [pmOtherLabel, setPmOtherLabel] = useState('')
+  const [pmOtherDetails, setPmOtherDetails] = useState('')
+
   const dropdownRef = useRef<HTMLDivElement>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
@@ -106,7 +130,7 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
       const themeColor = THEME_OPTIONS.find((t) => t.value === loaded.dashboard_theme)?.color || '#4F46E5'
       applyThemeCssVars(themeColor)
       onThemeChange?.(themeColor)
-      const methods = (data.payment_methods as Array<{ id: string; label: string; details: string }>) || []
+      const methods = (data.payment_methods as SavedPaymentMethod[]) || []
       setPaymentMethods(methods)
     }
   }
@@ -164,24 +188,70 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
     router.push('/auth/login')
   }
 
+  function resetForm() {
+    setPmType('bank_transfer')
+    setPmAccountName('')
+    setPmAccountNumber('')
+    setPmBankName('')
+    setPmMmAccountName('')
+    setPmMmPhone('')
+    setPmMmNetwork('')
+    setPmOtherLabel('')
+    setPmOtherDetails('')
+  }
+
+  function populateForm(m: SavedPaymentMethod) {
+    setPmType(m.type)
+    setPmAccountName(m.accountName || '')
+    setPmAccountNumber(m.accountNumber || '')
+    setPmBankName(m.bankName || '')
+    setPmMmAccountName(m.mmAccountName || '')
+    setPmMmPhone(m.mmPhone || '')
+    setPmMmNetwork(m.mmNetwork || '')
+    setPmOtherLabel(m.otherLabel || '')
+    setPmOtherDetails(m.otherDetails || '')
+  }
+
+  function isFormValid(): boolean {
+    if (pmType === 'bank_transfer') return !!(pmAccountName || pmAccountNumber || pmBankName)
+    if (pmType === 'mobile_money') return !!(pmMmPhone || pmMmAccountName)
+    return !!(pmOtherLabel || pmOtherDetails)
+  }
+
   async function savePaymentMethod() {
-    if (!pmLabel.trim() || !pmDetails.trim()) return
-    let updated
-    if (editingPayment) {
-      updated = paymentMethods.map((m) =>
-        m.id === editingPayment.id ? { ...m, label: pmLabel, details: pmDetails } : m
-      )
-    } else {
-      if (paymentMethods.length >= 3) return
-      updated = [...paymentMethods, { id: crypto.randomUUID(), label: pmLabel, details: pmDetails }]
+    if (!isFormValid()) return
+
+    const label = buildLabel(pmType, pmBankName, pmMmNetwork, pmOtherLabel)
+    const method: SavedPaymentMethod = {
+      id: editingPayment?.id || crypto.randomUUID(),
+      type: pmType,
+      label,
+      ...(pmType === 'bank_transfer' && {
+        accountName: pmAccountName || undefined,
+        accountNumber: pmAccountNumber || undefined,
+        bankName: pmBankName || undefined,
+      }),
+      ...(pmType === 'mobile_money' && {
+        mmAccountName: pmMmAccountName || undefined,
+        mmPhone: pmMmPhone || undefined,
+        mmNetwork: pmMmNetwork || undefined,
+      }),
+      ...(pmType === 'other' && {
+        otherLabel: pmOtherLabel || undefined,
+        otherDetails: pmOtherDetails || undefined,
+      }),
     }
+
+    const updated = editingPayment
+      ? paymentMethods.map((m) => (m.id === editingPayment.id ? method : m))
+      : [...paymentMethods, method]
+
     setPaymentMethods(updated)
     const supabase = createClient()
     await supabase.from('profiles').upsert({ id: user.id, payment_methods: updated })
     setShowPaymentForm(false)
     setEditingPayment(null)
-    setPmLabel('')
-    setPmDetails('')
+    resetForm()
   }
 
   async function deletePaymentMethod(id: string) {
@@ -190,6 +260,17 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
     const supabase = createClient()
     await supabase.from('profiles').upsert({ id: user.id, payment_methods: updated })
   }
+
+  function cardSubtitle(m: SavedPaymentMethod): string {
+    if (m.type === 'bank_transfer') return m.accountName || m.accountNumber || ''
+    if (m.type === 'mobile_money') return m.mmPhone || m.mmAccountName || ''
+    return m.otherDetails?.split('\n')[0] || ''
+  }
+
+  const inputCls =
+    'w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-300'
+  const selectCls = inputCls
+  const labelCls = 'block text-xs font-medium text-gray-600 mb-0.5'
 
   const initials = getInitials(user)
   const brandColorForAvatar = profile.brand_color || '#4F46E5'
@@ -206,6 +287,7 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
         title="Profile & Settings"
       >
         {profile.profile_picture_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img src={profile.profile_picture_url} alt="Avatar" className="w-full h-full object-cover" />
         ) : (
           <span
@@ -229,6 +311,7 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
                 style={{ borderColor: brandColorForAvatar }}
               >
                 {profile.profile_picture_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={profile.profile_picture_url} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
                   <div
@@ -289,6 +372,7 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
               <label className="text-xs text-gray-700 font-medium w-24 shrink-0">Business Logo</label>
               <div className="flex items-center gap-2 flex-1">
                 {profile.logo_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={profile.logo_url} alt="Logo" className="w-8 h-8 object-contain rounded border border-gray-200" />
                 )}
                 <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
@@ -334,14 +418,15 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-800">{m.label}</p>
-                  <p className="text-xs text-gray-500 truncate">{m.details.split('\n')[0]}</p>
+                  {cardSubtitle(m) && (
+                    <p className="text-xs text-gray-500 truncate">{cardSubtitle(m)}</p>
+                  )}
                 </div>
                 <div className="flex gap-1 ml-2 flex-shrink-0">
                   <button
                     onClick={() => {
                       setEditingPayment(m)
-                      setPmLabel(m.label)
-                      setPmDetails(m.details)
+                      populateForm(m)
                       setShowPaymentForm(true)
                     }}
                     className="p-1 text-gray-400 hover:text-indigo-600"
@@ -363,24 +448,121 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
             ))}
 
             {showPaymentForm ? (
-              <div className="space-y-1.5">
-                <input
-                  value={pmLabel}
-                  onChange={(e) => setPmLabel(e.target.value)}
-                  placeholder="Label (e.g. GTBank, Opay)"
-                  className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-300"
-                />
-                <textarea
-                  value={pmDetails}
-                  onChange={(e) => setPmDetails(e.target.value)}
-                  placeholder={"Account Name: ...\nAccount No: ...\nBank: ..."}
-                  rows={3}
-                  className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-300 resize-none"
-                />
-                <div className="flex gap-2">
+              <div className="space-y-2 border border-gray-200 rounded-lg p-3 bg-gray-50">
+                {/* Payment Type */}
+                <div>
+                  <label className={labelCls}>Payment Type</label>
+                  <select
+                    value={pmType}
+                    onChange={(e) => setPmType(e.target.value as SavedPaymentMethod['type'])}
+                    className={selectCls}
+                  >
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="mobile_money">Mobile Money</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                {/* Bank Transfer fields */}
+                {pmType === 'bank_transfer' && (
+                  <>
+                    <div>
+                      <label className={labelCls}>Account Name</label>
+                      <input
+                        value={pmAccountName}
+                        onChange={(e) => setPmAccountName(e.target.value)}
+                        placeholder="John Doe"
+                        className={inputCls}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Account Number</label>
+                      <input
+                        value={pmAccountNumber}
+                        onChange={(e) => setPmAccountNumber(e.target.value)}
+                        placeholder="0123456789"
+                        className={inputCls}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Bank Name</label>
+                      <input
+                        value={pmBankName}
+                        onChange={(e) => setPmBankName(e.target.value)}
+                        placeholder="First National Bank"
+                        className={inputCls}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Mobile Money fields */}
+                {pmType === 'mobile_money' && (
+                  <>
+                    <div>
+                      <label className={labelCls}>Account Name</label>
+                      <input
+                        value={pmMmAccountName}
+                        onChange={(e) => setPmMmAccountName(e.target.value)}
+                        placeholder="John Doe"
+                        className={inputCls}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Phone Number</label>
+                      <input
+                        value={pmMmPhone}
+                        onChange={(e) => setPmMmPhone(e.target.value)}
+                        placeholder="+234 800 000 0000"
+                        className={inputCls}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Network</label>
+                      <select
+                        value={pmMmNetwork}
+                        onChange={(e) => setPmMmNetwork(e.target.value)}
+                        className={selectCls}
+                      >
+                        <option value="">— Select network —</option>
+                        {MM_NETWORKS.map((n) => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {/* Other fields */}
+                {pmType === 'other' && (
+                  <>
+                    <div>
+                      <label className={labelCls}>Label (e.g. PayPal, Crypto)</label>
+                      <input
+                        value={pmOtherLabel}
+                        onChange={(e) => setPmOtherLabel(e.target.value)}
+                        placeholder="PayPal"
+                        className={inputCls}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Details</label>
+                      <textarea
+                        value={pmOtherDetails}
+                        onChange={(e) => setPmOtherDetails(e.target.value)}
+                        placeholder="Send to payments@example.com"
+                        rows={2}
+                        className={inputCls + ' resize-none'}
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div className="flex gap-2 pt-1">
                   <button
                     onClick={savePaymentMethod}
-                    className="flex-1 text-xs bg-indigo-600 text-white rounded-lg py-1.5 hover:bg-indigo-700 transition"
+                    disabled={!isFormValid()}
+                    className="flex-1 text-xs bg-indigo-600 text-white rounded-lg py-1.5 hover:bg-indigo-700 disabled:opacity-40 transition"
                   >
                     Save
                   </button>
@@ -388,10 +570,9 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
                     onClick={() => {
                       setShowPaymentForm(false)
                       setEditingPayment(null)
-                      setPmLabel('')
-                      setPmDetails('')
+                      resetForm()
                     }}
-                    className="flex-1 text-xs border border-gray-200 rounded-lg py-1.5 hover:bg-gray-50 transition"
+                    className="flex-1 text-xs border border-gray-200 rounded-lg py-1.5 hover:bg-gray-100 transition"
                   >
                     Cancel
                   </button>

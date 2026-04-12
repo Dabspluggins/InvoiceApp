@@ -16,12 +16,21 @@ interface Profile {
 
 export const THEME_OPTIONS = [
   { name: 'Indigo', value: 'indigo', color: '#4F46E5' },
-  { name: 'Blue', value: 'blue', color: '#2563EB' },
-  { name: 'Green', value: 'green', color: '#16A34A' },
-  { name: 'Purple', value: 'purple', color: '#9333EA' },
+  { name: 'Violet', value: 'violet', color: '#7C3AED' },
   { name: 'Rose', value: 'rose', color: '#E11D48' },
-  { name: 'Slate', value: 'slate', color: '#475569' },
+  { name: 'Amber', value: 'amber', color: '#D97706' },
+  { name: 'Teal', value: 'teal', color: '#0D9488' },
+  { name: 'Sky', value: 'sky', color: '#0284C7' },
+  { name: 'Emerald', value: 'emerald', color: '#10B981' },
+  { name: 'Orange', value: 'orange', color: '#F97316' },
+  { name: 'Slate', value: 'slate', color: '#64748B' },
 ]
+
+function applyThemeCssVars(color: string) {
+  if (typeof document !== 'undefined') {
+    document.documentElement.style.setProperty('--dashboard-accent', color)
+  }
+}
 
 function getInitials(user: User): string {
   const fullName = (user.user_metadata?.full_name || '') as string
@@ -90,6 +99,7 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
       setProfile(loaded)
       setBrandColorInput(loaded.brand_color || '#4F46E5')
       const themeColor = THEME_OPTIONS.find((t) => t.value === loaded.dashboard_theme)?.color || '#4F46E5'
+      applyThemeCssVars(themeColor)
       onThemeChange?.(themeColor)
     }
   }
@@ -100,6 +110,7 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
     setProfile((prev) => ({ ...prev, ...updates }))
     if (updates.dashboard_theme) {
       const themeColor = THEME_OPTIONS.find((t) => t.value === updates.dashboard_theme)?.color || '#4F46E5'
+      applyThemeCssVars(themeColor)
       onThemeChange?.(themeColor)
     }
   }
@@ -260,7 +271,7 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
             {/* Dashboard Accent */}
             <div>
               <label className="text-xs text-gray-700 font-medium block mb-2">Dashboard Accent</label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {THEME_OPTIONS.map((t) => (
                   <button
                     key={t.value}

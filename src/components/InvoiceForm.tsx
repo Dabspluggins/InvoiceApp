@@ -10,10 +10,12 @@ import { CURRENCIES } from '@/lib/currencies'
 import LineItemsTable from './LineItemsTable'
 import Totals from './Totals'
 import { createClient } from '@/lib/supabase/client'
+import LockedFeature from './LockedFeature'
 
 interface Props {
   data: InvoiceData
   onChange: (data: InvoiceData) => void
+  isSignedIn: boolean
 }
 
 interface SavedClient {
@@ -33,7 +35,7 @@ const MOBILE_MONEY_PROVIDERS = [
 
 type PaymentTab = 'bankTransfer' | 'mobileMoney' | 'other'
 
-export default function InvoiceForm({ data, onChange }: Props) {
+export default function InvoiceForm({ data, onChange, isSignedIn }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [savedClients, setSavedClients] = useState<SavedClient[]>([])
   const [savingClient, setSavingClient] = useState(false)
@@ -207,33 +209,35 @@ export default function InvoiceForm({ data, onChange }: Props) {
           </div>
           <div className="col-span-2">
             <label className={labelCls}>Brand Color</label>
-            <div className="flex items-center gap-3">
-              <input
-                type="color"
-                value={data.brandColor}
-                onChange={(e) => set('brandColor', e.target.value)}
-                className="h-9 w-14 cursor-pointer rounded border border-gray-200 p-0.5"
-              />
-              <div
-                className="h-9 w-9 rounded-lg border border-gray-200 shadow-sm flex-shrink-0"
-                style={{ backgroundColor: data.brandColor }}
-              />
-              <input
-                type="text"
-                value={data.brandColor}
-                onChange={(e) => {
-                  const val = e.target.value
-                  set('brandColor', val)
-                  // Only update color picker if it's a valid full hex
-                  if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+            <LockedFeature isLocked={!isSignedIn}>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={data.brandColor}
+                  onChange={(e) => set('brandColor', e.target.value)}
+                  className="h-9 w-14 cursor-pointer rounded border border-gray-200 p-0.5"
+                />
+                <div
+                  className="h-9 w-9 rounded-lg border border-gray-200 shadow-sm flex-shrink-0"
+                  style={{ backgroundColor: data.brandColor }}
+                />
+                <input
+                  type="text"
+                  value={data.brandColor}
+                  onChange={(e) => {
+                    const val = e.target.value
                     set('brandColor', val)
-                  }
-                }}
-                className="w-28 px-2 py-1 border border-gray-300 rounded text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                placeholder="#4F46E5"
-                maxLength={7}
-              />
-            </div>
+                    // Only update color picker if it's a valid full hex
+                    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                      set('brandColor', val)
+                    }
+                  }}
+                  className="w-28 px-2 py-1 border border-gray-300 rounded text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  placeholder="#4F46E5"
+                  maxLength={7}
+                />
+              </div>
+            </LockedFeature>
           </div>
         </div>
       </div>
@@ -263,18 +267,20 @@ export default function InvoiceForm({ data, onChange }: Props) {
             <input className={inputCls} type="date" value={data.dueDate} onChange={(e) => set('dueDate', e.target.value)} />
           </div>
           <div className="col-span-full">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={data.isRecurring}
-                onChange={(e) => {
-                  set('isRecurring', e.target.checked)
-                  if (!e.target.checked) set('recurringFrequency', null)
-                }}
-                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-400"
-              />
-              <span className="text-xs font-medium text-gray-700">Make Recurring</span>
-            </label>
+            <LockedFeature isLocked={!isSignedIn} className="inline-block">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={data.isRecurring}
+                  onChange={(e) => {
+                    set('isRecurring', e.target.checked)
+                    if (!e.target.checked) set('recurringFrequency', null)
+                  }}
+                  className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-400"
+                />
+                <span className="text-xs font-medium text-gray-700">Make Recurring</span>
+              </label>
+            </LockedFeature>
           </div>
           {data.isRecurring && (
             <div className="col-span-full">
@@ -338,14 +344,16 @@ export default function InvoiceForm({ data, onChange }: Props) {
 
         {/* Save as Client */}
         <div className="mt-3 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleSaveAsClient}
-            disabled={savingClient}
-            className="text-xs text-indigo-600 hover:text-indigo-800 border border-indigo-200 hover:border-indigo-400 px-3 py-1.5 rounded-lg disabled:opacity-50 transition"
-          >
-            {savingClient ? 'Saving...' : '+ Save as Client'}
-          </button>
+          <LockedFeature isLocked={!isSignedIn} className="inline-block">
+            <button
+              type="button"
+              onClick={handleSaveAsClient}
+              disabled={savingClient}
+              className="text-xs text-indigo-600 hover:text-indigo-800 border border-indigo-200 hover:border-indigo-400 px-3 py-1.5 rounded-lg disabled:opacity-50 transition"
+            >
+              {savingClient ? 'Saving...' : '+ Save as Client'}
+            </button>
+          </LockedFeature>
           {clientSaveMsg && (
             <span className={`text-xs ${clientSaveMsg.includes('Failed') || clientSaveMsg.includes('required') ? 'text-red-500' : 'text-green-600'}`}>
               {clientSaveMsg}
@@ -356,7 +364,17 @@ export default function InvoiceForm({ data, onChange }: Props) {
 
       {/* Line Items */}
       <div className={sectionCls}>
-        <p className={sectionHeadCls}>Services / Products</p>
+        <div className="flex items-center justify-between pb-1 border-b border-gray-100 mb-3">
+          <p className="text-sm font-semibold text-gray-700">Services / Products</p>
+          <LockedFeature isLocked={!isSignedIn} className="inline-block">
+            <button
+              type="button"
+              className="text-xs text-indigo-600 hover:text-indigo-800 border border-indigo-200 hover:border-indigo-400 px-3 py-1.5 rounded-lg transition"
+            >
+              Import Expenses
+            </button>
+          </LockedFeature>
+        </div>
         <LineItemsTable
           items={data.lineItems}
           currency={data.currency}

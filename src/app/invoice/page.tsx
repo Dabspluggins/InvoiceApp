@@ -80,6 +80,7 @@ function InvoicePageInner() {
   const [duplicateBanner, setDuplicateBanner] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit')
+  const [isSignedIn, setIsSignedIn] = useState(false)
   const [sendModal, setSendModal] = useState<SendModalState>({
     open: false,
     toEmail: '',
@@ -98,6 +99,13 @@ function InvoicePageInner() {
   const invoiceId = searchParams.get('id')
   const templateId = searchParams.get('template')
   const duplicateId = searchParams.get('duplicate')
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setIsSignedIn(!!user)
+    })
+  }, [])
 
   // Load invoice from Supabase if ?id= present, load template if ?template= present,
   // else auto-fill next invoice number from Supabase
@@ -676,7 +684,7 @@ function InvoicePageInner() {
             </button>
           </div>
         )}
-        <InvoiceForm data={data} onChange={setData} />
+        <InvoiceForm data={data} onChange={setData} isSignedIn={isSignedIn} />
       </div>
 
       {/* Right: Preview + Actions */}

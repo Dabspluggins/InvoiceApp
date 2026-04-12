@@ -739,7 +739,7 @@ function InvoicePageInner() {
       )}
 
       {/* Send Invoice Modal */}
-      {sendModal.open && (
+      {isSignedIn && sendModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 print:hidden">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
             <div className="flex items-center justify-between mb-5">
@@ -1202,12 +1202,14 @@ function InvoicePageInner() {
           >
             Download PDF
           </button>
-          <button
-            onClick={openSendModal}
-            className="bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition"
-          >
-            Send to Client
-          </button>
+          {isSignedIn && (
+            <button
+              onClick={openSendModal}
+              className="bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition"
+            >
+              Send to Client
+            </button>
+          )}
         </div>
       </div>
 
@@ -1232,12 +1234,14 @@ function InvoicePageInner() {
         >
           PDF
         </button>
-        <button
-          onClick={openSendModal}
-          className="flex-1 bg-emerald-600 text-white px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-emerald-700 transition"
-        >
-          Send
-        </button>
+        {isSignedIn && (
+          <button
+            onClick={openSendModal}
+            className="flex-1 bg-emerald-600 text-white px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-emerald-700 transition"
+          >
+            Send
+          </button>
+        )}
       </div>
     </div>
   )

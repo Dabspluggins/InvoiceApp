@@ -1,15 +1,5 @@
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'pending' | 'partial'
 
-export interface Payment {
-  id: string
-  invoice_id: string
-  user_id: string
-  amount: number
-  paid_at: string
-  note: string | null
-  created_at: string
-}
-
 export type SavedPaymentMethod = {
   id: string
   type: 'bank_transfer' | 'mobile_money' | 'other'
@@ -25,6 +15,16 @@ export type SavedPaymentMethod = {
   // Other
   otherLabel?: string
   otherDetails?: string
+}
+
+export interface Payment {
+  id: string
+  invoice_id: string
+  user_id: string
+  amount: number
+  paid_at: string
+  note: string | null
+  created_at: string
 }
 
 export interface PaymentDetails {

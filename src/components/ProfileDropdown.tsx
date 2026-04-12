@@ -27,7 +27,7 @@ export const THEME_OPTIONS = [
   { name: 'Slate', value: 'slate', color: '#64748B' },
 ]
 
-const MM_NETWORKS = ['MTN', 'Airtel', 'Glo', '9mobile', 'Opay', 'Other']
+const MM_NETWORKS = ['MTN', 'Airtel', 'Glo', 'Opay', 'Palmpay', 'Moniepoint', 'Chipper Cash', 'Carbon', 'Kuda', 'Wave', 'Other']
 
 function applyThemeCssVars(color: string) {
   if (typeof document !== 'undefined') {
@@ -518,13 +518,13 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
                       />
                     </div>
                     <div>
-                      <label className={labelCls}>Network</label>
+                      <label className={labelCls}>Provider</label>
                       <select
                         value={pmMmNetwork}
                         onChange={(e) => setPmMmNetwork(e.target.value)}
                         className={selectCls}
                       >
-                        <option value="">— Select network —</option>
+                        <option value="">— Select Provider —</option>
                         {MM_NETWORKS.map((n) => (
                           <option key={n} value={n}>{n}</option>
                         ))}

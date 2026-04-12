@@ -61,6 +61,11 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
   const [brandColorInput, setBrandColorInput] = useState('#4F46E5')
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [paymentMethods, setPaymentMethods] = useState<Array<{ id: string; label: string; details: string }>>([])
+  const [showPaymentForm, setShowPaymentForm] = useState(false)
+  const [editingPayment, setEditingPayment] = useState<{ id: string; label: string; details: string } | null>(null)
+  const [pmLabel, setPmLabel] = useState('')
+  const [pmDetails, setPmDetails] = useState('')
   const dropdownRef = useRef<HTMLDivElement>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
@@ -84,7 +89,7 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
     const supabase = createClient()
     const { data } = await supabase
       .from('profiles')
-      .select('profile_picture_url, brand_color, dashboard_theme, logo_url, business_name')
+      .select('profile_picture_url, brand_color, dashboard_theme, logo_url, business_name, payment_methods')
       .eq('id', user.id)
       .maybeSingle()
 
@@ -101,6 +106,8 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
       const themeColor = THEME_OPTIONS.find((t) => t.value === loaded.dashboard_theme)?.color || '#4F46E5'
       applyThemeCssVars(themeColor)
       onThemeChange?.(themeColor)
+      const methods = (data.payment_methods as Array<{ id: string; label: string; details: string }>) || []
+      setPaymentMethods(methods)
     }
   }
 
@@ -155,6 +162,33 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/auth/login')
+  }
+
+  async function savePaymentMethod() {
+    if (!pmLabel.trim() || !pmDetails.trim()) return
+    let updated
+    if (editingPayment) {
+      updated = paymentMethods.map((m) =>
+        m.id === editingPayment.id ? { ...m, label: pmLabel, details: pmDetails } : m
+      )
+    } else {
+      if (paymentMethods.length >= 3) return
+      updated = [...paymentMethods, { id: crypto.randomUUID(), label: pmLabel, details: pmDetails }]
+    }
+    setPaymentMethods(updated)
+    const supabase = createClient()
+    await supabase.from('profiles').upsert({ id: user.id, payment_methods: updated })
+    setShowPaymentForm(false)
+    setEditingPayment(null)
+    setPmLabel('')
+    setPmDetails('')
+  }
+
+  async function deletePaymentMethod(id: string) {
+    const updated = paymentMethods.filter((m) => m.id !== id)
+    setPaymentMethods(updated)
+    const supabase = createClient()
+    await supabase.from('profiles').upsert({ id: user.id, payment_methods: updated })
   }
 
   const initials = getInitials(user)
@@ -289,7 +323,92 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
             </div>
           </div>
 
-          {/* Section 3: Preferences */}
+          {/* Section 3: Payment Details */}
+          <div className="px-5 py-4 border-b border-gray-100 space-y-2">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Payment Details</p>
+
+            {paymentMethods.map((m) => (
+              <div
+                key={m.id}
+                className="flex items-start justify-between bg-gray-50 rounded-lg p-2 border border-gray-200"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800">{m.label}</p>
+                  <p className="text-xs text-gray-500 truncate">{m.details.split('\n')[0]}</p>
+                </div>
+                <div className="flex gap-1 ml-2 flex-shrink-0">
+                  <button
+                    onClick={() => {
+                      setEditingPayment(m)
+                      setPmLabel(m.label)
+                      setPmDetails(m.details)
+                      setShowPaymentForm(true)
+                    }}
+                    className="p-1 text-gray-400 hover:text-indigo-600"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => deletePaymentMethod(m.id)}
+                    className="p-1 text-gray-400 hover:text-red-500"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {showPaymentForm ? (
+              <div className="space-y-1.5">
+                <input
+                  value={pmLabel}
+                  onChange={(e) => setPmLabel(e.target.value)}
+                  placeholder="Label (e.g. GTBank, Opay)"
+                  className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-300"
+                />
+                <textarea
+                  value={pmDetails}
+                  onChange={(e) => setPmDetails(e.target.value)}
+                  placeholder={"Account Name: ...\nAccount No: ...\nBank: ..."}
+                  rows={3}
+                  className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-300 resize-none"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={savePaymentMethod}
+                    className="flex-1 text-xs bg-indigo-600 text-white rounded-lg py-1.5 hover:bg-indigo-700 transition"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowPaymentForm(false)
+                      setEditingPayment(null)
+                      setPmLabel('')
+                      setPmDetails('')
+                    }}
+                    className="flex-1 text-xs border border-gray-200 rounded-lg py-1.5 hover:bg-gray-50 transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => { if (paymentMethods.length < 3) setShowPaymentForm(true) }}
+                disabled={paymentMethods.length >= 3}
+                className={`text-xs font-medium ${paymentMethods.length >= 3 ? 'text-gray-300 cursor-not-allowed' : 'text-indigo-600 hover:text-indigo-800'}`}
+              >
+                {paymentMethods.length >= 3 ? '✓ Maximum 3 saved' : '+ Add Payment Method'}
+              </button>
+            )}
+          </div>
+
+          {/* Section 4: Preferences */}
           <div className="px-5 py-3 border-b border-gray-100">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-gray-700">Dark Mode</span>
@@ -304,7 +423,7 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
             </div>
           </div>
 
-          {/* Section 4: Actions */}
+          {/* Section 5: Actions */}
           <div className="px-5 py-3 flex items-center gap-3">
             <Link
               href="/settings"

@@ -42,6 +42,7 @@ export default function InvoiceForm({ data, onChange, isSignedIn }: Props) {
   const [clientSaveMsg, setClientSaveMsg] = useState<string | null>(null)
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [activePaymentTab, setActivePaymentTab] = useState<PaymentTab>('bankTransfer')
+  const [savedPaymentMethods, setSavedPaymentMethods] = useState<Array<{ id: string; label: string; details: string }>>([])
 
   useEffect(() => {
     const supabase = createClient()
@@ -53,6 +54,15 @@ export default function InvoiceForm({ data, onChange, isSignedIn }: Props) {
         .order('name')
         .then(({ data }) => {
           if (data) setSavedClients(data)
+        })
+      supabase
+        .from('profiles')
+        .select('payment_methods')
+        .eq('id', user.id)
+        .single()
+        .then(({ data: profileData }) => {
+          const methods = (profileData?.payment_methods as Array<{ id: string; label: string; details: string }>) || []
+          setSavedPaymentMethods(methods)
         })
     })
   }, [])
@@ -75,6 +85,28 @@ export default function InvoiceForm({ data, onChange, isSignedIn }: Props) {
 
   function setOther(fields: Partial<NonNullable<PaymentDetails['other']>>) {
     setPayment({ other: { ...data.paymentDetails?.other, ...fields } })
+  }
+
+  function applyPaymentMethod(details: string) {
+    const parsed: Record<string, string> = {}
+    for (const line of details.split('\n')) {
+      const idx = line.indexOf(':')
+      if (idx > -1) {
+        const key = line.slice(0, idx).trim().toLowerCase()
+        const val = line.slice(idx + 1).trim()
+        if (val) parsed[key] = val
+      }
+    }
+    const updates: NonNullable<PaymentDetails['bankTransfer']> = {}
+    const accountName = parsed['account name'] || parsed['name']
+    const bankName = parsed['bank'] || parsed['bank name']
+    const accountNumber = parsed['account no'] || parsed['account number'] || parsed['account no.']
+    if (accountName) updates.accountName = accountName
+    if (bankName) updates.bankName = bankName
+    if (accountNumber) updates.accountNumber = accountNumber
+    setPayment({ bankTransfer: { ...data.paymentDetails?.bankTransfer, ...updates } })
+    setActivePaymentTab('bankTransfer')
+    setPaymentOpen(true)
   }
 
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -401,6 +433,20 @@ export default function InvoiceForm({ data, onChange, isSignedIn }: Props) {
 
       {/* Payment Details */}
       <div className="mb-6">
+        {isSignedIn && savedPaymentMethods.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {savedPaymentMethods.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => applyPaymentMethod(m.details)}
+                className="px-3 py-1 rounded-full text-xs font-medium border border-gray-300 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        )}
         <button
           type="button"
           onClick={() => setPaymentOpen((v) => !v)}

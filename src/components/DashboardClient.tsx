@@ -65,7 +65,7 @@ function formatDateLong(dateStr: string | null): string {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-export default function DashboardClient({ user }: { user?: User | null }) {
+export default function DashboardClient({ user, darkMode }: { user?: User | null; darkMode?: boolean }) {
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
@@ -292,6 +292,8 @@ export default function DashboardClient({ user }: { user?: User | null }) {
     { label: 'Overdue', value: 'overdue' },
   ]
 
+  const dk = darkMode
+
   if (loading) {
     return (
       <div className="text-center py-16 text-gray-400 text-sm">Loading invoices...</div>
@@ -301,26 +303,26 @@ export default function DashboardClient({ user }: { user?: User | null }) {
   return (
     <>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Welcome back, {displayName}! 👋</h1>
-        <p className="text-gray-500 mt-1">Here&apos;s your invoice overview.</p>
+        <h1 className={`text-2xl font-bold ${dk ? 'text-white' : 'text-gray-900'}`}>Welcome back, {displayName}! 👋</h1>
+        <p className={`mt-1 ${dk ? 'text-gray-400' : 'text-gray-500'}`}>Here&apos;s your invoice overview.</p>
       </div>
 
       {/* Stats — 2 columns on mobile, 3 on md+ */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
-        <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
-          <p className="text-xs md:text-sm text-gray-500 mb-1">Total Invoices</p>
-          <p className="text-xl md:text-2xl font-bold text-blue-600">
+        <div className={`rounded-xl border p-4 md:p-6 ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+          <p className={`text-xs md:text-sm mb-1 ${dk ? 'text-gray-400' : 'text-gray-500'}`}>Total Invoices</p>
+          <p className="text-xl md:text-2xl font-bold text-blue-500">
             {filteredInvoices.length !== totalInvoices
               ? `${filteredInvoices.length} / ${totalInvoices}`
               : totalInvoices}
           </p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
-          <p className="text-xs md:text-sm text-gray-500 mb-1">Paid</p>
-          <p className="text-xl md:text-2xl font-bold text-green-600">{paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+        <div className={`rounded-xl border p-4 md:p-6 ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+          <p className={`text-xs md:text-sm mb-1 ${dk ? 'text-gray-400' : 'text-gray-500'}`}>Paid</p>
+          <p className="text-xl md:text-2xl font-bold text-green-500">{paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
-        <div className="col-span-2 md:col-span-1 bg-white rounded-xl border border-gray-200 p-4 md:p-6">
-          <p className="text-xs md:text-sm text-gray-500 mb-1">Outstanding</p>
+        <div className={`col-span-2 md:col-span-1 rounded-xl border p-4 md:p-6 ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+          <p className={`text-xs md:text-sm mb-1 ${dk ? 'text-gray-400' : 'text-gray-500'}`}>Outstanding</p>
           <p className="text-xl md:text-2xl font-bold text-orange-500">{outstandingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
       </div>
@@ -400,10 +402,10 @@ export default function DashboardClient({ user }: { user?: User | null }) {
 
       {/* Invoice list */}
       {invoices.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 md:p-12 text-center">
+        <div className={`rounded-xl border p-8 md:p-12 text-center ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <div className="text-5xl mb-4">📄</div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No invoices yet</h3>
-          <p className="text-gray-500 text-sm mb-6">
+          <h3 className={`text-lg font-semibold mb-2 ${dk ? 'text-white' : 'text-gray-900'}`}>No invoices yet</h3>
+          <p className={`text-sm mb-6 ${dk ? 'text-gray-400' : 'text-gray-500'}`}>
             Create your first invoice and it will appear here.
           </p>
           <Link
@@ -414,7 +416,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
           </Link>
         </div>
       ) : filteredInvoices.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-500">
+        <div className={`rounded-xl border p-8 text-center text-sm ${dk ? 'bg-gray-800 border-gray-700 text-gray-400' : 'bg-white border-gray-200 text-gray-500'}`}>
           No invoices match your search or filter.
         </div>
       ) : (
@@ -452,7 +454,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
             {filteredInvoices.map((inv) => (
               <div
                 key={inv.id}
-                className="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer"
+                className={`rounded-xl border p-4 cursor-pointer ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
                 onClick={() => router.push(`/invoice?id=${inv.id}`)}
               >
                 <div className="flex justify-between items-start mb-3">
@@ -466,19 +468,19 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                       />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-gray-900 flex items-center gap-1 flex-wrap">
+                      <p className={`text-sm font-semibold flex items-center gap-1 flex-wrap ${dk ? 'text-white' : 'text-gray-900'}`}>
                         {inv.invoice_number}
                         {inv.is_recurring && <span title="Recurring">🔄</span>}
                         {isOverdue(inv) && (
                           <span className="text-xs font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded">OVERDUE</span>
                         )}
                       </p>
-                      <p className="text-sm text-gray-600 mt-0.5">{inv.client_name || '—'}</p>
+                      <p className={`text-sm mt-0.5 ${dk ? 'text-gray-300' : 'text-gray-600'}`}>{inv.client_name || '—'}</p>
                       {inv.client_company && (
-                        <p className="text-xs text-gray-400">{inv.client_company}</p>
+                        <p className={`text-xs ${dk ? 'text-gray-500' : 'text-gray-400'}`}>{inv.client_company}</p>
                       )}
                       {(inv.reminders_sent ?? 0) > 0 && (
-                        <p className="text-xs text-gray-400 mt-0.5">{inv.reminders_sent} reminder{inv.reminders_sent === 1 ? '' : 's'} sent</p>
+                        <p className={`text-xs mt-0.5 ${dk ? 'text-gray-500' : 'text-gray-400'}`}>{inv.reminders_sent} reminder{inv.reminders_sent === 1 ? '' : 's'} sent</p>
                       )}
                       {inv.viewed_at && (
                         <p
@@ -491,7 +493,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-bold text-gray-900">
+                    <p className={`text-sm font-bold ${dk ? 'text-white' : 'text-gray-900'}`}>
                       {formatCurrency(inv.total, inv.currency)}
                     </p>
                     {isPartial(inv) && (
@@ -559,10 +561,10 @@ export default function DashboardClient({ user }: { user?: User | null }) {
           </div>
 
           {/* Desktop: table */}
-          <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className={`hidden md:block rounded-xl border overflow-hidden ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wide bg-gray-50">
+                <tr className={`border-b text-xs uppercase tracking-wide ${dk ? 'border-gray-700 text-gray-400 bg-gray-900' : 'border-gray-100 text-gray-500 bg-gray-50'}`}>
                   <th className="px-4 py-3 w-8">
                     <input
                       type="checkbox"
@@ -584,7 +586,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                 {filteredInvoices.map((inv) => (
                   <tr
                     key={inv.id}
-                    className={`border-b border-gray-50 last:border-0 hover:bg-gray-50 transition cursor-pointer group ${selectedIds.has(inv.id) ? 'bg-indigo-50/40' : ''}`}
+                    className={`border-b last:border-0 transition cursor-pointer group ${dk ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-50 hover:bg-gray-50'} ${selectedIds.has(inv.id) ? (dk ? 'bg-indigo-900/30' : 'bg-indigo-50/40') : ''}`}
                     onClick={() => router.push(`/invoice?id=${inv.id}`)}
                   >
                     <td
@@ -599,7 +601,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                         style={selectedIds.has(inv.id) ? { opacity: 1 } : undefined}
                       />
                     </td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                    <td className={`px-6 py-4 text-sm font-medium ${dk ? 'text-white' : 'text-gray-900'}`}>
                       <span className="flex items-center gap-1.5 flex-wrap">
                         {inv.invoice_number}
                         {inv.is_recurring && <span title="Recurring">🔄</span>}
@@ -608,7 +610,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                         )}
                       </span>
                       {(inv.reminders_sent ?? 0) > 0 && (
-                        <span className="text-xs text-gray-400">{inv.reminders_sent} reminder{inv.reminders_sent === 1 ? '' : 's'} sent</span>
+                        <span className={`text-xs ${dk ? 'text-gray-500' : 'text-gray-400'}`}>{inv.reminders_sent} reminder{inv.reminders_sent === 1 ? '' : 's'} sent</span>
                       )}
                       {inv.viewed_at && (
                         <span
@@ -619,14 +621,14 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
+                    <td className={`px-6 py-4 text-sm ${dk ? 'text-gray-300' : 'text-gray-600'}`}>
                       <div>{inv.client_name || '—'}</div>
                       {inv.client_company && (
-                        <div className="text-xs text-gray-400">{inv.client_company}</div>
+                        <div className={`text-xs ${dk ? 'text-gray-500' : 'text-gray-400'}`}>{inv.client_company}</div>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{formatDateLong(inv.issue_date)}</td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right">
+                    <td className={`px-6 py-4 text-sm ${dk ? 'text-gray-400' : 'text-gray-500'}`}>{formatDateLong(inv.issue_date)}</td>
+                    <td className={`px-6 py-4 text-sm font-medium text-right ${dk ? 'text-white' : 'text-gray-900'}`}>
                       {formatCurrency(inv.total, inv.currency)}
                       {isPartial(inv) && (
                         <div className="text-xs text-purple-600 mt-0.5">
@@ -708,12 +710,12 @@ export default function DashboardClient({ user }: { user?: User | null }) {
 
       {/* Templates section */}
       <div className="mt-10">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">Templates</h2>
+        <h2 className={`text-lg font-bold mb-4 ${dk ? 'text-white' : 'text-gray-900'}`}>Templates</h2>
         {templates.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+          <div className={`rounded-xl border p-8 text-center ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <div className="text-4xl mb-3">📋</div>
-            <h3 className="text-base font-semibold text-gray-900 mb-1">No templates yet</h3>
-            <p className="text-gray-500 text-sm">
+            <h3 className={`text-base font-semibold mb-1 ${dk ? 'text-white' : 'text-gray-900'}`}>No templates yet</h3>
+            <p className={`text-sm ${dk ? 'text-gray-400' : 'text-gray-500'}`}>
               Save an invoice as a template and it will appear here.
             </p>
           </div>
@@ -722,11 +724,11 @@ export default function DashboardClient({ user }: { user?: User | null }) {
             {/* Mobile: cards */}
             <div className="md:hidden flex flex-col gap-3">
               {templates.map((tmpl) => (
-                <div key={tmpl.id} className="bg-white rounded-xl border border-gray-200 p-4">
+                <div key={tmpl.id} className={`rounded-xl border p-4 ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">{tmpl.name}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">
+                      <p className={`text-sm font-semibold ${dk ? 'text-white' : 'text-gray-900'}`}>{tmpl.name}</p>
+                      <p className={`text-xs mt-0.5 ${dk ? 'text-gray-500' : 'text-gray-400'}`}>
                         {new Date(tmpl.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </p>
                     </div>
@@ -750,10 +752,10 @@ export default function DashboardClient({ user }: { user?: User | null }) {
             </div>
 
             {/* Desktop: table */}
-            <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className={`hidden md:block rounded-xl border overflow-hidden ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wide bg-gray-50">
+                  <tr className={`border-b text-xs uppercase tracking-wide ${dk ? 'border-gray-700 text-gray-400 bg-gray-900' : 'border-gray-100 text-gray-500 bg-gray-50'}`}>
                     <th className="text-left px-6 py-3">Name</th>
                     <th className="text-left px-6 py-3">Saved</th>
                     <th className="text-right px-6 py-3">Actions</th>
@@ -763,10 +765,10 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                   {templates.map((tmpl) => (
                     <tr
                       key={tmpl.id}
-                      className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition"
+                      className={`border-b last:border-0 transition ${dk ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-50 hover:bg-gray-50'}`}
                     >
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{tmpl.name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
+                      <td className={`px-6 py-4 text-sm font-medium ${dk ? 'text-white' : 'text-gray-900'}`}>{tmpl.name}</td>
+                      <td className={`px-6 py-4 text-sm ${dk ? 'text-gray-400' : 'text-gray-500'}`}>
                         {new Date(tmpl.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </td>
                       <td className="px-6 py-4 text-right flex items-center justify-end gap-4">

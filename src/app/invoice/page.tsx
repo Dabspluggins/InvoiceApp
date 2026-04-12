@@ -277,6 +277,9 @@ function InvoicePageInner() {
       let nextNumber = 'INV-001'
       let defaultTaxRate = 0
       let defaultNotes = ''
+      let profileBrandColor: string | null = null
+      let profileLogoUrl: string | null = null
+
       if (user) {
         const [{ data: latest }, { data: profile }] = await Promise.all([
           supabase
@@ -288,7 +291,7 @@ function InvoicePageInner() {
             .maybeSingle(),
           supabase
             .from('profiles')
-            .select('default_tax_rate, default_notes, default_terms')
+            .select('default_tax_rate, default_notes, default_terms, brand_color, logo_url')
             .eq('id', user.id)
             .maybeSingle(),
         ])
@@ -300,6 +303,10 @@ function InvoicePageInner() {
         }
         if (profile?.default_notes) {
           defaultNotes = profile.default_notes
+        }
+        if (profile) {
+          profileBrandColor = profile.brand_color || null
+          profileLogoUrl = profile.logo_url || null
         }
       }
 
@@ -320,11 +327,11 @@ function InvoicePageInner() {
           businessAddress: d.businessAddress ?? prev.businessAddress,
           businessEmail: d.businessEmail ?? prev.businessEmail,
           businessPhone: d.businessPhone ?? prev.businessPhone,
-          logoUrl: d.logoUrl ?? prev.logoUrl,
+          logoUrl: d.logoUrl ?? profileLogoUrl ?? prev.logoUrl,
           lineItems: d.lineItems ?? prev.lineItems,
           taxRate: d.taxRate ?? prev.taxRate,
           notes: d.notes ?? prev.notes,
-          brandColor: d.brandColor ?? prev.brandColor,
+          brandColor: d.brandColor ?? profileBrandColor ?? prev.brandColor,
         }))
         return
       }
@@ -336,6 +343,8 @@ function InvoicePageInner() {
           invoiceNumber: nextNumber,
           taxRate: defaultTaxRate,
           notes: defaultNotes || prev.notes,
+          brandColor: profileBrandColor ?? prev.brandColor,
+          logoUrl: profileLogoUrl ?? prev.logoUrl,
         }
       })
     }

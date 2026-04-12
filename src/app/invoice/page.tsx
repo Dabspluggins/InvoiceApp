@@ -80,6 +80,7 @@ function InvoicePageInner() {
   const [duplicateBanner, setDuplicateBanner] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit')
+  const [user, setUser] = useState<{ id: string } | null>(null)
   const [sendModal, setSendModal] = useState<SendModalState>({
     open: false,
     toEmail: '',
@@ -98,6 +99,11 @@ function InvoicePageInner() {
   const invoiceId = searchParams.get('id')
   const templateId = searchParams.get('template')
   const duplicateId = searchParams.get('duplicate')
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user: u } }) => setUser(u))
+  }, [])
 
   // Load invoice from Supabase if ?id= present, load template if ?template= present,
   // else auto-fill next invoice number from Supabase
@@ -511,7 +517,7 @@ function InvoicePageInner() {
       )}
 
       {/* Send Invoice Modal */}
-      {sendModal.open && (
+      {user && sendModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 print:hidden">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
             <div className="flex items-center justify-between mb-5">
@@ -710,12 +716,14 @@ function InvoicePageInner() {
           >
             Download PDF
           </button>
-          <button
-            onClick={openSendModal}
-            className="bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition"
-          >
-            Send to Client
-          </button>
+          {user && (
+            <button
+              onClick={openSendModal}
+              className="bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition"
+            >
+              Send to Client
+            </button>
+          )}
         </div>
       </div>
 
@@ -740,12 +748,14 @@ function InvoicePageInner() {
         >
           PDF
         </button>
-        <button
-          onClick={openSendModal}
-          className="flex-1 bg-emerald-600 text-white px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-emerald-700 transition"
-        >
-          Send
-        </button>
+        {user && (
+          <button
+            onClick={openSendModal}
+            className="flex-1 bg-emerald-600 text-white px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-emerald-700 transition"
+          >
+            Send
+          </button>
+        )}
       </div>
     </div>
   )

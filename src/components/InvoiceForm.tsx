@@ -104,8 +104,15 @@ export default function InvoiceForm({ data, onChange, isSignedIn }: Props) {
     if (accountName) updates.accountName = accountName
     if (bankName) updates.bankName = bankName
     if (accountNumber) updates.accountNumber = accountNumber
-    setPayment({ bankTransfer: { ...data.paymentDetails?.bankTransfer, ...updates } })
-    setActivePaymentTab('bankTransfer')
+
+    if (accountName || bankName || accountNumber) {
+      setPayment({ bankTransfer: { ...data.paymentDetails?.bankTransfer, ...updates } })
+      setActivePaymentTab('bankTransfer')
+    } else {
+      // Pattern matching failed — dump raw text into Other > Details
+      setOther({ details })
+      setActivePaymentTab('other')
+    }
     setPaymentOpen(true)
   }
 

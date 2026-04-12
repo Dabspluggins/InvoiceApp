@@ -7,6 +7,7 @@ import { newLineItem, calcTotals } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import InvoiceForm from '@/components/InvoiceForm'
 import InvoicePreview from '@/components/InvoicePreview'
+import LockedFeature from '@/components/LockedFeature'
 
 interface ImportableExpense {
   id: string
@@ -103,6 +104,7 @@ function InvoicePageInner() {
   const [paymentForm, setPaymentForm] = useState({ amount: '', paid_at: todayStr(), note: '' })
   const [savingPayment, setSavingPayment] = useState(false)
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit')
+  const [isSignedIn, setIsSignedIn] = useState(false)
   const [sendModal, setSendModal] = useState<SendModalState>({
     open: false,
     toEmail: '',
@@ -128,6 +130,13 @@ function InvoicePageInner() {
   const invoiceId = searchParams.get('id')
   const templateId = searchParams.get('template')
   const duplicateId = searchParams.get('duplicate')
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setIsSignedIn(!!user)
+    })
+  }, [])
 
   // Load invoice from Supabase if ?id= present, load template if ?template= present,
   // else auto-fill next invoice number from Supabase
@@ -977,17 +986,19 @@ function InvoicePageInner() {
           </div>
         )}
         <div className="mx-4 mt-4">
-          <button
-            onClick={openImportExpenses}
-            className="w-full flex items-center justify-center gap-2 border border-dashed border-indigo-300 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-400 px-4 py-2.5 rounded-lg text-sm font-semibold transition"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
-            </svg>
-            Import Expenses as Line Items
-          </button>
+          <LockedFeature isLocked={!isSignedIn}>
+            <button
+              onClick={openImportExpenses}
+              className="w-full flex items-center justify-center gap-2 border border-dashed border-indigo-300 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-400 px-4 py-2.5 rounded-lg text-sm font-semibold transition"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+              </svg>
+              Import Expenses as Line Items
+            </button>
+          </LockedFeature>
         </div>
-        <InvoiceForm data={data} onChange={setData} />
+        <InvoiceForm data={data} onChange={setData} isSignedIn={isSignedIn} />
 
         {savedInvoiceId && (() => {
           const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)

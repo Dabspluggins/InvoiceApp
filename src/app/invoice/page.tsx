@@ -1077,10 +1077,10 @@ function InvoicePageInner() {
               </div>
 
               {showPaymentForm && (
-                <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600 space-y-3">
                   <div className="flex gap-2">
                     <div className="flex-1">
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Amount</label>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Amount</label>
                       <input
                         type="number"
                         step="0.01"
@@ -1088,33 +1088,33 @@ function InvoicePageInner() {
                         value={paymentForm.amount}
                         onChange={(e) => setPaymentForm((s) => ({ ...s, amount: e.target.value }))}
                         placeholder="0.00"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                       />
                     </div>
                     <div className="flex-1">
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Date</label>
                       <input
                         type="date"
                         value={paymentForm.paid_at}
                         onChange={(e) => setPaymentForm((s) => ({ ...s, paid_at: e.target.value }))}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Note (optional)</label>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Note (optional)</label>
                     <input
                       type="text"
                       value={paymentForm.note}
                       onChange={(e) => setPaymentForm((s) => ({ ...s, note: e.target.value }))}
                       placeholder="e.g. Bank transfer, Cash deposit"
-                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                     />
                   </div>
                   <div className="flex gap-2 pt-1">
                     <button
                       onClick={() => setShowPaymentForm(false)}
-                      className="flex-1 border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-100 transition"
+                      className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                     >
                       Cancel
                     </button>
@@ -1135,14 +1135,14 @@ function InvoicePageInner() {
 
       {/* Right: Preview + Actions */}
       <div
-        className={`md:w-[55%] md:flex md:flex-col bg-gray-100 md:overflow-hidden print:!block print:w-full print:bg-white print:overflow-visible ${
+        className={`md:w-[55%] md:flex md:flex-col bg-gray-100 dark:bg-gray-900 md:overflow-hidden print:!block print:w-full print:bg-white print:overflow-visible ${
           activeTab === 'preview' ? 'block' : 'hidden md:flex'
         }`}
       >
         <div className="flex-1 md:overflow-y-auto p-4 md:p-6 print:overflow-visible print:p-0">
           {/* Template picker */}
           <div className="mb-4 print:hidden">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Template</p>
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Template</p>
             <div className="flex gap-3">
               {(['minimal', 'classic', 'bold'] as const).map((t) => (
                 <button
@@ -1150,8 +1150,8 @@ function InvoicePageInner() {
                   onClick={() => setData((prev) => ({ ...prev, template: t }))}
                   className={`flex flex-col items-center gap-1.5 p-2 rounded-lg border-2 transition-all ${
                     (data.template || 'classic') === t
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 bg-white dark:bg-gray-800'
                   }`}
                 >
                   {/* Thumbnail mock */}
@@ -1194,7 +1194,7 @@ function InvoicePageInner() {
                       </div>
                     </div>
                   )}
-                  <span className={`text-xs font-medium capitalize ${(data.template || 'classic') === t ? 'text-blue-600' : 'text-gray-500'}`}>
+                  <span className={`text-xs font-medium capitalize ${(data.template || 'classic') === t ? 'text-blue-600' : 'text-gray-500 dark:text-gray-400'}`}>
                     {t}
                   </span>
                 </button>
@@ -1205,7 +1205,7 @@ function InvoicePageInner() {
             <InvoicePreview data={data} />
           </div>
         </div>
-        <div className="hidden md:flex p-4 border-t border-gray-200 bg-white gap-3 print:hidden">
+        <div className="hidden md:flex p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 gap-3 print:hidden">
           <button
             onClick={handleSave}
             disabled={saving}
@@ -1249,7 +1249,7 @@ function InvoicePageInner() {
       </div>
 
       {/* Mobile sticky action bar */}
-      <div className="md:hidden fixed bottom-0 inset-x-0 p-3 border-t border-gray-200 bg-white z-10 flex gap-2 print:hidden">
+      <div className="md:hidden fixed bottom-0 inset-x-0 p-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 z-10 flex gap-2 print:hidden">
         <button
           onClick={handleSave}
           disabled={saving}

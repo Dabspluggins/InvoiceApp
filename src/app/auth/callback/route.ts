@@ -10,6 +10,10 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
+      // Refresh the session so the updated user data (e.g. new email after
+      // email-change confirmation) is written into cookies before the redirect.
+      await supabase.auth.refreshSession()
+
       if (next === '/reset-password') {
         // Pass tokens in the URL so the reset page doesn't rely on cookies being
         // propagated before the redirect fires (fixes intermittent cookie race).

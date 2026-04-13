@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
@@ -21,9 +21,21 @@ export default function SettingsClient({ user }: { user: User }) {
   const [profileMsg, setProfileMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // Email section
+  const [currentEmail, setCurrentEmail] = useState(user.email ?? '')
   const [newEmail, setNewEmail] = useState('')
   const [emailSaving, setEmailSaving] = useState(false)
   const [emailMsg, setEmailMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'USER_UPDATED' && session?.user?.email) {
+        setCurrentEmail(session.user.email)
+      }
+    })
+    return () => subscription.unsubscribe()
+  // supabase is a stable singleton from createBrowserClient
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Password section
   const [newPassword, setNewPassword] = useState('')
@@ -57,7 +69,7 @@ export default function SettingsClient({ user }: { user: User }) {
       setEmailMsg({ type: 'error', text: 'Please enter a new email address.' })
       return
     }
-    if (newEmail.trim() === user.email) {
+    if (newEmail.trim() === currentEmail) {
       setEmailMsg({ type: 'error', text: 'New email must be different from your current email.' })
       return
     }
@@ -67,7 +79,7 @@ export default function SettingsClient({ user }: { user: User }) {
     if (error) {
       setEmailMsg({ type: 'error', text: error.message })
     } else {
-      setEmailMsg({ type: 'success', text: `Confirmation email sent to ${newEmail.trim()}. Please click the link in that email to complete the change.` })
+      setEmailMsg({ type: 'success', text: 'Confirmation emails sent to your current and new address. The change will take effect once both links are confirmed.' })
       setNewEmail('')
     }
   }
@@ -127,7 +139,7 @@ export default function SettingsClient({ user }: { user: User }) {
           <div>
             <label className={labelCls}>Email address</label>
             <div className="w-full border border-gray-100 rounded-lg px-3 py-2.5 text-sm text-gray-500 bg-gray-50">
-              {user.email}
+              {currentEmail}
             </div>
           </div>
           <div>
@@ -172,7 +184,7 @@ export default function SettingsClient({ user }: { user: User }) {
           <div>
             <label className={labelCls}>Current email address</label>
             <div className="w-full border border-gray-100 rounded-lg px-3 py-2.5 text-sm text-gray-500 bg-gray-50">
-              {user.email}
+              {currentEmail}
             </div>
           </div>
           <div>

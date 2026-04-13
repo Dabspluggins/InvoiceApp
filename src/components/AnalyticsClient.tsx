@@ -67,8 +67,25 @@ export default function AnalyticsClient() {
       })
   }, [])
 
+  // Fix 2: skeleton loading screen matching KPI card layout
   if (loading) {
-    return <div className="text-center py-16 text-gray-400 text-sm">Loading analytics...</div>
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 p-4 md:p-6">
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-3" />
+              <div className="h-7 bg-gray-200 dark:bg-gray-700 rounded w-32" />
+            </div>
+          ))}
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 p-5 md:p-6 animate-pulse">
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-2" />
+          <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-48 mb-6" />
+          <div className="h-40 bg-gray-200 dark:bg-gray-700 rounded" />
+        </div>
+      </div>
+    )
   }
 
   const today = new Date().toISOString().slice(0, 10)

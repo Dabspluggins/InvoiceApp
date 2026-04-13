@@ -350,6 +350,8 @@ export default function Home() {
             <Link href="/invoice" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Invoice</Link>
             <Link href="/dashboard" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Dashboard</Link>
             <Link href="/auth/signup" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Sign Up</Link>
+            <Link href="/privacy" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Privacy</Link>
+            <Link href="/terms" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Terms</Link>
           </nav>
 
           <p className="text-sm text-gray-400">&copy; {new Date().getFullYear()} BillByDab. All rights reserved.</p>

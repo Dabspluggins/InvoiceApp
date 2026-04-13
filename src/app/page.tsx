@@ -378,6 +378,7 @@ export default function Home() {
               <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Legal</p>
               <ul className="space-y-2">
                 <li><Link href="/privacy" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Terms of Service</Link></li>
               </ul>
             </div>
           </div>

@@ -9,13 +9,13 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <main className="bg-white min-h-screen">
+    <main className="bg-white dark:bg-gray-900 min-h-screen">
       {/* Page header */}
-      <div className="bg-indigo-50 border-b border-indigo-100 py-12">
+      <div className="bg-indigo-50 dark:bg-indigo-900/20 border-b border-indigo-100 dark:border-indigo-800 py-12">
         <div className="max-w-3xl mx-auto px-6">
-          <p className="text-sm font-medium text-indigo-600 mb-2">Legal</p>
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">Privacy Policy</h1>
-          <p className="text-gray-500 text-sm">Effective date: April 2026</p>
+          <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400 mb-2">Legal</p>
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-3">Privacy Policy</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Effective date: April 2026</p>
         </div>
       </div>
 
@@ -23,7 +23,7 @@ export default function PrivacyPage() {
       <div className="max-w-3xl mx-auto px-6 py-14">
         <div className="prose prose-gray max-w-none">
 
-          <p className="text-gray-600 leading-relaxed mb-10">
+          <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-10">
             BillByDab (&ldquo;we&rdquo;, &ldquo;our&rdquo;, or &ldquo;us&rdquo;) operates{' '}
             <span className="font-medium text-gray-800">billbydab.com</span>. This Privacy Policy
             explains what information we collect when you use our free invoice generation service,
@@ -204,7 +204,7 @@ export default function PrivacyPage() {
 
         </div>
 
-        <div className="mt-14 pt-8 border-t border-gray-100 flex flex-wrap items-center gap-4 text-sm text-gray-500">
+        <div className="mt-14 pt-8 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
           <Link href="/" className="text-indigo-600 hover:underline font-medium">
             ← Back to BillByDab
           </Link>
@@ -227,7 +227,7 @@ function Section({
 }) {
   return (
     <section className="mb-10">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">{title}</h2>
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{title}</h2>
       {children}
     </section>
   )
@@ -243,9 +243,9 @@ function ThirdParty({
   description: string
 }) {
   return (
-    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
       <div className="flex items-center gap-2 mb-1">
-        <span className="font-semibold text-gray-800">{name}</span>
+        <span className="font-semibold text-gray-800 dark:text-gray-200">{name}</span>
         <a
           href={url}
           className="text-xs text-indigo-600 hover:underline"
@@ -255,7 +255,7 @@ function ThirdParty({
           Privacy Policy ↗
         </a>
       </div>
-      <p className="text-gray-600 text-sm">{description}</p>
+      <p className="text-gray-600 dark:text-gray-300 text-sm">{description}</p>
     </div>
   )
 }

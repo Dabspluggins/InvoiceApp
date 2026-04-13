@@ -189,13 +189,13 @@ export default function ReportsClient() {
   }
 
   if (loading) {
-    return <div className="text-center py-16 text-gray-400 text-sm">Loading report...</div>
+    return <div className="text-center py-16 text-gray-400 dark:text-gray-500 text-sm">Loading report...</div>
   }
 
   return (
     <>
       {/* Date range filter */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6 mb-6">
         <div className="flex flex-wrap gap-2 mb-4">
           {PRESETS.map(({ label, value }) => (
             <button
@@ -204,7 +204,7 @@ export default function ReportsClient() {
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition whitespace-nowrap ${
                 preset === value
                   ? 'bg-indigo-600 text-white'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600'
+                  : 'bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-indigo-300 hover:text-indigo-600'
               }`}
             >
               {label}
@@ -215,26 +215,26 @@ export default function ReportsClient() {
         {preset === 'custom' ? (
           <div className="flex flex-wrap gap-3 items-center">
             <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-500 whitespace-nowrap">From</label>
+              <label className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">From</label>
               <input
                 type="date"
                 value={customFrom}
                 onChange={(e) => setCustomFrom(e.target.value)}
-                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400"
+                className="text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 dark:text-gray-200"
               />
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-500 whitespace-nowrap">To</label>
+              <label className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">To</label>
               <input
                 type="date"
                 value={customTo}
                 onChange={(e) => setCustomTo(e.target.value)}
-                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400"
+                className="text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 dark:text-gray-200"
               />
             </div>
           </div>
         ) : (
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-400 dark:text-gray-500">
             {formatDate(range.from)} &ndash; {formatDate(range.to)}
           </p>
         )}
@@ -242,42 +242,42 @@ export default function ReportsClient() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
-          <p className="text-xs md:text-sm text-gray-500 mb-1">Total Invoiced</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
+          <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-1">Total Invoiced</p>
           <p className="text-xl md:text-2xl font-bold text-indigo-600">
             {fmt(totalInvoiced, primaryCurrency)}
           </p>
-          <p className="text-xs text-gray-400 mt-0.5">{filtered.length} invoice{filtered.length !== 1 ? 's' : ''}</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{filtered.length} invoice{filtered.length !== 1 ? 's' : ''}</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
-          <p className="text-xs md:text-sm text-gray-500 mb-1">Total Collected</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
+          <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-1">Total Collected</p>
           <p className="text-xl md:text-2xl font-bold text-green-600">
             {fmt(totalCollected, primaryCurrency)}
           </p>
-          <p className="text-xs text-gray-400 mt-0.5">{filtered.filter(i => i.status === 'paid').length} paid</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{filtered.filter(i => i.status === 'paid').length} paid</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
-          <p className="text-xs md:text-sm text-gray-500 mb-1">Outstanding</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
+          <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-1">Outstanding</p>
           <p className="text-xl md:text-2xl font-bold text-orange-500">
             {fmt(outstanding, primaryCurrency)}
           </p>
-          <p className="text-xs text-gray-400 mt-0.5">{filtered.filter(i => i.status !== 'paid').length} unpaid</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{filtered.filter(i => i.status !== 'paid').length} unpaid</p>
         </div>
-        <div className="col-span-2 md:col-span-1 bg-white rounded-xl border border-gray-200 p-4 md:p-6">
-          <p className="text-xs md:text-sm text-gray-500 mb-1">Tax Collected</p>
+        <div className="col-span-2 md:col-span-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
+          <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-1">Tax Collected</p>
           <p className="text-xl md:text-2xl font-bold text-blue-600">
             {fmt(totalTaxCollected, primaryCurrency)}
           </p>
-          <p className="text-xs text-gray-400 mt-0.5">from paid invoices</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">from paid invoices</p>
         </div>
       </div>
 
       {/* Breakdown table + export */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-900">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
             Invoice Breakdown
-            {filtered.length > 0 && <span className="ml-2 text-xs font-normal text-gray-400">({filtered.length} invoice{filtered.length !== 1 ? 's' : ''})</span>}
+            {filtered.length > 0 && <span className="ml-2 text-xs font-normal text-gray-400 dark:text-gray-500">({filtered.length} invoice{filtered.length !== 1 ? 's' : ''})</span>}
           </h2>
           <button
             onClick={handleExportCSV}
@@ -292,13 +292,13 @@ export default function ReportsClient() {
         </div>
 
         {filtered.length === 0 ? (
-          <div className="p-8 md:p-12 text-center text-sm text-gray-400">
+          <div className="p-8 md:p-12 text-center text-sm text-gray-400 dark:text-gray-500">
             No invoices found for the selected period.
           </div>
         ) : (
           <>
             {/* Mobile: card list */}
-            <div className="md:hidden divide-y divide-gray-100">
+            <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-700">
               {filtered.map((inv) => {
                 const taxAmt = calcTaxAmount(inv.total || 0, inv.tax_rate || 0)
                 const amountPaid = inv.status === 'paid' ? inv.total || 0 : 0
@@ -309,16 +309,16 @@ export default function ReportsClient() {
                   <div key={inv.id} className="p-4">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <p className="text-sm font-semibold text-gray-900">{inv.invoice_number}</p>
-                        <p className="text-sm text-gray-600">{inv.client_name || '—'}</p>
-                        {inv.client_company && <p className="text-xs text-gray-400">{inv.client_company}</p>}
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{inv.invoice_number}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">{inv.client_name || '—'}</p>
+                        {inv.client_company && <p className="text-xs text-gray-400 dark:text-gray-500">{inv.client_company}</p>}
                       </div>
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${badgeClass}`}>{statusLabel}</span>
                     </div>
-                    <div className="flex justify-between text-xs text-gray-500 mt-2">
+                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
                       <span>{formatDate(inv.issue_date)}</span>
                       <div className="text-right">
-                        <p>Total: <span className="font-medium text-gray-900">{fmt(inv.total || 0, inv.currency)}</span></p>
+                        <p>Total: <span className="font-medium text-gray-900 dark:text-white">{fmt(inv.total || 0, inv.currency)}</span></p>
                         {taxAmt > 0 && <p>Tax: {fmt(taxAmt, inv.currency)}</p>}
                         <p>Paid: <span className="font-medium text-green-600">{fmt(amountPaid, inv.currency)}</span></p>
                       </div>
@@ -327,7 +327,7 @@ export default function ReportsClient() {
                 )
               })}
               {/* Mobile subtotals */}
-              <div className="p-4 bg-gray-50 flex justify-between text-xs font-semibold text-gray-700">
+              <div className="p-4 bg-gray-50 dark:bg-gray-700 flex justify-between text-xs font-semibold text-gray-700 dark:text-gray-200">
                 <span>Subtotals ({filtered.length})</span>
                 <div className="text-right space-y-0.5">
                   <p>Total: {fmt(subtotalInvoiceTotal, primaryCurrency)}</p>
@@ -341,7 +341,7 @@ export default function ReportsClient() {
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wide bg-gray-50">
+                  <tr className="border-b border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide bg-gray-50 dark:bg-gray-700">
                     <th className="text-left px-6 py-3">Invoice #</th>
                     <th className="text-left px-6 py-3">Client</th>
                     <th className="text-left px-6 py-3">Date</th>
@@ -361,23 +361,23 @@ export default function ReportsClient() {
                     return (
                       <tr
                         key={inv.id}
-                        className={`border-b border-gray-50 last:border-0 transition ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'} hover:bg-indigo-50/30`}
+                        className={`border-b border-gray-50 dark:border-gray-700 last:border-0 transition ${idx % 2 === 1 ? 'bg-gray-50/50 dark:bg-gray-700/50' : 'bg-white dark:bg-gray-800'} hover:bg-indigo-50/30 dark:hover:bg-gray-700`}
                       >
-                        <td className="px-6 py-3.5 text-sm font-medium text-gray-900">{inv.invoice_number}</td>
-                        <td className="px-6 py-3.5 text-sm text-gray-600">
+                        <td className="px-6 py-3.5 text-sm font-medium text-gray-900 dark:text-white">{inv.invoice_number}</td>
+                        <td className="px-6 py-3.5 text-sm text-gray-600 dark:text-gray-300">
                           <div>{inv.client_name || '—'}</div>
-                          {inv.client_company && <div className="text-xs text-gray-400">{inv.client_company}</div>}
+                          {inv.client_company && <div className="text-xs text-gray-400 dark:text-gray-500">{inv.client_company}</div>}
                         </td>
-                        <td className="px-6 py-3.5 text-sm text-gray-500">{formatDate(inv.issue_date)}</td>
-                        <td className="px-6 py-3.5 text-sm font-medium text-gray-900 text-right">{fmt(inv.total || 0, inv.currency)}</td>
-                        <td className="px-6 py-3.5 text-sm text-gray-600 text-right">{taxAmt > 0 ? fmt(taxAmt, inv.currency) : <span className="text-gray-300">—</span>}</td>
+                        <td className="px-6 py-3.5 text-sm text-gray-500 dark:text-gray-400">{formatDate(inv.issue_date)}</td>
+                        <td className="px-6 py-3.5 text-sm font-medium text-gray-900 dark:text-white text-right">{fmt(inv.total || 0, inv.currency)}</td>
+                        <td className="px-6 py-3.5 text-sm text-gray-600 dark:text-gray-300 text-right">{taxAmt > 0 ? fmt(taxAmt, inv.currency) : <span className="text-gray-300 dark:text-gray-600">—</span>}</td>
                         <td className="px-6 py-3.5 text-center">
                           <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${badgeClass}`}>{statusLabel}</span>
                         </td>
                         <td className="px-6 py-3.5 text-sm font-medium text-right">
                           {amountPaid > 0
                             ? <span className="text-green-600">{fmt(amountPaid, inv.currency)}</span>
-                            : <span className="text-gray-300">—</span>}
+                            : <span className="text-gray-300 dark:text-gray-600">—</span>}
                         </td>
                       </tr>
                     )
@@ -385,9 +385,9 @@ export default function ReportsClient() {
                 </tbody>
                 {/* Subtotals row */}
                 <tfoot>
-                  <tr className="bg-gray-50 border-t border-gray-200 text-sm font-semibold text-gray-700">
+                  <tr className="bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600 text-sm font-semibold text-gray-700 dark:text-gray-200">
                     <td className="px-6 py-3.5" colSpan={3}>
-                      Subtotals <span className="font-normal text-gray-400 text-xs">({filtered.length} invoice{filtered.length !== 1 ? 's' : ''})</span>
+                      Subtotals <span className="font-normal text-gray-400 dark:text-gray-500 text-xs">({filtered.length} invoice{filtered.length !== 1 ? 's' : ''})</span>
                     </td>
                     <td className="px-6 py-3.5 text-right">{fmt(subtotalInvoiceTotal, primaryCurrency)}</td>
                     <td className="px-6 py-3.5 text-right">{fmt(subtotalTax, primaryCurrency)}</td>

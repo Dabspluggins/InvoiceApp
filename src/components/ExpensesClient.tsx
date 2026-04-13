@@ -206,7 +206,7 @@ export default function ExpensesClient() {
   const clientMap = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients])
 
   if (loading) {
-    return <div className="text-center py-16 text-gray-400 text-sm">Loading expenses...</div>
+    return <div className="text-center py-16 text-gray-400 dark:text-gray-500 text-sm">Loading expenses...</div>
   }
 
   return (
@@ -221,8 +221,8 @@ export default function ExpensesClient() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Expenses</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Track billable and non-billable expenses per client.</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Expenses</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">Track billable and non-billable expenses per client.</p>
         </div>
         <button
           onClick={openAdd}
@@ -256,7 +256,7 @@ export default function ExpensesClient() {
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition whitespace-nowrap ${
               filter === value
                 ? 'bg-indigo-600 text-white'
-                : 'bg-white border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600'
+                : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-indigo-300 hover:text-indigo-600 dark:hover:bg-gray-700'
             }`}
           >
             {label}
@@ -266,10 +266,10 @@ export default function ExpensesClient() {
 
       {/* Expenses list */}
       {expenses.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 md:p-12 text-center">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 md:p-12 text-center">
           <div className="text-5xl mb-4">🧾</div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No expenses yet</h3>
-          <p className="text-gray-500 text-sm mb-6">Log your first expense to start tracking billable costs.</p>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No expenses yet</h3>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">Log your first expense to start tracking billable costs.</p>
           <button
             onClick={openAdd}
             className="inline-block bg-indigo-600 text-white px-6 py-3 rounded-lg text-sm font-semibold hover:bg-indigo-700"
@@ -278,7 +278,7 @@ export default function ExpensesClient() {
           </button>
         </div>
       ) : filteredExpenses.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-500">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center text-sm text-gray-500 dark:text-gray-400">
           No expenses match this filter.
         </div>
       ) : (
@@ -288,18 +288,18 @@ export default function ExpensesClient() {
             {filteredExpenses.map((exp) => {
               const client = exp.client_id ? clientMap.get(exp.client_id) : null
               return (
-                <div key={exp.id} className="bg-white rounded-xl border border-gray-200 p-4">
+                <div key={exp.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex-1 min-w-0 pr-2">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{exp.description}</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{exp.description}</p>
                       {client && (
-                        <p className="text-xs text-gray-500 mt-0.5">{client.name}{client.company ? ` · ${client.company}` : ''}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{client.name}{client.company ? ` · ${client.company}` : ''}</p>
                       )}
                     </div>
-                    <p className="text-sm font-bold text-gray-900 shrink-0">{formatCurrency(exp.amount, exp.currency)}</p>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white shrink-0">{formatCurrency(exp.amount, exp.currency)}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap mb-2">
-                    <span className="text-xs text-gray-400">{formatDate(exp.date)}</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">{formatDate(exp.date)}</span>
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${CATEGORY_COLORS[exp.category] ?? 'bg-gray-100 text-gray-600'}`}>
                       {exp.category}
                     </span>
@@ -311,7 +311,7 @@ export default function ExpensesClient() {
                       <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Not Billable</span>
                     )}
                   </div>
-                  {exp.notes && <p className="text-xs text-gray-400 mb-2 truncate">{exp.notes}</p>}
+                  {exp.notes && <p className="text-xs text-gray-400 dark:text-gray-500 mb-2 truncate">{exp.notes}</p>}
                   <div className="flex gap-2">
                     <button
                       onClick={() => openEdit(exp)}
@@ -332,10 +332,10 @@ export default function ExpensesClient() {
           </div>
 
           {/* Desktop: table */}
-          <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="hidden md:block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wide bg-gray-50">
+                <tr className="border-b border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide bg-gray-50 dark:bg-gray-700">
                   <th className="text-left px-6 py-3">Date</th>
                   <th className="text-left px-6 py-3">Description</th>
                   <th className="text-left px-6 py-3">Client</th>
@@ -349,20 +349,20 @@ export default function ExpensesClient() {
                 {filteredExpenses.map((exp) => {
                   const client = exp.client_id ? clientMap.get(exp.client_id) : null
                   return (
-                    <tr key={exp.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition">
-                      <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{formatDate(exp.date)}</td>
+                    <tr key={exp.id} className="border-b border-gray-50 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">{formatDate(exp.date)}</td>
                       <td className="px-6 py-4">
-                        <p className="text-sm font-medium text-gray-900">{exp.description}</p>
-                        {exp.notes && <p className="text-xs text-gray-400 truncate max-w-xs">{exp.notes}</p>}
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{exp.description}</p>
+                        {exp.notes && <p className="text-xs text-gray-400 dark:text-gray-500 truncate max-w-xs">{exp.notes}</p>}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
                         {client ? (
                           <div>
                             <div>{client.name}</div>
-                            {client.company && <div className="text-xs text-gray-400">{client.company}</div>}
+                            {client.company && <div className="text-xs text-gray-400 dark:text-gray-500">{client.company}</div>}
                           </div>
                         ) : (
-                          <span className="text-gray-400">—</span>
+                          <span className="text-gray-400 dark:text-gray-500">—</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
@@ -370,7 +370,7 @@ export default function ExpensesClient() {
                           {exp.category}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right whitespace-nowrap">
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white text-right whitespace-nowrap">
                         {formatCurrency(exp.amount, exp.currency)}
                       </td>
                       <td className="px-6 py-4 text-center">
@@ -410,14 +410,14 @@ export default function ExpensesClient() {
       {/* Add / Edit modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-gray-900">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">
                 {editingExpense ? 'Edit Expense' : 'Add Expense'}
               </h2>
               <button
                 onClick={() => { setShowForm(false); setEditingExpense(null) }}
-                className="text-gray-400 hover:text-gray-600 transition"
+                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition"
                 aria-label="Close"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -429,7 +429,7 @@ export default function ExpensesClient() {
             <div className="space-y-4">
               {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Description <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -437,14 +437,14 @@ export default function ExpensesClient() {
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                   placeholder="e.g. Figma subscription"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   autoFocus
                 />
               </div>
 
               {/* Amount */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Amount (₦) <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -454,30 +454,30 @@ export default function ExpensesClient() {
                   placeholder="0.00"
                   min="0"
                   step="0.01"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
               {/* Date */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Date <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
                   value={form.date}
                   onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
               {/* Client */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Client (optional)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Client (optional)</label>
                 <select
                   value={form.client_id}
                   onChange={(e) => setForm((f) => ({ ...f, client_id: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">No client</option>
                   {clients.map((c) => (
@@ -490,11 +490,11 @@ export default function ExpensesClient() {
 
               {/* Category */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
                 <select
                   value={form.category}
                   onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as ExpenseCategory }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   {CATEGORIES.map((cat) => (
                     <option key={cat} value={cat}>{cat}</option>
@@ -504,13 +504,13 @@ export default function ExpensesClient() {
 
               {/* Notes */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes (optional)</label>
                 <textarea
                   value={form.notes}
                   onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
                   rows={2}
                   placeholder="Any additional details..."
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                 />
               </div>
 
@@ -523,9 +523,9 @@ export default function ExpensesClient() {
                     onChange={(e) => setForm((f) => ({ ...f, billable: e.target.checked }))}
                     className="sr-only peer"
                   />
-                  <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500 rounded-full peer peer-checked:after:translate-x-5 peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all" />
+                  <div className="w-10 h-5 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500 rounded-full peer peer-checked:after:translate-x-5 peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all" />
                 </label>
-                <span className="text-sm font-medium text-gray-700">Billable to client</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Billable to client</span>
               </div>
 
               {formError && (
@@ -536,7 +536,7 @@ export default function ExpensesClient() {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => { setShowForm(false); setEditingExpense(null) }}
-                className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 transition"
+                className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition"
               >
                 Cancel
               </button>

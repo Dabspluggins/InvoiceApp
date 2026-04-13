@@ -6,24 +6,24 @@ export const dynamic = 'force-dynamic'
 
 function ResultPage({ success, message }: { success: boolean; message: string }) {
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-xl border border-gray-200 p-8 text-center">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center">
         <div
           className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${
-            success ? 'bg-green-100' : 'bg-red-100'
+            success ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'
           }`}
         >
           {success ? (
-            <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           ) : (
-            <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           )}
         </div>
-        <p className="text-gray-900 font-medium mb-6">{message}</p>
+        <p className="text-gray-900 dark:text-white font-medium mb-6">{message}</p>
         <Link
           href="/settings"
           className="inline-block text-sm bg-indigo-600 text-white px-6 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors"
@@ -51,9 +51,9 @@ export default async function RevokeSessionsPage({
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-xl border border-gray-200 p-8 text-center">
-          <p className="text-gray-700 mb-6">Please sign in to use this link.</p>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center">
+          <p className="text-gray-700 dark:text-gray-300 mb-6">Please sign in to use this link.</p>
           <Link
             href={`/auth/login?next=/settings/revoke-sessions?token=${encodeURIComponent(token)}`}
             className="inline-block text-sm bg-indigo-600 text-white px-6 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors"

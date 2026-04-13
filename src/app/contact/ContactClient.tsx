@@ -3,8 +3,8 @@
 import { useState } from 'react'
 
 const inputCls =
-  'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 transition'
-const labelCls = 'block text-sm font-medium text-gray-700 mb-1'
+  'w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition'
+const labelCls = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'
 
 const subjects = [
   'General Enquiry',
@@ -50,16 +50,16 @@ export default function ContactClient() {
   }
 
   return (
-    <main className="bg-white min-h-screen">
+    <main className="bg-white dark:bg-gray-900 min-h-screen">
       <div className="max-w-2xl mx-auto px-6 py-16">
         {/* Heading */}
         <div className="mb-10">
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Get in Touch</h1>
-          <p className="text-gray-500">We respond within 24 hours, Monday to Sunday.</p>
+          <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-2">Get in Touch</h1>
+          <p className="text-gray-500 dark:text-gray-400">We respond within 24 hours, Monday to Sunday.</p>
         </div>
 
         {/* Form card */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
           <form onSubmit={handleSubmit} className="p-6 space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -136,7 +136,7 @@ export default function ContactClient() {
         </div>
 
         {/* Prefer email */}
-        <div className="mt-8 flex items-center gap-3 text-sm text-gray-500">
+        <div className="mt-8 flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
           <svg className="w-4 h-4 text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>

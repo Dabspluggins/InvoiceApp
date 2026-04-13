@@ -74,6 +74,10 @@ export default function SettingsClient({ user }: { user: User }) {
     }
   }
 
+  // Security section
+  const [revokingOtherSessions, setRevokingOtherSessions] = useState(false)
+  const [revokeMsg, setRevokeMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
   // Danger zone
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteInput, setDeleteInput] = useState('')
@@ -135,6 +139,21 @@ export default function SettingsClient({ user }: { user: User }) {
       setPasswordMsg({ type: 'success', text: 'Password changed successfully.' })
       setNewPassword('')
       setConfirmPassword('')
+    }
+  }
+
+  async function requestRevokeOtherSessions() {
+    setRevokingOtherSessions(true)
+    setRevokeMsg(null)
+    try {
+      const res = await fetch('/api/settings/revoke-sessions', { method: 'POST' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to send confirmation email')
+      setRevokeMsg({ type: 'success', text: "Check your email — we've sent you a confirmation link." })
+    } catch (err) {
+      setRevokeMsg({ type: 'error', text: err instanceof Error ? err.message : 'Something went wrong' })
+    } finally {
+      setRevokingOtherSessions(false)
     }
   }
 
@@ -361,6 +380,41 @@ export default function SettingsClient({ user }: { user: User }) {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Security section */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <h2 className="text-base font-semibold text-gray-900">Security</h2>
+        </div>
+        <div className="p-6">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900">Log out from other devices</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Signs out your account from all other browsers and devices. You&apos;ll need to confirm via email.
+              </p>
+            </div>
+            <button
+              onClick={requestRevokeOtherSessions}
+              disabled={revokingOtherSessions}
+              className="shrink-0 text-sm bg-gray-900 text-white px-5 py-2 rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
+            >
+              {revokingOtherSessions ? 'Sending...' : 'Log out other devices'}
+            </button>
+          </div>
+          {revokeMsg && (
+            <div
+              className={`mt-4 text-sm px-4 py-3 rounded-lg border ${
+                revokeMsg.type === 'success'
+                  ? 'bg-green-50 border-green-200 text-green-700'
+                  : 'bg-red-50 border-red-200 text-red-600'
+              }`}
+            >
+              {revokeMsg.text}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Danger Zone */}

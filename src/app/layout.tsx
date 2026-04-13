@@ -65,8 +65,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="h-full">
-      <body className={`${inter.className} min-h-full bg-gray-50 antialiased`}>
+    <html lang="en" className="h-full" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('theme');if(t==='dark'||(t===null&&localStorage.getItem('dashboard_dark_mode')==='true'))document.documentElement.classList.add('dark')}catch(e){}`,
+          }}
+        />
+      </head>
+      <body className={`${inter.className} min-h-full bg-gray-50 dark:bg-gray-900 antialiased`} suppressHydrationWarning>
         <Nav />
         {children}
       </body>

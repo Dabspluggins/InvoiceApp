@@ -46,12 +46,12 @@ const faqs = [
 
 export default function SupportPage() {
   return (
-    <main className="bg-white min-h-screen">
+    <main className="bg-white dark:bg-gray-900 min-h-screen">
       <div className="max-w-2xl mx-auto px-6 py-16">
         {/* Heading */}
         <div className="mb-12">
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Help &amp; Support</h1>
-          <p className="text-gray-500">Answers to the most common questions about BillByDab.</p>
+          <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-2">Help &amp; Support</h1>
+          <p className="text-gray-500 dark:text-gray-400">Answers to the most common questions about BillByDab.</p>
         </div>
 
         {/* FAQ accordion */}
@@ -59,10 +59,10 @@ export default function SupportPage() {
           {faqs.map((faq, i) => (
             <details
               key={i}
-              className="group bg-white border border-gray-200 rounded-xl overflow-hidden"
+              className="group bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden"
             >
-              <summary className="flex items-center justify-between px-6 py-4 cursor-pointer list-none select-none hover:bg-gray-50 transition-colors">
-                <span className="font-semibold text-gray-900 text-sm pr-4">{faq.q}</span>
+              <summary className="flex items-center justify-between px-6 py-4 cursor-pointer list-none select-none hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                <span className="font-semibold text-gray-900 dark:text-white text-sm pr-4">{faq.q}</span>
                 {/* Chevron — rotates when open */}
                 <svg
                   className="w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-200 group-open:rotate-180"
@@ -73,7 +73,7 @@ export default function SupportPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </summary>
-              <div className="px-6 pb-5 pt-1 text-sm text-gray-600 leading-relaxed border-t border-gray-100">
+              <div className="px-6 pb-5 pt-1 text-sm text-gray-600 dark:text-gray-300 leading-relaxed border-t border-gray-100 dark:border-gray-700">
                 {faq.a}
               </div>
             </details>
@@ -81,15 +81,15 @@ export default function SupportPage() {
         </div>
 
         {/* CTA card */}
-        <div className="mt-14 bg-indigo-50 border border-indigo-100 rounded-2xl p-8 text-center">
-          <div className="inline-flex items-center justify-center w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl mb-4">
+        <div className="mt-14 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-2xl p-8 text-center">
+          <div className="inline-flex items-center justify-center w-10 h-10 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-xl mb-4">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
           </div>
-          <h2 className="text-lg font-bold text-gray-900 mb-2">Still need help?</h2>
-          <p className="text-sm text-gray-500 mb-5">
-            Can't find what you're looking for? Our support team is here to help.
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Still need help?</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
+            Can&apos;t find what you&apos;re looking for? Our support team is here to help.
           </p>
           <Link
             href="/contact"

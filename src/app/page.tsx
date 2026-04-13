@@ -108,28 +108,28 @@ const steps = [
 
 export default function Home() {
   return (
-    <main className="bg-white">
+    <main className="bg-white dark:bg-gray-900">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
       {/* Hero */}
-      <section className="border-b border-gray-100">
+      <section className="border-b border-gray-100 dark:border-gray-700">
         <div className="max-w-5xl mx-auto px-6 pt-20 pb-16 text-center">
-          <div className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 text-xs font-semibold px-3 py-1.5 rounded-full mb-8 uppercase tracking-wide">
+          <div className="inline-flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-xs font-semibold px-3 py-1.5 rounded-full mb-8 uppercase tracking-wide">
             <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
             Free forever — no credit card needed
           </div>
 
-          <h1 className="text-5xl sm:text-6xl font-extrabold text-gray-900 leading-[1.1] tracking-tight mb-6">
+          <h1 className="text-5xl sm:text-6xl font-extrabold text-gray-900 dark:text-white leading-[1.1] tracking-tight mb-6">
             Free invoice generator<br />
             <span className="text-indigo-600">for freelancers &amp; businesses.</span>
           </h1>
 
-          <p className="text-xl text-gray-500 max-w-xl mx-auto mb-10 leading-relaxed">
+          <p className="text-xl text-gray-500 dark:text-gray-400 max-w-xl mx-auto mb-10 leading-relaxed">
             Create and send professional invoices online for free — no account needed to start.
             Fill in your details, download as PDF, and get paid faster.
           </p>
@@ -152,7 +152,7 @@ export default function Home() {
             </Link>
           </div>
 
-          <p className="text-sm text-gray-400">No signup required &middot; Works on any device</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">No signup required &middot; Works on any device</p>
         </div>
       </section>
 
@@ -264,11 +264,11 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section className="bg-gray-50 py-20 border-b border-gray-100">
+      <section className="bg-gray-50 dark:bg-gray-800 py-20 border-b border-gray-100 dark:border-gray-700">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">The free invoice generator built for freelancers</h2>
-            <p className="text-gray-500 text-lg max-w-xl mx-auto">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">The free invoice generator built for freelancers</h2>
+            <p className="text-gray-500 dark:text-gray-400 text-lg max-w-xl mx-auto">
               Create invoices online in seconds — no overhead, no credit card, no limits. BillByDab is the free invoice maker trusted by freelancers, consultants, and small businesses.
             </p>
           </div>
@@ -277,13 +277,13 @@ export default function Home() {
             {features.map((f) => (
               <div
                 key={f.title}
-                className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md hover:border-indigo-100 transition-all"
+                className="bg-white dark:bg-gray-700 rounded-2xl p-6 border border-gray-100 dark:border-gray-600 shadow-sm hover:shadow-md hover:border-indigo-100 dark:hover:border-indigo-700 transition-all"
               >
-                <div className="inline-flex items-center justify-center w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl mb-4">
+                <div className="inline-flex items-center justify-center w-10 h-10 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-xl mb-4">
                   {f.icon}
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2 leading-snug">{f.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{f.desc}</p>
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-2 leading-snug">{f.title}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{f.desc}</p>
               </div>
             ))}
           </div>
@@ -291,11 +291,11 @@ export default function Home() {
       </section>
 
       {/* How it works */}
-      <section className="py-20 border-b border-gray-100">
+      <section className="py-20 border-b border-gray-100 dark:border-gray-700">
         <div className="max-w-4xl mx-auto px-6">
           <div className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">How it works</h2>
-            <p className="text-gray-500 text-lg">Three simple steps from zero to paid invoice.</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">How it works</h2>
+            <p className="text-gray-500 dark:text-gray-400 text-lg">Three simple steps from zero to paid invoice.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
@@ -307,8 +307,8 @@ export default function Home() {
                 <div className="relative flex items-center justify-center w-16 h-16 bg-indigo-600 text-white rounded-full text-xl font-bold mb-5 shadow-md flex-shrink-0 z-10">
                   {step.number}
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2 text-lg leading-snug">{step.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{step.desc}</p>
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-2 text-lg leading-snug">{step.title}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{step.desc}</p>
               </div>
             ))}
           </div>
@@ -337,7 +337,7 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-100 py-12">
+      <footer className="bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 py-12">
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
             {/* Brand */}
@@ -346,27 +346,27 @@ export default function Home() {
                 <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <span className="font-bold text-gray-900">BillByDab</span>
+                <span className="font-bold text-gray-900 dark:text-white">BillByDab</span>
               </div>
-              <p className="text-sm text-gray-400 leading-relaxed">Free invoice generator for freelancers &amp; small businesses.</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500 leading-relaxed">Free invoice generator for freelancers &amp; small businesses.</p>
             </div>
 
             {/* Company */}
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Company</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">Company</p>
               <ul className="space-y-2">
-                <li><Link href="/contact" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">About</Link></li>
-                <li><Link href="/contact" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Contact</Link></li>
+                <li><Link href="/contact" className="text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition-colors">About</Link></li>
+                <li><Link href="/contact" className="text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition-colors">Contact</Link></li>
               </ul>
             </div>
 
             {/* Support */}
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Support</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">Support</p>
               <ul className="space-y-2">
-                <li><Link href="/support" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Help Center</Link></li>
+                <li><Link href="/support" className="text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition-colors">Help Center</Link></li>
                 <li>
-                  <a href="mailto:support@billbydab.com" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">
+                  <a href="mailto:support@billbydab.com" className="text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition-colors">
                     support@billbydab.com
                   </a>
                 </li>
@@ -375,20 +375,20 @@ export default function Home() {
 
             {/* Legal */}
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Legal</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">Legal</p>
               <ul className="space-y-2">
-                <li><Link href="/privacy" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Privacy Policy</Link></li>
-                <li><Link href="/terms" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Terms of Service</Link></li>
+                <li><Link href="/privacy" className="text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition-colors">Terms of Service</Link></li>
               </ul>
             </div>
           </div>
 
-          <div className="border-t border-gray-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-gray-400">&copy; {new Date().getFullYear()} BillByDab. All rights reserved.</p>
+          <div className="border-t border-gray-100 dark:border-gray-700 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-gray-400 dark:text-gray-500">&copy; {new Date().getFullYear()} BillByDab. All rights reserved.</p>
             <nav className="flex items-center gap-5">
-              <Link href="/invoice" className="text-sm text-gray-400 hover:text-indigo-600 transition-colors">Invoice</Link>
-              <Link href="/dashboard" className="text-sm text-gray-400 hover:text-indigo-600 transition-colors">Dashboard</Link>
-              <Link href="/auth/signup" className="text-sm text-gray-400 hover:text-indigo-600 transition-colors">Sign Up</Link>
+              <Link href="/invoice" className="text-sm text-gray-400 dark:text-gray-500 hover:text-indigo-600 transition-colors">Invoice</Link>
+              <Link href="/dashboard" className="text-sm text-gray-400 dark:text-gray-500 hover:text-indigo-600 transition-colors">Dashboard</Link>
+              <Link href="/auth/signup" className="text-sm text-gray-400 dark:text-gray-500 hover:text-indigo-600 transition-colors">Sign Up</Link>
             </nav>
           </div>
         </div>

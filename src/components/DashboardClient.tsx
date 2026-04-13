@@ -404,7 +404,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by client or company…"
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition"
+            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition"
           />
         </div>
         <div className="flex gap-1.5">
@@ -415,7 +415,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition whitespace-nowrap ${
                 statusFilter === value
                   ? 'bg-indigo-600 text-white'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600'
+                  : 'bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-indigo-300 hover:text-indigo-600'
               }`}
             >
               {label}
@@ -447,8 +447,8 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
         <>
           {/* Bulk action bar */}
           {hasSelection && (
-            <div className="bg-white border border-gray-200 rounded-lg px-4 py-2 flex items-center gap-3 mb-3 shadow-sm flex-wrap">
-              <span className="text-sm text-gray-700 font-medium">
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2 flex items-center gap-3 mb-3 shadow-sm flex-wrap">
+              <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">
                 {selectedIds.size} selected
               </span>
               <button

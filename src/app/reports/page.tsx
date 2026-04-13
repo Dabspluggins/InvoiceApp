@@ -20,11 +20,11 @@ export default async function ReportsPage() {
   if (!user) redirect('/auth/login')
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
         <div className="mb-6 md:mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Tax &amp; Reports</h1>
-          <p className="text-gray-500 text-sm mt-1">Year-end and quarterly summaries for accounting</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tax &amp; Reports</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Year-end and quarterly summaries for accounting</p>
         </div>
 
         <ReportsClient />

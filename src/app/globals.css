@@ -14,11 +14,9 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
 }
 
 body {
@@ -31,8 +29,16 @@ input, textarea, select {
   color: #111827; /* gray-900 */
 }
 
+.dark input, .dark textarea, .dark select {
+  color: #f3f4f6; /* gray-100 */
+}
+
 input::placeholder, textarea::placeholder {
   color: #9ca3af; /* gray-400 */
+}
+
+.dark input::placeholder, .dark textarea::placeholder {
+  color: #6b7280; /* gray-500 */
 }
 
 @media print {

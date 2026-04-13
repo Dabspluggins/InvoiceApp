@@ -764,12 +764,12 @@ function InvoicePageInner() {
       {/* Send Invoice Modal */}
       {isSignedIn && sendModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 print:hidden">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-gray-900">Send Invoice to Client</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Send Invoice to Client</h2>
               <button
                 onClick={() => setSendModal((s) => ({ ...s, open: false }))}
-                className="text-gray-400 hover:text-gray-600 transition"
+                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 transition"
                 aria-label="Close"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -780,41 +780,41 @@ function InvoicePageInner() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">To (email)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">To (email)</label>
                 <input
                   type="email"
                   value={sendModal.toEmail}
                   onChange={(e) => setSendModal((s) => ({ ...s, toEmail: e.target.value }))}
                   placeholder="client@example.com"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Client name</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Client name</label>
                 <input
                   type="text"
                   value={sendModal.toName}
                   onChange={(e) => setSendModal((s) => ({ ...s, toName: e.target.value }))}
                   placeholder="Client name"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Subject</label>
                 <input
                   type="text"
                   value={sendModal.subject}
                   onChange={(e) => setSendModal((s) => ({ ...s, subject: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Message</label>
                 <textarea
                   value={sendModal.message}
                   onChange={(e) => setSendModal((s) => ({ ...s, message: e.target.value }))}
                   rows={4}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                 />
               </div>
             </div>
@@ -822,7 +822,7 @@ function InvoicePageInner() {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setSendModal((s) => ({ ...s, open: false }))}
-                className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 transition"
+                className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition"
               >
                 Cancel
               </button>
@@ -841,12 +841,12 @@ function InvoicePageInner() {
       {/* Save as Template Modal */}
       {templateModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 print:hidden">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-gray-900">Save as Template</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Save as Template</h2>
               <button
                 onClick={() => setTemplateModal({ open: false, name: '', saving: false })}
-                className="text-gray-400 hover:text-gray-600 transition"
+                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 transition"
                 aria-label="Close"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -855,21 +855,21 @@ function InvoicePageInner() {
               </button>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Template name</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Template name</label>
               <input
                 type="text"
                 value={templateModal.name}
                 onChange={(e) => setTemplateModal((s) => ({ ...s, name: e.target.value }))}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleSaveAsTemplate() }}
                 placeholder="e.g. Monthly Retainer"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 autoFocus
               />
             </div>
             <div className="flex gap-3 mt-5">
               <button
                 onClick={() => setTemplateModal({ open: false, name: '', saving: false })}
-                className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 transition"
+                className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition"
               >
                 Cancel
               </button>
@@ -888,12 +888,12 @@ function InvoicePageInner() {
       {/* Import Expenses Modal */}
       {importExpensesModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 print:hidden">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6 max-h-[85vh] flex flex-col">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6 max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">Import Unbilled Expenses</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Import Unbilled Expenses</h2>
               <button
                 onClick={() => setImportExpensesModal((m) => ({ ...m, open: false }))}
-                className="text-gray-400 hover:text-gray-600 transition"
+                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 transition"
                 aria-label="Close"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -903,13 +903,13 @@ function InvoicePageInner() {
             </div>
 
             {importExpensesModal.loading ? (
-              <div className="flex-1 flex items-center justify-center py-8 text-gray-400 text-sm">
+              <div className="flex-1 flex items-center justify-center py-8 text-gray-400 dark:text-gray-500 text-sm">
                 Loading expenses...
               </div>
             ) : importExpensesModal.expenses.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center py-8 text-center">
-                <p className="text-gray-500 text-sm">No unbilled billable expenses found{data.clientEmail ? ' for this client' : ''}.</p>
-                <p className="text-gray-400 text-xs mt-1">Log expenses at <span className="text-indigo-600">/expenses</span> first.</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">No unbilled billable expenses found{data.clientEmail ? ' for this client' : ''}.</p>
+                <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">Log expenses at <span className="text-indigo-600">/expenses</span> first.</p>
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto space-y-2 mb-4">
@@ -918,8 +918,8 @@ function InvoicePageInner() {
                     key={exp.id}
                     className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${
                       importExpensesModal.selected.has(exp.id)
-                        ? 'border-indigo-400 bg-indigo-50'
-                        : 'border-gray-200 hover:border-indigo-300'
+                        ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/30'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-indigo-300'
                     }`}
                   >
                     <input
@@ -929,13 +929,13 @@ function InvoicePageInner() {
                       className="accent-indigo-600 shrink-0"
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{exp.description}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{exp.description}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                         {new Date(exp.date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                         {' · '}{exp.category}
                       </p>
                     </div>
-                    <p className="text-sm font-semibold text-gray-900 shrink-0">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white shrink-0">
                       ₦{exp.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                   </label>
@@ -944,10 +944,10 @@ function InvoicePageInner() {
             )}
 
             {!importExpensesModal.loading && importExpensesModal.expenses.length > 0 && (
-              <div className="flex gap-3 pt-2 border-t border-gray-100">
+              <div className="flex gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
                 <button
                   onClick={() => setImportExpensesModal((m) => ({ ...m, open: false }))}
-                  className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 transition"
+                  className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                 >
                   Cancel
                 </button>
@@ -967,12 +967,12 @@ function InvoicePageInner() {
       )}
 
       {/* Mobile tab toggle */}
-      <div className="md:hidden flex border-b border-gray-200 bg-white sticky top-0 z-10 print:hidden">
+      <div className="md:hidden flex border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-10 print:hidden">
         <button
           className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${
             activeTab === 'edit'
               ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-500'
+              : 'border-transparent text-gray-500 dark:text-gray-400'
           }`}
           onClick={() => setActiveTab('edit')}
         >
@@ -982,7 +982,7 @@ function InvoicePageInner() {
           className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${
             activeTab === 'preview'
               ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-500'
+              : 'border-transparent text-gray-500 dark:text-gray-400'
           }`}
           onClick={() => setActiveTab('preview')}
         >
@@ -992,7 +992,7 @@ function InvoicePageInner() {
 
       {/* Left: Form */}
       <div
-        className={`md:w-[45%] md:border-r border-gray-200 bg-white md:overflow-y-auto print:hidden ${
+        className={`md:w-[45%] md:border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 md:overflow-y-auto print:hidden ${
           activeTab === 'edit' ? 'block' : 'hidden md:block'
         }`}
       >
@@ -1028,9 +1028,9 @@ function InvoicePageInner() {
           const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
           const outstanding = total - totalPaid
           return (
-            <div className="mx-4 mb-6 mt-2 border border-gray-200 rounded-xl bg-gray-50 p-4">
+            <div className="mx-4 mb-6 mt-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-700 p-4">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-gray-800">Payments</h3>
+                <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100">Payments</h3>
                 {!showPaymentForm && (
                   <button
                     onClick={() => {
@@ -1047,15 +1047,15 @@ function InvoicePageInner() {
               {payments.length > 0 && (
                 <div className="mb-3 space-y-1.5">
                   {payments.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between bg-white rounded-lg border border-gray-200 px-3 py-2">
+                    <div key={p.id} className="flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
                       <div>
-                        <span className="text-sm font-medium text-gray-800">{data.currency} {p.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                        <span className="text-xs text-gray-400 ml-2">{new Date(p.paid_at + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                        {p.note && <span className="text-xs text-gray-500 ml-2 italic">{p.note}</span>}
+                        <span className="text-sm font-medium text-gray-800 dark:text-gray-100">{data.currency} {p.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">{new Date(p.paid_at + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                        {p.note && <span className="text-xs text-gray-500 dark:text-gray-400 ml-2 italic">{p.note}</span>}
                       </div>
                       <button
                         onClick={() => handleDeletePayment(p.id)}
-                        className="text-gray-300 hover:text-red-500 transition text-base leading-none ml-3"
+                        className="text-gray-300 dark:text-gray-600 hover:text-red-500 transition text-base leading-none ml-3"
                         title="Delete payment"
                       >
                         ×
@@ -1065,12 +1065,12 @@ function InvoicePageInner() {
                 </div>
               )}
 
-              <div className="flex justify-between text-sm mb-3 border-t border-gray-200 pt-2">
-                <span className="text-gray-500">Total Paid</span>
+              <div className="flex justify-between text-sm mb-3 border-t border-gray-200 dark:border-gray-600 pt-2">
+                <span className="text-gray-500 dark:text-gray-400">Total Paid</span>
                 <span className="font-semibold text-green-600">{data.currency} {totalPaid.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Outstanding</span>
+                <span className="text-gray-500 dark:text-gray-400">Outstanding</span>
                 <span className={`font-bold ${outstanding > 0 ? 'text-orange-500' : 'text-green-600'}`}>
                   {data.currency} {outstanding.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </span>

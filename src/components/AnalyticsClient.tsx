@@ -44,10 +44,10 @@ function getLast6Months() {
 
 function KpiCard({ label, value, color, sub }: { label: string; value: string; color: string; sub?: string }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
-      <p className="text-xs md:text-sm text-gray-500 mb-1">{label}</p>
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
+      <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-1">{label}</p>
       <p className={`text-xl md:text-2xl font-bold ${color}`}>{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+      {sub && <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{sub}</p>}
     </div>
   )
 }
@@ -138,10 +138,10 @@ export default function AnalyticsClient() {
       </div>
 
       {/* Monthly Trend Chart */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 md:p-6">
-        <h2 className="text-base font-semibold text-gray-900 mb-1">Monthly Trend</h2>
-        <p className="text-xs text-gray-400 mb-4">Last 6 months — invoiced vs paid</p>
-        <div className="flex gap-4 text-xs text-gray-500 mb-3">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 md:p-6">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">Monthly Trend</h2>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">Last 6 months — invoiced vs paid</p>
+        <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-400 mb-3">
           <span className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-sm bg-indigo-500 inline-block" />
             Invoiced
@@ -220,17 +220,17 @@ export default function AnalyticsClient() {
       {/* Bottom row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Overdue invoices table */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h2 className="text-base font-semibold text-gray-900">Overdue Invoices</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">Overdue Invoices</h2>
           </div>
           {overdueInvoices.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-10">No overdue invoices</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-10">No overdue invoices</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-xs text-gray-400 uppercase tracking-wide bg-gray-50">
+                  <tr className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide bg-gray-50 dark:bg-gray-700">
                     <th className="text-left px-5 py-2.5">Invoice</th>
                     <th className="text-left px-5 py-2.5">Client</th>
                     <th className="text-right px-5 py-2.5">Amount</th>
@@ -246,7 +246,7 @@ export default function AnalyticsClient() {
                         (new Date(today).getTime() - new Date(inv.due_date).getTime()) / 86_400_000
                       )
                       return (
-                        <tr key={inv.id} className="border-t border-gray-50 hover:bg-gray-50 transition">
+                        <tr key={inv.id} className="border-t border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                           <td className="px-5 py-3">
                             <Link
                               href={`/invoice?id=${inv.id}`}
@@ -255,13 +255,13 @@ export default function AnalyticsClient() {
                               {inv.invoice_number}
                             </Link>
                           </td>
-                          <td className="px-5 py-3 text-gray-600 max-w-[120px] truncate">
+                          <td className="px-5 py-3 text-gray-600 dark:text-gray-300 max-w-[120px] truncate">
                             {inv.client_name || inv.client_company || '—'}
                           </td>
-                          <td className="px-5 py-3 text-gray-900 font-medium text-right">
+                          <td className="px-5 py-3 text-gray-900 dark:text-white font-medium text-right">
                             {fmtWithCurrency(inv.total || 0, inv.currency || 'NGN')}
                           </td>
-                          <td className="px-5 py-3 text-gray-500 text-right whitespace-nowrap">
+                          <td className="px-5 py-3 text-gray-500 dark:text-gray-400 text-right whitespace-nowrap">
                             {new Date(inv.due_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                           </td>
                           <td className="px-5 py-3 text-right">
@@ -277,19 +277,19 @@ export default function AnalyticsClient() {
         </div>
 
         {/* Top clients by paid revenue */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h2 className="text-base font-semibold text-gray-900">Top Clients by Revenue</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Based on paid invoices</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">Top Clients by Revenue</h2>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Based on paid invoices</p>
           </div>
           {topClients.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-10">No paid invoices yet</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-10">No paid invoices yet</p>
           ) : (
-            <ul className="divide-y divide-gray-50">
+            <ul className="divide-y divide-gray-50 dark:divide-gray-700">
               {topClients.map(([name, amount], i) => (
                 <li key={name} className="flex items-center gap-4 px-5 py-3.5">
-                  <span className="text-xs font-bold text-gray-300 w-4 shrink-0">{i + 1}</span>
-                  <span className="flex-1 text-sm text-gray-700 truncate">{name}</span>
+                  <span className="text-xs font-bold text-gray-300 dark:text-gray-600 w-4 shrink-0">{i + 1}</span>
+                  <span className="flex-1 text-sm text-gray-700 dark:text-gray-300 truncate">{name}</span>
                   <span className="text-sm font-semibold text-green-600">{fmt(amount)}</span>
                 </li>
               ))}

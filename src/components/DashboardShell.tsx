@@ -11,17 +11,19 @@ export default function DashboardShell({ user }: { user: User }) {
   const [themeColor, setThemeColor] = useState('#4F46E5')
 
   useEffect(() => {
-    const saved = localStorage.getItem('dashboard_dark_mode')
-    if (saved === 'true') setDarkMode(true)
+    const saved = localStorage.getItem('theme')
+    const isDark = saved === 'dark' || (saved === null && localStorage.getItem('dashboard_dark_mode') === 'true')
+    if (isDark) setDarkMode(true)
   }, [])
 
   function handleSetDarkMode(v: boolean) {
     setDarkMode(v)
-    localStorage.setItem('dashboard_dark_mode', v ? 'true' : 'false')
+    localStorage.setItem('theme', v ? 'dark' : 'light')
+    document.documentElement.classList.toggle('dark', v)
   }
 
   return (
-    <div className={`min-h-screen p-4 md:p-8 transition-colors${darkMode ? ' dark bg-gray-900' : ' bg-gray-50'}`}>
+    <div className="min-h-screen p-4 md:p-8 transition-colors bg-gray-50 dark:bg-gray-900">
       <div className="max-w-5xl mx-auto">
         <div className="flex justify-end items-center gap-3 mb-6 md:mb-8">
           <ProfileDropdown

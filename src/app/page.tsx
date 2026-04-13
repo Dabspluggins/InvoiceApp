@@ -108,14 +108,14 @@ const steps = [
 
 export default function Home() {
   return (
-    <main className="bg-white">
+    <main className="bg-white dark:bg-gray-900">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
       {/* Hero */}
-      <section className="border-b border-gray-100">
+      <section className="border-b border-gray-100 dark:border-gray-700">
         <div className="max-w-5xl mx-auto px-6 pt-20 pb-16 text-center">
           <div className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 text-xs font-semibold px-3 py-1.5 rounded-full mb-8 uppercase tracking-wide">
             <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
@@ -124,12 +124,12 @@ export default function Home() {
             Free forever — no credit card needed
           </div>
 
-          <h1 className="text-5xl sm:text-6xl font-extrabold text-gray-900 leading-[1.1] tracking-tight mb-6">
+          <h1 className="text-5xl sm:text-6xl font-extrabold text-gray-900 dark:text-white leading-[1.1] tracking-tight mb-6">
             Free invoice generator<br />
             <span className="text-indigo-600">for freelancers &amp; businesses.</span>
           </h1>
 
-          <p className="text-xl text-gray-500 max-w-xl mx-auto mb-10 leading-relaxed">
+          <p className="text-xl text-gray-500 dark:text-gray-400 max-w-xl mx-auto mb-10 leading-relaxed">
             Create and send professional invoices online for free — no account needed to start.
             Fill in your details, download as PDF, and get paid faster.
           </p>
@@ -146,21 +146,21 @@ export default function Home() {
             </Link>
             <Link
               href="/auth/login"
-              className="inline-flex items-center gap-2 text-gray-700 hover:text-indigo-600 font-semibold text-base px-7 py-3.5 rounded-xl border border-gray-200 hover:border-indigo-200 transition-colors"
+              className="inline-flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:text-indigo-600 font-semibold text-base px-7 py-3.5 rounded-xl border border-gray-200 dark:border-gray-600 hover:border-indigo-200 transition-colors"
             >
               See Dashboard
             </Link>
           </div>
 
-          <p className="text-sm text-gray-400">No signup required &middot; Works on any device</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">No signup required &middot; Works on any device</p>
         </div>
       </section>
 
       {/* Invoice Mockup Preview */}
-      <section className="bg-gray-50 border-y border-gray-100 py-16">
+      <section className="bg-gray-50 dark:bg-gray-800 border-y border-gray-100 dark:border-gray-700 py-16">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <p className="text-xs font-semibold uppercase tracking-widest text-indigo-500 mb-2">Live Preview</p>
-          <h2 className="text-2xl font-bold text-gray-800 mb-8">Here's what your invoice looks like</h2>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-8">Here's what your invoice looks like</h2>
           {/* Mockup card — scaled down so it fits without being too tall */}
           <div className="flex justify-center">
             <div className="origin-top transform scale-90 w-full max-w-[600px] bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200 text-left">
@@ -264,11 +264,11 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section className="bg-gray-50 py-20 border-b border-gray-100">
+      <section className="bg-gray-50 dark:bg-gray-800 py-20 border-b border-gray-100 dark:border-gray-700">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">The free invoice generator built for freelancers</h2>
-            <p className="text-gray-500 text-lg max-w-xl mx-auto">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">The free invoice generator built for freelancers</h2>
+            <p className="text-gray-500 dark:text-gray-400 text-lg max-w-xl mx-auto">
               Create invoices online in seconds — no overhead, no credit card, no limits. BillByDab is the free invoice maker trusted by freelancers, consultants, and small businesses.
             </p>
           </div>
@@ -277,13 +277,13 @@ export default function Home() {
             {features.map((f) => (
               <div
                 key={f.title}
-                className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md hover:border-indigo-100 transition-all"
+                className="bg-white dark:bg-gray-700 rounded-2xl p-6 border border-gray-100 dark:border-gray-600 shadow-sm hover:shadow-md hover:border-indigo-100 dark:hover:border-indigo-500 transition-all"
               >
                 <div className="inline-flex items-center justify-center w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl mb-4">
                   {f.icon}
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2 leading-snug">{f.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{f.desc}</p>
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-2 leading-snug">{f.title}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{f.desc}</p>
               </div>
             ))}
           </div>
@@ -291,11 +291,11 @@ export default function Home() {
       </section>
 
       {/* How it works */}
-      <section className="py-20 border-b border-gray-100">
+      <section className="py-20 border-b border-gray-100 dark:border-gray-700">
         <div className="max-w-4xl mx-auto px-6">
           <div className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">How it works</h2>
-            <p className="text-gray-500 text-lg">Three simple steps from zero to paid invoice.</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">How it works</h2>
+            <p className="text-gray-500 dark:text-gray-400 text-lg">Three simple steps from zero to paid invoice.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
@@ -307,8 +307,8 @@ export default function Home() {
                 <div className="relative flex items-center justify-center w-16 h-16 bg-indigo-600 text-white rounded-full text-xl font-bold mb-5 shadow-md flex-shrink-0 z-10">
                   {step.number}
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2 text-lg leading-snug">{step.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{step.desc}</p>
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-2 text-lg leading-snug">{step.title}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{step.desc}</p>
               </div>
             ))}
           </div>
@@ -337,22 +337,22 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-100 py-10">
+      <footer className="bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 py-10">
         <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2">
             <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <span className="font-bold text-gray-900">BillByDab</span>
+            <span className="font-bold text-gray-900 dark:text-white">BillByDab</span>
           </div>
 
           <nav className="flex items-center gap-6">
-            <Link href="/invoice" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Invoice</Link>
-            <Link href="/dashboard" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Dashboard</Link>
-            <Link href="/auth/signup" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Sign Up</Link>
+            <Link href="/invoice" className="text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition-colors">Invoice</Link>
+            <Link href="/dashboard" className="text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition-colors">Dashboard</Link>
+            <Link href="/auth/signup" className="text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition-colors">Sign Up</Link>
           </nav>
 
-          <p className="text-sm text-gray-400">&copy; {new Date().getFullYear()} BillByDab. All rights reserved.</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">&copy; {new Date().getFullYear()} BillByDab. All rights reserved.</p>
         </div>
       </footer>
     </main>

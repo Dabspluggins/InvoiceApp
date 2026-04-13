@@ -513,9 +513,9 @@ function InvoicePageInner() {
       {/* Send Invoice Modal */}
       {sendModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 print:hidden">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-gray-900">Send Invoice to Client</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Send Invoice to Client</h2>
               <button
                 onClick={() => setSendModal((s) => ({ ...s, open: false }))}
                 className="text-gray-400 hover:text-gray-600 transition"
@@ -529,41 +529,41 @@ function InvoicePageInner() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">To (email)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">To (email)</label>
                 <input
                   type="email"
                   value={sendModal.toEmail}
                   onChange={(e) => setSendModal((s) => ({ ...s, toEmail: e.target.value }))}
                   placeholder="client@example.com"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Client name</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Client name</label>
                 <input
                   type="text"
                   value={sendModal.toName}
                   onChange={(e) => setSendModal((s) => ({ ...s, toName: e.target.value }))}
                   placeholder="Client name"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Subject</label>
                 <input
                   type="text"
                   value={sendModal.subject}
                   onChange={(e) => setSendModal((s) => ({ ...s, subject: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Message</label>
                 <textarea
                   value={sendModal.message}
                   onChange={(e) => setSendModal((s) => ({ ...s, message: e.target.value }))}
                   rows={4}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                 />
               </div>
             </div>
@@ -571,7 +571,7 @@ function InvoicePageInner() {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setSendModal((s) => ({ ...s, open: false }))}
-                className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 transition"
+                className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition"
               >
                 Cancel
               </button>
@@ -590,9 +590,9 @@ function InvoicePageInner() {
       {/* Save as Template Modal */}
       {templateModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 print:hidden">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-gray-900">Save as Template</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Save as Template</h2>
               <button
                 onClick={() => setTemplateModal({ open: false, name: '', saving: false })}
                 className="text-gray-400 hover:text-gray-600 transition"
@@ -604,21 +604,21 @@ function InvoicePageInner() {
               </button>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Template name</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Template name</label>
               <input
                 type="text"
                 value={templateModal.name}
                 onChange={(e) => setTemplateModal((s) => ({ ...s, name: e.target.value }))}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleSaveAsTemplate() }}
                 placeholder="e.g. Monthly Retainer"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 autoFocus
               />
             </div>
             <div className="flex gap-3 mt-5">
               <button
                 onClick={() => setTemplateModal({ open: false, name: '', saving: false })}
-                className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 transition"
+                className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition"
               >
                 Cancel
               </button>
@@ -635,7 +635,7 @@ function InvoicePageInner() {
       )}
 
       {/* Mobile tab toggle */}
-      <div className="md:hidden flex border-b border-gray-200 bg-white sticky top-0 z-10 print:hidden">
+      <div className="md:hidden flex border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 sticky top-0 z-10 print:hidden">
         <button
           className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${
             activeTab === 'edit'
@@ -660,12 +660,12 @@ function InvoicePageInner() {
 
       {/* Left: Form */}
       <div
-        className={`md:w-[45%] md:border-r border-gray-200 bg-white md:overflow-y-auto print:hidden ${
+        className={`md:w-[45%] md:border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 md:overflow-y-auto print:hidden ${
           activeTab === 'edit' ? 'block' : 'hidden md:block'
         }`}
       >
         {duplicateBanner && (
-          <div className="mx-4 mt-4 px-4 py-2.5 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-700 flex items-center justify-between gap-3">
+          <div className="mx-4 mt-4 px-4 py-2.5 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700 rounded-lg text-sm text-indigo-700 dark:text-indigo-300 flex items-center justify-between gap-3">
             <span>{duplicateBanner}</span>
             <button
               onClick={() => setDuplicateBanner(null)}
@@ -690,7 +690,7 @@ function InvoicePageInner() {
             <InvoicePreview data={data} />
           </div>
         </div>
-        <div className="hidden md:flex p-4 border-t border-gray-200 bg-white gap-3 print:hidden">
+        <div className="hidden md:flex p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 gap-3 print:hidden">
           <button
             onClick={handleSave}
             disabled={saving}
@@ -720,7 +720,7 @@ function InvoicePageInner() {
       </div>
 
       {/* Mobile sticky action bar */}
-      <div className="md:hidden fixed bottom-0 inset-x-0 p-3 border-t border-gray-200 bg-white z-10 flex gap-2 print:hidden">
+      <div className="md:hidden fixed bottom-0 inset-x-0 p-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 z-10 flex gap-2 print:hidden">
         <button
           onClick={handleSave}
           disabled={saving}

@@ -272,26 +272,26 @@ export default function DashboardClient({ user }: { user?: User | null }) {
   return (
     <>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Welcome back, {displayName}! 👋</h1>
-        <p className="text-gray-500 mt-1">Here&apos;s your invoice overview.</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Welcome back, {displayName}! 👋</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">Here&apos;s your invoice overview.</p>
       </div>
 
       {/* Stats — 2 columns on mobile, 3 on md+ */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
-        <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
-          <p className="text-xs md:text-sm text-gray-500 mb-1">Total Invoices</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
+          <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-1">Total Invoices</p>
           <p className="text-xl md:text-2xl font-bold text-blue-600">
             {filteredInvoices.length !== totalInvoices
               ? `${filteredInvoices.length} / ${totalInvoices}`
               : totalInvoices}
           </p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
-          <p className="text-xs md:text-sm text-gray-500 mb-1">Paid</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
+          <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-1">Paid</p>
           <p className="text-xl md:text-2xl font-bold text-green-600">{paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
-        <div className="col-span-2 md:col-span-1 bg-white rounded-xl border border-gray-200 p-4 md:p-6">
-          <p className="text-xs md:text-sm text-gray-500 mb-1">Outstanding</p>
+        <div className="col-span-2 md:col-span-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
+          <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-1">Outstanding</p>
           <p className="text-xl md:text-2xl font-bold text-orange-500">{outstandingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
       </div>
@@ -300,13 +300,13 @@ export default function DashboardClient({ user }: { user?: User | null }) {
       <div className="flex gap-3 mb-6">
         <Link
           href="/clients"
-          className="text-sm text-indigo-600 hover:text-indigo-800 font-medium border border-indigo-200 hover:border-indigo-400 px-4 py-2 rounded-lg transition"
+          className="text-sm text-indigo-600 hover:text-indigo-800 font-medium border border-indigo-200 dark:border-indigo-700 hover:border-indigo-400 px-4 py-2 rounded-lg transition"
         >
           Manage Clients →
         </Link>
         <Link
           href="/analytics"
-          className="text-sm text-indigo-600 hover:text-indigo-800 font-medium border border-indigo-200 hover:border-indigo-400 px-4 py-2 rounded-lg transition"
+          className="text-sm text-indigo-600 hover:text-indigo-800 font-medium border border-indigo-200 dark:border-indigo-700 hover:border-indigo-400 px-4 py-2 rounded-lg transition"
         >
           View Analytics →
         </Link>
@@ -328,7 +328,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by client or company…"
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition"
+            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition"
           />
         </div>
         <div className="flex gap-1.5">
@@ -339,7 +339,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition whitespace-nowrap ${
                 statusFilter === value
                   ? 'bg-indigo-600 text-white'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600'
+                  : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-indigo-300 hover:text-indigo-600'
               }`}
             >
               {label}
@@ -350,10 +350,10 @@ export default function DashboardClient({ user }: { user?: User | null }) {
 
       {/* Invoice list */}
       {invoices.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 md:p-12 text-center">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 md:p-12 text-center">
           <div className="text-5xl mb-4">📄</div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No invoices yet</h3>
-          <p className="text-gray-500 text-sm mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No invoices yet</h3>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
             Create your first invoice and it will appear here.
           </p>
           <Link
@@ -364,15 +364,15 @@ export default function DashboardClient({ user }: { user?: User | null }) {
           </Link>
         </div>
       ) : filteredInvoices.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-500">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center text-sm text-gray-500 dark:text-gray-400">
           No invoices match your search or filter.
         </div>
       ) : (
         <>
           {/* Bulk action bar */}
           {hasSelection && (
-            <div className="bg-white border border-gray-200 rounded-lg px-4 py-2 flex items-center gap-3 mb-3 shadow-sm flex-wrap">
-              <span className="text-sm text-gray-700 font-medium">
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2 flex items-center gap-3 mb-3 shadow-sm flex-wrap">
+              <span className="text-sm text-gray-700 dark:text-gray-200 font-medium">
                 {selectedIds.size} selected
               </span>
               <button
@@ -402,7 +402,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
             {filteredInvoices.map((inv) => (
               <div
                 key={inv.id}
-                className="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer"
+                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 cursor-pointer"
                 onClick={() => router.push(`/invoice?id=${inv.id}`)}
               >
                 <div className="flex justify-between items-start mb-3">
@@ -416,14 +416,14 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                       />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-gray-900 flex items-center gap-1 flex-wrap">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-1 flex-wrap">
                         {inv.invoice_number}
                         {inv.is_recurring && <span title="Recurring">🔄</span>}
                         {isOverdue(inv) && (
                           <span className="text-xs font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded">OVERDUE</span>
                         )}
                       </p>
-                      <p className="text-sm text-gray-600 mt-0.5">{inv.client_name || '—'}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 mt-0.5">{inv.client_name || '—'}</p>
                       {inv.client_company && (
                         <p className="text-xs text-gray-400">{inv.client_company}</p>
                       )}
@@ -432,7 +432,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                       )}
                     </div>
                   </div>
-                  <p className="text-sm font-bold text-gray-900">
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">
                     {formatCurrency(inv.total, inv.currency)}
                   </p>
                 </div>
@@ -488,10 +488,10 @@ export default function DashboardClient({ user }: { user?: User | null }) {
           </div>
 
           {/* Desktop: table */}
-          <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="hidden md:block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wide bg-gray-50">
+                <tr className="border-b border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide bg-gray-50 dark:bg-gray-700/50">
                   <th className="px-4 py-3 w-8">
                     <input
                       type="checkbox"
@@ -513,7 +513,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                 {filteredInvoices.map((inv) => (
                   <tr
                     key={inv.id}
-                    className={`border-b border-gray-50 last:border-0 hover:bg-gray-50 transition cursor-pointer group ${selectedIds.has(inv.id) ? 'bg-indigo-50/40' : ''}`}
+                    className={`border-b border-gray-50 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition cursor-pointer group ${selectedIds.has(inv.id) ? 'bg-indigo-50/40 dark:bg-indigo-900/20' : ''}`}
                     onClick={() => router.push(`/invoice?id=${inv.id}`)}
                   >
                     <td
@@ -528,7 +528,7 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                         style={selectedIds.has(inv.id) ? { opacity: 1 } : undefined}
                       />
                     </td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
                       <span className="flex items-center gap-1.5 flex-wrap">
                         {inv.invoice_number}
                         {inv.is_recurring && <span title="Recurring">🔄</span>}
@@ -540,14 +540,14 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                         <span className="text-xs text-gray-400">{inv.reminders_sent} reminder{inv.reminders_sent === 1 ? '' : 's'} sent</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
+                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
                       <div>{inv.client_name || '—'}</div>
                       {inv.client_company && (
-                        <div className="text-xs text-gray-400">{inv.client_company}</div>
+                        <div className="text-xs text-gray-400 dark:text-gray-500">{inv.client_company}</div>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{formatDateLong(inv.issue_date)}</td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right">
+                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{formatDateLong(inv.issue_date)}</td>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white text-right">
                       {formatCurrency(inv.total, inv.currency)}
                     </td>
                     <td
@@ -620,12 +620,12 @@ export default function DashboardClient({ user }: { user?: User | null }) {
 
       {/* Templates section */}
       <div className="mt-10">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">Templates</h2>
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Templates</h2>
         {templates.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center">
             <div className="text-4xl mb-3">📋</div>
-            <h3 className="text-base font-semibold text-gray-900 mb-1">No templates yet</h3>
-            <p className="text-gray-500 text-sm">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">No templates yet</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">
               Save an invoice as a template and it will appear here.
             </p>
           </div>
@@ -634,11 +634,11 @@ export default function DashboardClient({ user }: { user?: User | null }) {
             {/* Mobile: cards */}
             <div className="md:hidden flex flex-col gap-3">
               {templates.map((tmpl) => (
-                <div key={tmpl.id} className="bg-white rounded-xl border border-gray-200 p-4">
+                <div key={tmpl.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">{tmpl.name}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{tmpl.name}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                         {new Date(tmpl.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </p>
                     </div>
@@ -662,10 +662,10 @@ export default function DashboardClient({ user }: { user?: User | null }) {
             </div>
 
             {/* Desktop: table */}
-            <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="hidden md:block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wide bg-gray-50">
+                  <tr className="border-b border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide bg-gray-50 dark:bg-gray-700/50">
                     <th className="text-left px-6 py-3">Name</th>
                     <th className="text-left px-6 py-3">Saved</th>
                     <th className="text-right px-6 py-3">Actions</th>
@@ -675,10 +675,10 @@ export default function DashboardClient({ user }: { user?: User | null }) {
                   {templates.map((tmpl) => (
                     <tr
                       key={tmpl.id}
-                      className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition"
+                      className="border-b border-gray-50 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition"
                     >
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{tmpl.name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">{tmpl.name}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                         {new Date(tmpl.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </td>
                       <td className="px-6 py-4 text-right flex items-center justify-end gap-4">

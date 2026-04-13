@@ -6,8 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
 
 const inputCls =
-  'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 transition'
-const labelCls = 'block text-sm font-medium text-gray-700 mb-1'
+  'w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition'
+const labelCls = 'block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1'
 
 export default function SettingsClient({ user }: { user: User }) {
   const router = useRouter()
@@ -114,19 +114,19 @@ export default function SettingsClient({ user }: { user: User }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
-        <p className="text-gray-500 text-sm mt-1">Manage your profile and account preferences</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Account Settings</h1>
+        <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage your profile and account preferences</p>
       </div>
 
       {/* Profile section */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-900">Profile</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">Profile</h2>
         </div>
         <form onSubmit={saveProfile} className="p-6 space-y-4">
           <div>
             <label className={labelCls}>Email address</label>
-            <div className="w-full border border-gray-100 rounded-lg px-3 py-2.5 text-sm text-gray-500 bg-gray-50">
+            <div className="w-full border border-gray-100 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50">
               {user.email}
             </div>
           </div>
@@ -144,8 +144,8 @@ export default function SettingsClient({ user }: { user: User }) {
             <div
               className={`text-sm px-4 py-3 rounded-lg border ${
                 profileMsg.type === 'success'
-                  ? 'bg-green-50 border-green-200 text-green-700'
-                  : 'bg-red-50 border-red-200 text-red-600'
+                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700 text-green-700 dark:text-green-400'
+                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700 text-red-600 dark:text-red-400'
               }`}
             >
               {profileMsg.text}
@@ -164,14 +164,14 @@ export default function SettingsClient({ user }: { user: User }) {
       </div>
 
       {/* Update Email section */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-900">Update Email</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">Update Email</h2>
         </div>
         <form onSubmit={updateEmail} className="p-6 space-y-4">
           <div>
             <label className={labelCls}>Current email address</label>
-            <div className="w-full border border-gray-100 rounded-lg px-3 py-2.5 text-sm text-gray-500 bg-gray-50">
+            <div className="w-full border border-gray-100 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50">
               {user.email}
             </div>
           </div>
@@ -189,8 +189,8 @@ export default function SettingsClient({ user }: { user: User }) {
             <div
               className={`text-sm px-4 py-3 rounded-lg border ${
                 emailMsg.type === 'success'
-                  ? 'bg-green-50 border-green-200 text-green-700'
-                  : 'bg-red-50 border-red-200 text-red-600'
+                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700 text-green-700 dark:text-green-400'
+                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700 text-red-600 dark:text-red-400'
               }`}
             >
               {emailMsg.text}
@@ -209,9 +209,9 @@ export default function SettingsClient({ user }: { user: User }) {
       </div>
 
       {/* Change Password section */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-900">Change Password</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">Change Password</h2>
         </div>
         <form onSubmit={changePassword} className="p-6 space-y-4">
           <div>
@@ -238,8 +238,8 @@ export default function SettingsClient({ user }: { user: User }) {
             <div
               className={`text-sm px-4 py-3 rounded-lg border ${
                 passwordMsg.type === 'success'
-                  ? 'bg-green-50 border-green-200 text-green-700'
-                  : 'bg-red-50 border-red-200 text-red-600'
+                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700 text-green-700 dark:text-green-400'
+                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700 text-red-600 dark:text-red-400'
               }`}
             >
               {passwordMsg.text}
@@ -258,24 +258,24 @@ export default function SettingsClient({ user }: { user: User }) {
       </div>
 
       {/* Danger Zone */}
-      <div className="bg-white rounded-xl border border-red-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-red-100 bg-red-50">
-          <h2 className="text-base font-semibold text-red-700">Danger Zone</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-red-200 dark:border-red-800 overflow-hidden">
+        <div className="px-6 py-4 border-b border-red-100 dark:border-red-800 bg-red-50 dark:bg-red-900/20">
+          <h2 className="text-base font-semibold text-red-700 dark:text-red-400">Danger Zone</h2>
         </div>
         <div className="p-6">
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
             Permanently delete your account and all associated data. This action cannot be undone.
           </p>
           {!showDeleteConfirm ? (
             <button
               onClick={() => setShowDeleteConfirm(true)}
-              className="text-sm text-red-600 border border-red-300 px-5 py-2 rounded-lg hover:bg-red-50 transition-colors"
+              className="text-sm text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700 px-5 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
             >
               Delete Account
             </button>
           ) : (
-            <div className="space-y-3 border border-red-200 rounded-lg p-4 bg-red-50">
-              <p className="text-sm font-medium text-red-700">
+            <div className="space-y-3 border border-red-200 dark:border-red-700 rounded-lg p-4 bg-red-50 dark:bg-red-900/20">
+              <p className="text-sm font-medium text-red-700 dark:text-red-400">
                 Type <strong>DELETE</strong> to confirm account deletion:
               </p>
               <input
@@ -283,10 +283,10 @@ export default function SettingsClient({ user }: { user: User }) {
                 value={deleteInput}
                 onChange={(e) => setDeleteInput(e.target.value)}
                 placeholder="DELETE"
-                className="w-full border border-red-200 rounded-lg px-3 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-red-300 transition"
+                className="w-full border border-red-200 dark:border-red-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300 transition"
               />
               {deleteError && (
-                <p className="text-sm text-red-600">{deleteError}</p>
+                <p className="text-sm text-red-600 dark:text-red-400">{deleteError}</p>
               )}
               <div className="flex gap-3">
                 <button
@@ -295,7 +295,7 @@ export default function SettingsClient({ user }: { user: User }) {
                     setDeleteInput('')
                     setDeleteError(null)
                   }}
-                  className="text-sm text-gray-600 border border-gray-200 px-4 py-2 rounded-lg hover:border-gray-300 transition-colors"
+                  className="text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 px-4 py-2 rounded-lg hover:border-gray-300 transition-colors"
                 >
                   Cancel
                 </button>

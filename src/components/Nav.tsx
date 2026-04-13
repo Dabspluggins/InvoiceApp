@@ -9,6 +9,7 @@ export default function Nav() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [darkMode, setDarkMode] = useState(false)
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null)
   const router = useRouter()
 
@@ -25,6 +26,9 @@ export default function Nav() {
       setUser(session?.user ?? null)
     })
 
+    // Sync dark mode state with what the layout script already applied
+    setDarkMode(document.documentElement.classList.contains('dark'))
+
     return () => subscription.unsubscribe()
   }, [])
 
@@ -37,87 +41,132 @@ export default function Nav() {
     router.refresh()
   }
 
+  function toggleDark() {
+    const next = !darkMode
+    setDarkMode(next)
+    if (next) {
+      document.documentElement.classList.add('dark')
+      localStorage.setItem('theme', 'dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+      localStorage.setItem('theme', 'light')
+    }
+  }
+
   return (
-    <nav className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 flex items-center justify-between relative print:hidden">
+    <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 md:px-6 py-4 flex items-center justify-between relative print:hidden">
       <Link href="/" className="text-xl font-bold text-indigo-600">BillByDab</Link>
 
       {/* Desktop nav links */}
       <div className="hidden md:flex gap-6">
-        <Link href="/" className="text-gray-600 hover:text-blue-600 text-sm">Home</Link>
-        <Link href="/invoice" className="text-gray-600 hover:text-blue-600 text-sm">Invoice Generator</Link>
-        {user && <Link href="/dashboard" className="text-gray-600 hover:text-blue-600 text-sm">Dashboard</Link>}
-        {user && <Link href="/analytics" className="text-gray-600 hover:text-blue-600 text-sm">Analytics</Link>}
-        {user && <Link href="/clients" className="text-gray-600 hover:text-blue-600 text-sm">Clients</Link>}
-        {user && <Link href="/settings" className="text-gray-600 hover:text-blue-600 text-sm">Settings</Link>}
+        <Link href="/" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 text-sm">Home</Link>
+        <Link href="/invoice" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 text-sm">Invoice Generator</Link>
+        {user && <Link href="/dashboard" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 text-sm">Dashboard</Link>}
+        {user && <Link href="/analytics" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 text-sm">Analytics</Link>}
+        {user && <Link href="/clients" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 text-sm">Clients</Link>}
+        {user && <Link href="/settings" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 text-sm">Settings</Link>}
       </div>
 
-      {/* Desktop auth buttons */}
-      <div className="hidden md:flex gap-3">
+      {/* Desktop auth buttons + dark toggle */}
+      <div className="hidden md:flex items-center gap-3">
+        <button
+          onClick={toggleDark}
+          className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={darkMode ? 'Light mode' : 'Dark mode'}
+        >
+          {darkMode ? (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+          )}
+        </button>
         {loading ? (
-          <div className="w-20 h-9 bg-gray-100 rounded-lg animate-pulse" />
+          <div className="w-20 h-9 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
         ) : user ? (
           <>
-            <span className="text-sm text-gray-500 flex items-center">{user.email}</span>
-            <button onClick={handleLogout} className="text-sm text-gray-600 hover:text-red-600 px-4 py-2 rounded-lg border border-gray-300 hover:border-red-300">
+            <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center">{user.email}</span>
+            <button onClick={handleLogout} className="text-sm text-gray-600 dark:text-gray-300 hover:text-red-600 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:border-red-300">
               Log out
             </button>
           </>
         ) : (
           <>
-            <Link href="/auth/login" className="text-sm text-gray-600 hover:text-blue-600 px-4 py-2 rounded-lg border border-gray-300 hover:border-blue-300">Login</Link>
+            <Link href="/auth/login" className="text-sm text-gray-600 dark:text-gray-300 hover:text-blue-600 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:border-blue-300">Login</Link>
             <Link href="/auth/signup" className="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Sign Up</Link>
           </>
         )}
       </div>
 
       {/* Hamburger button (mobile only) */}
-      <button
-        className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
-        onClick={() => setMenuOpen(!menuOpen)}
-        aria-label="Toggle menu"
-        aria-expanded={menuOpen}
-      >
-        {menuOpen ? (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        ) : (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        )}
-      </button>
+      <div className="md:hidden flex items-center gap-2">
+        <button
+          onClick={toggleDark}
+          className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {darkMode ? (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+          )}
+        </button>
+        <button
+          className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label="Toggle menu"
+          aria-expanded={menuOpen}
+        >
+          {menuOpen ? (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          )}
+        </button>
+      </div>
 
       {/* Mobile overlay menu */}
       {menuOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 bg-white border-b border-gray-200 shadow-lg z-50 px-4 py-3 flex flex-col">
-          <Link href="/" className="text-gray-700 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Home</Link>
-          <Link href="/invoice" className="text-gray-700 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Invoice Generator</Link>
+        <div className="md:hidden absolute top-full left-0 right-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-lg z-50 px-4 py-3 flex flex-col">
+          <Link href="/" className="text-gray-700 dark:text-gray-200 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100 dark:border-gray-700" onClick={() => setMenuOpen(false)}>Home</Link>
+          <Link href="/invoice" className="text-gray-700 dark:text-gray-200 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100 dark:border-gray-700" onClick={() => setMenuOpen(false)}>Invoice Generator</Link>
           {user && (
-            <Link href="/dashboard" className="text-gray-700 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Dashboard</Link>
+            <Link href="/dashboard" className="text-gray-700 dark:text-gray-200 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100 dark:border-gray-700" onClick={() => setMenuOpen(false)}>Dashboard</Link>
           )}
           {user && (
-            <Link href="/analytics" className="text-gray-700 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Analytics</Link>
+            <Link href="/analytics" className="text-gray-700 dark:text-gray-200 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100 dark:border-gray-700" onClick={() => setMenuOpen(false)}>Analytics</Link>
           )}
           {user && (
-            <Link href="/clients" className="text-gray-700 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Clients</Link>
+            <Link href="/clients" className="text-gray-700 dark:text-gray-200 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100 dark:border-gray-700" onClick={() => setMenuOpen(false)}>Clients</Link>
           )}
           {user && (
-            <Link href="/settings" className="text-gray-700 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100" onClick={() => setMenuOpen(false)}>Settings</Link>
+            <Link href="/settings" className="text-gray-700 dark:text-gray-200 hover:text-blue-600 text-sm font-medium py-3 border-b border-gray-100 dark:border-gray-700" onClick={() => setMenuOpen(false)}>Settings</Link>
           )}
           <div className="pt-3 flex flex-col gap-3">
             {loading ? (
-              <div className="w-full h-9 bg-gray-100 rounded-lg animate-pulse" />
+              <div className="w-full h-9 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
             ) : user ? (
               <>
-                <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
                 <button onClick={handleLogout} className="text-sm text-red-600 hover:text-red-700 px-4 py-2 rounded-lg border border-red-200 w-full text-center">
                   Log out
                 </button>
               </>
             ) : (
               <>
-                <Link href="/auth/login" className="text-sm text-gray-600 hover:text-blue-600 px-4 py-2 rounded-lg border border-gray-300 text-center" onClick={() => setMenuOpen(false)}>Login</Link>
+                <Link href="/auth/login" className="text-sm text-gray-600 dark:text-gray-300 hover:text-blue-600 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-center" onClick={() => setMenuOpen(false)}>Login</Link>
                 <Link href="/auth/signup" className="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-center" onClick={() => setMenuOpen(false)}>Sign Up</Link>
               </>
             )}

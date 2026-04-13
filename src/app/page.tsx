@@ -337,22 +337,59 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-100 py-10">
-        <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <span className="font-bold text-gray-900">BillByDab</span>
+      <footer className="bg-white border-t border-gray-100 py-12">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
+            {/* Brand */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span className="font-bold text-gray-900">BillByDab</span>
+              </div>
+              <p className="text-sm text-gray-400 leading-relaxed">Free invoice generator for freelancers &amp; small businesses.</p>
+            </div>
+
+            {/* Company */}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Company</p>
+              <ul className="space-y-2">
+                <li><Link href="/contact" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">About</Link></li>
+                <li><Link href="/contact" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Contact</Link></li>
+              </ul>
+            </div>
+
+            {/* Support */}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Support</p>
+              <ul className="space-y-2">
+                <li><Link href="/support" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Help Center</Link></li>
+                <li>
+                  <a href="mailto:support@billbydab.com" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">
+                    support@billbydab.com
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Legal */}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Legal</p>
+              <ul className="space-y-2">
+                <li><Link href="/privacy" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Privacy Policy</Link></li>
+              </ul>
+            </div>
           </div>
 
-          <nav className="flex items-center gap-6">
-            <Link href="/invoice" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Invoice</Link>
-            <Link href="/dashboard" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Dashboard</Link>
-            <Link href="/auth/signup" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Sign Up</Link>
-          </nav>
-
-          <p className="text-sm text-gray-400">&copy; {new Date().getFullYear()} BillByDab. All rights reserved.</p>
+          <div className="border-t border-gray-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-gray-400">&copy; {new Date().getFullYear()} BillByDab. All rights reserved.</p>
+            <nav className="flex items-center gap-5">
+              <Link href="/invoice" className="text-sm text-gray-400 hover:text-indigo-600 transition-colors">Invoice</Link>
+              <Link href="/dashboard" className="text-sm text-gray-400 hover:text-indigo-600 transition-colors">Dashboard</Link>
+              <Link href="/auth/signup" className="text-sm text-gray-400 hover:text-indigo-600 transition-colors">Sign Up</Link>
+            </nav>
+          </div>
         </div>
       </footer>
     </main>

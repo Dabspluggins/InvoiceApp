@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { User } from '@supabase/supabase-js'
@@ -41,6 +41,9 @@ const STATUS_COLORS: Record<InvoiceStatus, string> = {
 
 const TODAY = new Date().toISOString().split('T')[0]
 
+// Fix 1: page size constant
+const PAGE_SIZE = 20
+
 function isOverdue(inv: Invoice): boolean {
   return !!inv.due_date && inv.due_date < TODAY && inv.status !== 'paid'
 }
@@ -53,9 +56,16 @@ function formatDateLong(dateStr: string | null): string {
 }
 
 export default function DashboardClient({ user }: { user?: User | null }) {
+  // Fix 5: supabase singleton at component scope
+  const supabase = useMemo(() => createClient(), [])
+
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  // Fix 1: pagination state
+  const [page, setPage] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [remindingIds, setRemindingIds] = useState<Set<string>>(new Set())
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -92,38 +102,61 @@ export default function DashboardClient({ user }: { user?: User | null }) {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
-  useEffect(() => {
-    loadInvoices()
-    loadTemplates()
-  }, [])
-
-  async function loadInvoices() {
-    const supabase = createClient()
+  // Fix 1: paginated fetch — append=true for "Load more", false for reset
+  async function loadInvoices(pageNum: number, append: boolean) {
     const { data } = await supabase
       .from('invoices')
       .select('id, invoice_number, client_name, client_company, total, currency, status, issue_date, due_date, notes, is_recurring, share_token, reminders_sent')
       .order('created_at', { ascending: false })
+      .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1)
 
-    setInvoices(data || [])
+    const rows = data || []
+    if (append) {
+      setInvoices((prev) => [...prev, ...rows])
+    } else {
+      setInvoices(rows)
+    }
+    setHasMore(rows.length === PAGE_SIZE)
     setLoading(false)
   }
 
-  async function handleStatusChange(id: string, status: InvoiceStatus) {
-    const supabase = createClient()
-    await supabase.from('invoices').update({ status }).eq('id', id)
-    setInvoices((prev) => prev.map((inv) => (inv.id === id ? { ...inv, status } : inv)))
+  // Fix 1: reset and reload when filters/search change (also handles initial load)
+  useEffect(() => {
+    setPage(0)
+    setHasMore(true)
+    setSelectedIds(new Set())
+    setLoading(true)
+    loadInvoices(0, false)
+  }, [search, statusFilter]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    loadTemplates()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fix 1: load next page and append
+  async function loadMore() {
+    const nextPage = page + 1
+    setPage(nextPage)
+    setLoadingMore(true)
+    await loadInvoices(nextPage, true)
+    setLoadingMore(false)
   }
 
-  async function handleDelete(id: string) {
+  // Fix 6: useCallback to prevent unnecessary re-renders of child components
+  const handleStatusChange = useCallback(async (id: string, status: InvoiceStatus) => {
+    await supabase.from('invoices').update({ status }).eq('id', id)
+    setInvoices((prev) => prev.map((inv) => (inv.id === id ? { ...inv, status } : inv)))
+  }, [supabase])
+
+  const handleDelete = useCallback(async (id: string) => {
     if (!confirm('Delete this invoice? This cannot be undone.')) return
-    const supabase = createClient()
     await supabase.from('line_items').delete().eq('invoice_id', id)
     await supabase.from('invoices').delete().eq('id', id)
     setInvoices((prev) => prev.filter((inv) => inv.id !== id))
     setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next })
-  }
+  }, [supabase])
 
-  async function handleSendReminder(id: string) {
+  const handleSendReminder = useCallback(async (id: string) => {
     setRemindingIds((prev) => new Set(prev).add(id))
     try {
       const res = await fetch(`/api/invoices/${id}/remind`, { method: 'POST' })
@@ -143,10 +176,9 @@ export default function DashboardClient({ user }: { user?: User | null }) {
         return next
       })
     }
-  }
+  }, [])
 
   async function loadTemplates() {
-    const supabase = createClient()
     const { data } = await supabase
       .from('templates')
       .select('id, name, created_at')
@@ -156,7 +188,6 @@ export default function DashboardClient({ user }: { user?: User | null }) {
 
   async function handleDeleteTemplate(id: string) {
     if (!confirm('Delete this template? This cannot be undone.')) return
-    const supabase = createClient()
     await supabase.from('templates').delete().eq('id', id)
     setTemplates((prev) => prev.filter((t) => t.id !== id))
   }
@@ -183,32 +214,30 @@ export default function DashboardClient({ user }: { user?: User | null }) {
     }
   }
 
+  // Fix 3: single bulk update query instead of N+1 loop
   async function handleBulkMarkPaid() {
-    const supabase = createClient()
     const unpaidSelected = invoices.filter(
       (inv) => selectedIds.has(inv.id) && inv.status !== 'paid'
     )
     if (unpaidSelected.length === 0) return
 
-    const results = await Promise.allSettled(
-      unpaidSelected.map((inv) =>
-        supabase.from('invoices').update({ status: 'paid' as InvoiceStatus }).eq('id', inv.id)
-      )
-    )
+    const ids = unpaidSelected.map((inv) => inv.id)
+    const { error } = await supabase
+      .from('invoices')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update({ status: 'paid' as InvoiceStatus, paid_at: new Date().toISOString() } as any)
+      .in('id', ids)
 
-    const successIds = new Set(
-      unpaidSelected
-        .filter((_, i) => results[i].status === 'fulfilled')
-        .map((inv) => inv.id)
-    )
-
-    setInvoices((prev) =>
-      prev.map((inv) =>
-        successIds.has(inv.id) ? { ...inv, status: 'paid' as InvoiceStatus } : inv
+    if (!error) {
+      const successIds = new Set(ids)
+      setInvoices((prev) =>
+        prev.map((inv) =>
+          successIds.has(inv.id) ? { ...inv, status: 'paid' as InvoiceStatus } : inv
+        )
       )
-    )
-    setSelectedIds(new Set())
-    showToast(`${successIds.size} invoice${successIds.size !== 1 ? 's' : ''} marked as paid ✓`, 'green')
+      setSelectedIds(new Set())
+      showToast(`${ids.length} invoice${ids.length !== 1 ? 's' : ''} marked as paid ✓`, 'green')
+    }
   }
 
   function handleExportCSV() {
@@ -263,9 +292,21 @@ export default function DashboardClient({ user }: { user?: User | null }) {
     { label: 'Overdue', value: 'overdue' },
   ]
 
+  // Fix 2: skeleton loading screen matching invoice table columns
   if (loading) {
     return (
-      <div className="text-center py-16 text-gray-400 text-sm">Loading invoices...</div>
+      <div className="animate-pulse space-y-3">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="flex gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-100">
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24" />
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32" />
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20" />
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16" />
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 ml-auto" />
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-12" />
+          </div>
+        ))}
+      </div>
     )
   }
 
@@ -615,6 +656,19 @@ export default function DashboardClient({ user }: { user?: User | null }) {
               </tbody>
             </table>
           </div>
+
+          {/* Fix 1: Load more button */}
+          {hasMore && (
+            <div className="mt-4 text-center">
+              <button
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium border border-indigo-200 hover:border-indigo-400 px-4 py-2 rounded-lg transition disabled:opacity-50"
+              >
+                {loadingMore ? 'Loading…' : 'Load more'}
+              </button>
+            </div>
+          )}
         </>
       )}
 

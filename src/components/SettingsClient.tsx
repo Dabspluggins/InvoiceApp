@@ -417,6 +417,14 @@ export default function SettingsClient({ user }: { user: User }) {
         </div>
       </div>
 
+      {/* Support link */}
+      <p className="text-sm text-gray-500 text-center">
+        Need help?{' '}
+        <a href="mailto:support@billbydab.com" className="text-indigo-600 hover:text-indigo-700 font-medium transition-colors">
+          support@billbydab.com
+        </a>
+      </p>
+
       {/* Danger Zone */}
       <div className="bg-white rounded-xl border border-red-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-red-100 bg-red-50">

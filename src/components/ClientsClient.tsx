@@ -18,6 +18,7 @@ const emptyForm = { name: '', company: '', email: '', phone: '', address: '' }
 
 export default function ClientsClient() {
   const [clients, setClients] = useState<Client[]>([])
+  const [estimateCounts, setEstimateCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
@@ -37,6 +38,22 @@ export default function ClientsClient() {
       .select('id, name, company, email, phone, address, created_at, portal_token')
       .order('created_at', { ascending: false })
     setClients(data || [])
+
+    // Load estimate counts per client
+    const { data: estData } = await supabase
+      .from('estimates')
+      .select('client_id')
+      .not('client_id', 'is', null)
+    if (estData) {
+      const counts: Record<string, number> = {}
+      for (const row of estData) {
+        if (row.client_id) {
+          counts[row.client_id] = (counts[row.client_id] || 0) + 1
+        }
+      }
+      setEstimateCounts(counts)
+    }
+
     setLoading(false)
   }
 
@@ -195,6 +212,13 @@ export default function ClientsClient() {
                     {client.phone && <p>{client.phone}</p>}
                   </div>
                 )}
+                {(estimateCounts[client.id] || 0) > 0 && (
+                  <div className="mt-2">
+                    <span className="text-xs font-medium bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">
+                      {estimateCounts[client.id]} estimate{estimateCounts[client.id] !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -208,6 +232,7 @@ export default function ClientsClient() {
                   <th className="text-left px-6 py-3">Company</th>
                   <th className="text-left px-6 py-3">Email</th>
                   <th className="text-left px-6 py-3">Phone</th>
+                  <th className="text-center px-6 py-3">Estimates</th>
                   <th className="text-right px-6 py-3">Actions</th>
                 </tr>
               </thead>
@@ -221,6 +246,15 @@ export default function ClientsClient() {
                     <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{client.company || '—'}</td>
                     <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{client.email || '—'}</td>
                     <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{client.phone || '—'}</td>
+                    <td className="px-6 py-4 text-center">
+                      {(estimateCounts[client.id] || 0) > 0 ? (
+                        <span className="text-xs font-medium bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full">
+                          {estimateCounts[client.id]}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-300 dark:text-gray-600">—</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-1">
                         {client.portal_token && (

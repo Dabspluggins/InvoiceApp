@@ -47,6 +47,7 @@ export default function Nav() {
         <Link href="/invoice" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 text-sm">Invoice Generator</Link>
         {user && <Link href="/dashboard" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 text-sm">Dashboard</Link>}
         {user && <Link href="/analytics" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 text-sm">Analytics</Link>}
+        {user && <Link href="/estimates" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 text-sm">Estimates</Link>}
         {user && <Link href="/reports" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 text-sm">Reports</Link>}
         {user && <Link href="/clients" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 text-sm">Clients</Link>}
         {user && <Link href="/expenses" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 text-sm">Expenses</Link>}
@@ -101,6 +102,9 @@ export default function Nav() {
           )}
           {user && (
             <Link href="/analytics" className="text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 text-sm font-medium py-3 border-b border-gray-100 dark:border-gray-700" onClick={() => setMenuOpen(false)}>Analytics</Link>
+          )}
+          {user && (
+            <Link href="/estimates" className="text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 text-sm font-medium py-3 border-b border-gray-100 dark:border-gray-700" onClick={() => setMenuOpen(false)}>Estimates</Link>
           )}
           {user && (
             <Link href="/reports" className="text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 text-sm font-medium py-3 border-b border-gray-100 dark:border-gray-700" onClick={() => setMenuOpen(false)}>Reports</Link>

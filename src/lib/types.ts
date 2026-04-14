@@ -1,4 +1,5 @@
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'pending' | 'partial'
+export type EstimateStatus = 'draft' | 'sent' | 'client_reviewing' | 'revised' | 'approved' | 'rejected' | 'converted'
 
 export type SavedPaymentMethod = {
   id: string
@@ -25,6 +26,16 @@ export interface Payment {
   paid_at: string
   note: string | null
   created_at: string
+}
+
+export interface EstimateLineItem {
+  id: string
+  description: string
+  quantity: number
+  unit_price: number
+  amount: number
+  deleted_by_client?: boolean
+  sort_order?: number
 }
 
 export interface PaymentDetails {

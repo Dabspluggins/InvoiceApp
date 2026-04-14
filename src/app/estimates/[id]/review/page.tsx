@@ -52,11 +52,11 @@ export default async function EstimateReviewPage({
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-8 max-w-md w-full text-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 max-w-md w-full text-center">
           <div className="text-4xl mb-4">🔒</div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Invalid Link</h1>
-          <p className="text-gray-500 text-sm">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Invalid Link</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
             This estimate link is missing a required token. Please check your email for the
             original link.
           </p>
@@ -77,11 +77,11 @@ export default async function EstimateReviewPage({
 
   if (!estimate) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-8 max-w-md w-full text-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 max-w-md w-full text-center">
           <div className="text-4xl mb-4">❌</div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Estimate Not Found</h1>
-          <p className="text-gray-500 text-sm">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Estimate Not Found</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
             This estimate link is invalid or has expired. Please contact the sender.
           </p>
         </div>
@@ -91,11 +91,11 @@ export default async function EstimateReviewPage({
 
   if (estimate.status === 'converted') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-8 max-w-md w-full text-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 max-w-md w-full text-center">
           <div className="text-4xl mb-4">✅</div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Estimate Converted</h1>
-          <p className="text-gray-500 text-sm">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Estimate Converted</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
             This estimate has already been processed and converted to an invoice.
           </p>
         </div>

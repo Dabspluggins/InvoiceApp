@@ -25,13 +25,13 @@ interface Estimate {
 const PAGE_SIZE = 20
 
 const STATUS_COLORS: Record<EstimateStatus, string> = {
-  draft: 'bg-gray-100 text-gray-600',
-  sent: 'bg-blue-100 text-blue-700',
-  client_reviewing: 'bg-yellow-100 text-yellow-700',
-  revised: 'bg-orange-100 text-orange-700',
-  approved: 'bg-green-100 text-green-700',
-  rejected: 'bg-red-100 text-red-700',
-  converted: 'bg-gray-100 text-gray-500',
+  draft: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+  sent: 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300',
+  client_reviewing: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/60 dark:text-yellow-300',
+  revised: 'bg-orange-100 text-orange-700 dark:bg-orange-900/60 dark:text-orange-300',
+  approved: 'bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300',
+  rejected: 'bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-300',
+  converted: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400',
 }
 
 const STATUS_LABELS: Record<EstimateStatus, string> = {
@@ -63,10 +63,10 @@ function formatDateShort(dateStr: string | null): string {
 
 function SkeletonRow() {
   return (
-    <tr className="border-b border-gray-50 animate-pulse">
+    <tr className="border-b border-gray-50 dark:border-gray-700 animate-pulse">
       {[1, 2, 3, 4, 5, 6].map((i) => (
         <td key={i} className="px-6 py-4">
-          <div className="h-4 bg-gray-100 rounded w-3/4" />
+          <div className="h-4 bg-gray-100 dark:bg-gray-700 rounded w-3/4" />
         </td>
       ))}
     </tr>
@@ -231,8 +231,8 @@ export default function EstimatesClient() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Estimates</h1>
-        <p className="text-gray-500 mt-1 text-sm">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Estimates</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
           Create and send estimates to clients for approval.
         </p>
       </div>
@@ -241,7 +241,7 @@ export default function EstimatesClient() {
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="relative flex-1">
           <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500 pointer-events-none"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -258,7 +258,7 @@ export default function EstimatesClient() {
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(0) }}
             placeholder="Search by client, number, or title…"
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition"
+            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition"
           />
         </div>
         <div className="flex gap-1.5 flex-wrap">
@@ -269,7 +269,7 @@ export default function EstimatesClient() {
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition whitespace-nowrap ${
                 statusFilter === value
                   ? 'bg-indigo-600 text-white'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600'
+                  : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-indigo-300 hover:text-indigo-600'
               }`}
             >
               {label}
@@ -280,10 +280,10 @@ export default function EstimatesClient() {
 
       {/* Empty state */}
       {!loading && estimates.length === 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 md:p-12 text-center">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 md:p-12 text-center">
           <div className="text-5xl mb-4">📋</div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No estimates yet</h3>
-          <p className="text-gray-500 text-sm mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No estimates yet</h3>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
             Create your first estimate and send it to a client for review.
           </p>
           <Link
@@ -296,7 +296,7 @@ export default function EstimatesClient() {
       )}
 
       {!loading && estimates.length > 0 && filtered.length === 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-500">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center text-sm text-gray-500 dark:text-gray-400">
           No estimates match your search or filter.
         </div>
       )}
@@ -307,25 +307,25 @@ export default function EstimatesClient() {
           <div className="md:hidden flex flex-col gap-3">
             {loading
               ? [1, 2, 3].map((i) => (
-                  <div key={i} className="bg-white rounded-xl border border-gray-200 p-4 animate-pulse">
-                    <div className="h-4 bg-gray-100 rounded w-1/2 mb-2" />
-                    <div className="h-3 bg-gray-100 rounded w-1/3 mb-3" />
-                    <div className="h-3 bg-gray-100 rounded w-1/4" />
+                  <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 animate-pulse">
+                    <div className="h-4 bg-gray-100 dark:bg-gray-700 rounded w-1/2 mb-2" />
+                    <div className="h-3 bg-gray-100 dark:bg-gray-700 rounded w-1/3 mb-3" />
+                    <div className="h-3 bg-gray-100 dark:bg-gray-700 rounded w-1/4" />
                   </div>
                 ))
               : paginated.map((est) => (
                   <div
                     key={est.id}
-                    className="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer"
+                    className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 cursor-pointer"
                     onClick={() => router.push(`/estimates/${est.id}`)}
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <p className="text-sm font-semibold text-gray-900">{est.estimate_number}</p>
-                        {est.title && <p className="text-xs text-gray-500 mt-0.5">{est.title}</p>}
-                        <p className="text-sm text-gray-600 mt-0.5">{est.client_name || '—'}</p>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{est.estimate_number}</p>
+                        {est.title && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{est.title}</p>}
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-0.5">{est.client_name || '—'}</p>
                       </div>
-                      <p className="text-sm font-bold text-gray-900">
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">
                         {formatCurrency(est.total, est.currency)}
                       </p>
                     </div>
@@ -340,7 +340,7 @@ export default function EstimatesClient() {
                           {STATUS_LABELS[est.status]}
                         </span>
                         {est.valid_until && (
-                          <span className="text-xs text-gray-400">
+                          <span className="text-xs text-gray-400 dark:text-gray-500">
                             Valid: {formatDateShort(est.valid_until)}
                           </span>
                         )}
@@ -389,10 +389,10 @@ export default function EstimatesClient() {
           </div>
 
           {/* Desktop: table */}
-          <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="hidden md:block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wide bg-gray-50">
+                <tr className="border-b border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide bg-gray-50 dark:bg-gray-700/50">
                   <th className="text-left px-6 py-3">Estimate #</th>
                   <th className="text-left px-6 py-3">Title</th>
                   <th className="text-left px-6 py-3">Client</th>
@@ -408,14 +408,14 @@ export default function EstimatesClient() {
                   : paginated.map((est) => (
                       <tr
                         key={est.id}
-                        className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition cursor-pointer"
+                        className="border-b border-gray-50 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
                         onClick={() => router.push(`/estimates/${est.id}`)}
                       >
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
                           {est.estimate_number}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{est.title || '—'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{est.client_name || '—'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{est.title || '—'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{est.client_name || '—'}</td>
                         <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                           <span
                             className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${STATUS_COLORS[est.status]}`}
@@ -423,10 +423,10 @@ export default function EstimatesClient() {
                             {STATUS_LABELS[est.status]}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
+                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                           {formatDateShort(est.valid_until)}
                         </td>
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right">
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white text-right">
                           {formatCurrency(est.total, est.currency)}
                         </td>
                         <td
@@ -480,7 +480,7 @@ export default function EstimatesClient() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4 text-sm text-gray-500">
+            <div className="flex items-center justify-between mt-4 text-sm text-gray-500 dark:text-gray-400">
               <span>
                 Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of{' '}
                 {filtered.length}
@@ -489,14 +489,14 @@ export default function EstimatesClient() {
                 <button
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
                   disabled={page === 0}
-                  className="px-3 py-1.5 rounded-lg border border-gray-200 hover:border-indigo-300 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-300 disabled:opacity-40 disabled:cursor-not-allowed transition"
                 >
                   ← Prev
                 </button>
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                   disabled={page >= totalPages - 1}
-                  className="px-3 py-1.5 rounded-lg border border-gray-200 hover:border-indigo-300 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-300 disabled:opacity-40 disabled:cursor-not-allowed transition"
                 >
                   Next →
                 </button>

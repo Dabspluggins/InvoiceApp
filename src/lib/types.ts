@@ -1,4 +1,15 @@
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'pending'
+export type EstimateStatus = 'draft' | 'sent' | 'client_reviewing' | 'revised' | 'approved' | 'rejected' | 'converted'
+
+export interface EstimateLineItem {
+  id: string
+  description: string
+  quantity: number
+  unit_price: number
+  amount: number
+  deleted_by_client?: boolean
+  sort_order?: number
+}
 
 export interface PaymentDetails {
   bankTransfer?: {

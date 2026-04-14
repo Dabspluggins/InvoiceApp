@@ -11,6 +11,8 @@ interface LineItem {
   amount: number
   deleted_by_client: boolean
   sort_order: number
+  min_price?: number | null
+  client_proposed_price?: number | null
 }
 
 interface EstimateRow {
@@ -33,6 +35,8 @@ interface EstimateRow {
   notes: string | null
   terms: string | null
   user_id: string
+  allow_negotiation?: boolean
+  max_discount_pct?: number
 }
 
 interface Props {
@@ -72,13 +76,21 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
   const [submitting, setSubmitting] = useState(false)
   const [actionTaken, setActionTaken] = useState<'approved' | 'revised' | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [proposedPrices, setProposedPrices] = useState<Record<string, number>>({})
+  const [priceErrors, setPriceErrors] = useState<Record<string, string>>({})
 
   const activeItems = items.filter((i) => !i.pendingDelete)
   const deletedItems = items.filter((i) => i.pendingDelete)
   const hasDeletedItems = deletedItems.length > 0
+  const hasPriceChanges = Object.keys(proposedPrices).length > 0
+  const hasChanges = hasDeletedItems || hasPriceChanges
 
   const { subtotal, discountAmount, taxAmount, total } = calcTotals(
-    items.map((i) => ({ ...i, deleted_by_client: i.pendingDelete })),
+    items.map((i) => ({
+      ...i,
+      deleted_by_client: i.pendingDelete,
+      amount: (proposedPrices[i.id] ?? i.unit_price) * i.quantity,
+    })),
     estimate.tax_rate,
     estimate.discount_type,
     estimate.discount_value
@@ -93,6 +105,26 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
   }
 
   async function handleAction(action: 'approve' | 'revise') {
+    // Validate proposed prices against floors before submitting
+    const errors: Record<string, string> = {}
+    for (const item of items) {
+      const proposed = proposedPrices[item.id]
+      if (proposed === undefined) continue
+
+      const maxDiscount = estimate.max_discount_pct || 0
+      const discountFloor = item.unit_price * (1 - maxDiscount / 100)
+      const itemFloor = item.min_price != null ? item.min_price : 0
+      const effectiveFloor = Math.max(discountFloor, itemFloor)
+
+      if (proposed < effectiveFloor) {
+        errors[item.id] = `Minimum price for this item is ${formatCurrency(effectiveFloor, estimate.currency)}`
+      }
+    }
+    if (Object.keys(errors).length > 0) {
+      setPriceErrors(errors)
+      return
+    }
+
     setSubmitting(true)
     setError(null)
     try {
@@ -104,6 +136,7 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
           client_token: token,
           action,
           deletedItemIds: action === 'revise' ? deletedItemIds : [],
+          proposedPrices,
         }),
       })
       const result = await res.json()
@@ -217,6 +250,16 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
           </p>
         )}
 
+        {/* Negotiation banner */}
+        {estimate.allow_negotiation && (
+          <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 rounded-xl p-4">
+            <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-300">💬 Price negotiation is available</p>
+            <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">
+              You can adjust the price of individual items. Changes are sent to the business for review.
+            </p>
+          </div>
+        )}
+
         {/* Instructions */}
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg px-4 py-3 text-sm text-blue-800 dark:text-blue-300">
           Click the{' '}
@@ -275,19 +318,42 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
                     >
                       {item.quantity}
                     </td>
-                    <td
-                      className={`px-4 py-4 text-right text-sm ${
-                        item.pendingDelete ? 'text-gray-300 dark:text-gray-600' : 'text-gray-600 dark:text-gray-300'
-                      }`}
-                    >
-                      {formatCurrency(item.unit_price, estimate.currency)}
+                    <td className="px-4 py-4 text-right text-sm">
+                      {estimate.allow_negotiation && !item.pendingDelete ? (
+                        <div>
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={proposedPrices[item.id] ?? item.unit_price}
+                            onChange={e => {
+                              const val = Number(e.target.value)
+                              setProposedPrices(prev => ({ ...prev, [item.id]: val }))
+                              setPriceErrors(prev => { const n = {...prev}; delete n[item.id]; return n })
+                            }}
+                            className={`w-28 border rounded-lg px-2 py-1 text-sm text-right ${priceErrors[item.id] ? 'border-red-400 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white'} focus:outline-none focus:ring-2 focus:ring-indigo-500`}
+                          />
+                          {priceErrors[item.id] && (
+                            <p className="text-xs text-red-500 mt-1">{priceErrors[item.id]}</p>
+                          )}
+                          {(proposedPrices[item.id] ?? item.unit_price) < item.unit_price && (
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                              ↓ {(((item.unit_price - (proposedPrices[item.id] ?? item.unit_price)) / item.unit_price) * 100).toFixed(1)}% off
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className={item.pendingDelete ? 'text-gray-300 dark:text-gray-600' : 'text-gray-600 dark:text-gray-300'}>
+                          {formatCurrency(item.unit_price, estimate.currency)}
+                        </span>
+                      )}
                     </td>
                     <td
                       className={`px-4 py-4 text-right text-sm font-medium ${
                         item.pendingDelete ? 'text-gray-300 dark:text-gray-600 line-through' : 'text-gray-800 dark:text-gray-200'
                       }`}
                     >
-                      {formatCurrency(item.amount, estimate.currency)}
+                      {formatCurrency((proposedPrices[item.id] ?? item.unit_price) * item.quantity, estimate.currency)}
                     </td>
                     <td className="px-4 py-4 text-center">
                       <button
@@ -325,13 +391,39 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
                   >
                     {item.description}
                   </p>
-                  <p
-                    className={`text-xs mt-0.5 ${
-                      item.pendingDelete ? 'text-gray-300 dark:text-gray-600' : 'text-gray-500 dark:text-gray-400'
-                    }`}
-                  >
-                    {item.quantity} × {formatCurrency(item.unit_price, estimate.currency)}
-                  </p>
+                  {estimate.allow_negotiation && !item.pendingDelete ? (
+                    <div className="mt-1">
+                      <label className="text-xs text-gray-400 dark:text-gray-500">Price</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={proposedPrices[item.id] ?? item.unit_price}
+                        onChange={e => {
+                          const val = Number(e.target.value)
+                          setProposedPrices(prev => ({ ...prev, [item.id]: val }))
+                          setPriceErrors(prev => { const n = {...prev}; delete n[item.id]; return n })
+                        }}
+                        className={`w-28 border rounded-lg px-2 py-1 text-sm ${priceErrors[item.id] ? 'border-red-400 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white'} focus:outline-none focus:ring-2 focus:ring-indigo-500`}
+                      />
+                      {priceErrors[item.id] && (
+                        <p className="text-xs text-red-500 mt-0.5">{priceErrors[item.id]}</p>
+                      )}
+                      {(proposedPrices[item.id] ?? item.unit_price) < item.unit_price && (
+                        <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">
+                          ↓ {(((item.unit_price - (proposedPrices[item.id] ?? item.unit_price)) / item.unit_price) * 100).toFixed(1)}% off
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p
+                      className={`text-xs mt-0.5 ${
+                        item.pendingDelete ? 'text-gray-300 dark:text-gray-600' : 'text-gray-500 dark:text-gray-400'
+                      }`}
+                    >
+                      {item.quantity} × {formatCurrency(item.unit_price, estimate.currency)}
+                    </p>
+                  )}
                 </div>
                 <div className="text-right shrink-0">
                   <p
@@ -339,7 +431,7 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
                       item.pendingDelete ? 'line-through text-gray-300 dark:text-gray-600' : 'text-gray-800 dark:text-gray-200'
                     }`}
                   >
-                    {formatCurrency(item.amount, estimate.currency)}
+                    {formatCurrency((proposedPrices[item.id] ?? item.unit_price) * item.quantity, estimate.currency)}
                   </p>
                   <button
                     onClick={() => toggleDelete(item.id)}
@@ -424,10 +516,12 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">Your Response</h3>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-            {hasDeletedItems
-              ? `You have removed ${deletedItems.length} item${
-                  deletedItems.length !== 1 ? 's' : ''
-                }. Click "Submit Revisions" to send your changes.`
+            {hasDeletedItems && hasPriceChanges
+              ? `You have removed ${deletedItems.length} item${deletedItems.length !== 1 ? 's' : ''} and proposed price changes. Click "Submit Revisions" to send your changes.`
+              : hasDeletedItems
+              ? `You have removed ${deletedItems.length} item${deletedItems.length !== 1 ? 's' : ''}. Click "Submit Revisions" to send your changes.`
+              : hasPriceChanges
+              ? 'You have proposed price changes. Click "Submit Revised Estimate" to send them for review.'
               : 'If you\'re happy with everything, click "Approve Estimate". To remove items, click × next to them first.'}
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
@@ -447,9 +541,9 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
             </button>
             <button
               onClick={() => handleAction('revise')}
-              disabled={submitting || !hasDeletedItems}
+              disabled={submitting || !hasChanges}
               className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
-              title={!hasDeletedItems ? 'Remove at least one item to submit revisions' : ''}
+              title={!hasChanges ? 'Remove items or propose prices to submit revisions' : ''}
             >
               {submitting ? (
                 <span>Submitting…</span>
@@ -461,9 +555,9 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
               )}
             </button>
           </div>
-          {!hasDeletedItems && (
+          {!hasChanges && (
             <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-2">
-              Remove items above to enable "Submit Revised Estimate"
+              Remove items or propose prices above to enable "Submit Revised Estimate"
             </p>
           )}
         </div>

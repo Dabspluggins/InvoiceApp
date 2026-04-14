@@ -90,6 +90,8 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
   const [notes, setNotes] = useState('')
   const [terms, setTerms] = useState('')
   const [clientToken, setClientToken] = useState<string | null>(null)
+  const [allowNegotiation, setAllowNegotiation] = useState(false)
+  const [maxDiscountPct, setMaxDiscountPct] = useState(0)
 
   // UI state
   const [savedId, setSavedId] = useState<string | null>(estimateId || null)
@@ -154,6 +156,8 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
     setDiscountValue(est.discount_value || 0)
     setNotes(est.notes || '')
     setTerms(est.terms || '')
+    setAllowNegotiation(est.allow_negotiation || false)
+    setMaxDiscountPct(est.max_discount_pct || 0)
     setLineItems(
       (items || []).map((item) => ({
         id: item.id,
@@ -163,6 +167,8 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
         amount: item.amount,
         deleted_by_client: item.deleted_by_client,
         sort_order: item.sort_order,
+        min_price: item.min_price ?? null,
+        client_proposed_price: item.client_proposed_price ?? null,
       }))
     )
     setEvents((evts as EstimateEvent[]) || [])
@@ -254,6 +260,8 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
         total,
         notes: notes || null,
         terms: terms || null,
+        allow_negotiation: allowNegotiation,
+        max_discount_pct: allowNegotiation ? maxDiscountPct : 0,
       }
 
       let currentId = savedId
@@ -298,6 +306,7 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
           unit_price: item.unit_price,
           amount: item.amount,
           sort_order: idx,
+          min_price: item.min_price ?? null,
         }))
         const { error } = await supabase.from('estimate_line_items').insert(itemsPayload)
         if (error) throw error
@@ -816,6 +825,73 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
             </button>
           </section>
 
+          {/* Price Negotiation */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Price Negotiation</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Allow the client to propose lower prices within your preferred range
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" className="sr-only peer"
+                  checked={allowNegotiation}
+                  onChange={e => setAllowNegotiation(e.target.checked)} />
+                <div className="w-10 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-4 dark:bg-gray-600" />
+              </label>
+            </div>
+
+            {allowNegotiation && (
+              <div className="space-y-4 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                <div className="flex items-center gap-4">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 w-48 shrink-0">
+                    Maximum discount allowed
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number" min={0} max={100} step={1}
+                      value={maxDiscountPct}
+                      onChange={e => setMaxDiscountPct(Math.min(100, Math.max(0, Number(e.target.value))))}
+                      className="w-20 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <span className="text-sm text-gray-500 dark:text-gray-400">% off original price</span>
+                  </div>
+                </div>
+                <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-2">
+                  ⚠️ Minimum prices per line item are never shown to the client. They only see their editable price field and will hit a validation error if they go below your floor.
+                </p>
+                <div>
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                    Optional: set a minimum price per line item (hidden from client)
+                  </p>
+                  <div className="space-y-2">
+                    {lineItems.map((item, idx) => (
+                      <div key={item.id || idx} className="flex items-center gap-3">
+                        <span className="text-sm text-gray-700 dark:text-gray-300 flex-1 truncate">
+                          {item.description || `Item ${idx + 1}`}
+                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">Min price:</span>
+                          <input
+                            type="number" min={0} step={0.01}
+                            placeholder="—"
+                            value={item.min_price ?? ''}
+                            onChange={e => {
+                              const val = e.target.value === '' ? null : Number(e.target.value)
+                              setLineItems(prev => prev.map((li, i) => i === idx ? { ...li, min_price: val } : li))
+                            }}
+                            className="w-28 border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Discount */}
           <section>
             <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
@@ -994,6 +1070,39 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
               </div>
             )}
           </div>
+
+          {/* Negotiation review — visible to Theo when client has proposed prices */}
+          {lineItems.some(item => item.client_proposed_price != null) && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-amber-300 dark:border-amber-600 p-5">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                💬 Client&apos;s Proposed Prices
+              </h3>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
+                    <th className="text-left pb-2">Item</th>
+                    <th className="text-right pb-2">Original</th>
+                    <th className="text-right pb-2">Proposed</th>
+                    <th className="text-right pb-2">Change</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lineItems.filter(item => item.client_proposed_price != null).map((item, idx) => {
+                    const diff = item.unit_price - (item.client_proposed_price ?? item.unit_price)
+                    const diffPct = ((diff / item.unit_price) * 100).toFixed(1)
+                    return (
+                      <tr key={idx} className="border-b border-gray-50 dark:border-gray-700">
+                        <td className="py-2 text-gray-800 dark:text-gray-200">{item.description}</td>
+                        <td className="py-2 text-right text-gray-600 dark:text-gray-400">{formatCurrency(item.unit_price, currency)}</td>
+                        <td className="py-2 text-right font-semibold text-gray-900 dark:text-white">{formatCurrency(item.client_proposed_price!, currency)}</td>
+                        <td className="py-2 text-right text-red-500">-{diffPct}%</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Event history */}
           {events.length > 0 && (

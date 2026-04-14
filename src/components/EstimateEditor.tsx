@@ -458,7 +458,7 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
         </svg>
         Send via WhatsApp
       </button>
-      {status === 'approved' && savedId && (
+      {(status === 'approved' || status === 'revised') && savedId && (
         <button
           onClick={handleConvert}
           disabled={converting}

@@ -37,11 +37,11 @@ interface Template {
 }
 
 const STATUS_COLORS: Record<InvoiceStatus, string> = {
-  draft: 'bg-gray-100 text-gray-600',
-  sent: 'bg-blue-100 text-blue-700',
-  paid: 'bg-green-100 text-green-700',
-  pending: 'bg-yellow-100 text-yellow-700',
-  partial: 'bg-purple-100 text-purple-700',
+  draft: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+  sent: 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300',
+  paid: 'bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300',
+  pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/60 dark:text-yellow-300',
+  partial: 'bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300',
 }
 
 const TODAY = new Date().toISOString().split('T')[0]
@@ -536,7 +536,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                         {inv.invoice_number}
                         {inv.is_recurring && <span title="Recurring">🔄</span>}
                         {isOverdue(inv) && (
-                          <span className="text-xs font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded">OVERDUE</span>
+                          <span className="text-xs font-bold bg-red-100 text-red-600 dark:bg-red-900/60 dark:text-red-300 px-1.5 py-0.5 rounded">OVERDUE</span>
                         )}
                       </p>
                       <p className={`text-sm mt-0.5 ${dk ? 'text-gray-300' : 'text-gray-600'}`}>{inv.client_name || '—'}</p>
@@ -682,7 +682,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                         {inv.invoice_number}
                         {inv.is_recurring && <span title="Recurring">🔄</span>}
                         {isOverdue(inv) && (
-                          <span className="text-xs font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded">OVERDUE</span>
+                          <span className="text-xs font-bold bg-red-100 text-red-600 dark:bg-red-900/60 dark:text-red-300 px-1.5 py-0.5 rounded">OVERDUE</span>
                         )}
                       </span>
                       {(inv.reminders_sent ?? 0) > 0 && (
@@ -717,7 +717,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                       onClick={(e) => e.stopPropagation()}
                     >
                       {inv.status === 'paid' ? (
-                        <span className="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                        <span className="bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300 text-xs font-semibold px-2 py-0.5 rounded-full">
                           PAID
                         </span>
                       ) : inv.status === 'partial' ? (

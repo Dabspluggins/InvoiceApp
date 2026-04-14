@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import type { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
 import type { EstimateStatus, Currency } from '@/lib/types'
@@ -13,6 +14,7 @@ interface Estimate {
   title: string | null
   client_name: string | null
   client_email: string | null
+  client_token: string | null
   status: EstimateStatus
   valid_until: string | null
   total: number
@@ -80,10 +82,13 @@ export default function EstimatesClient() {
   const [toast, setToast] = useState<{ message: string; color: 'green' | 'red' } | null>(null)
   const [sendingId, setSendingId] = useState<string | null>(null)
   const [convertingId, setConvertingId] = useState<string | null>(null)
+  const [user, setUser] = useState<User | null>(null)
   const router = useRouter()
 
   useEffect(() => {
     loadEstimates()
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => setUser(data.user))
   }, [])
 
   async function loadEstimates() {
@@ -91,7 +96,7 @@ export default function EstimatesClient() {
     const { data } = await supabase
       .from('estimates')
       .select(
-        'id, estimate_number, title, client_name, client_email, status, valid_until, total, currency, created_at'
+        'id, estimate_number, title, client_name, client_email, client_token, status, valid_until, total, currency, created_at'
       )
       .order('created_at', { ascending: false })
     setEstimates((data as Estimate[]) || [])
@@ -165,6 +170,45 @@ export default function EstimatesClient() {
     } finally {
       setConvertingId(null)
     }
+  }
+
+  function handleWhatsApp(est: Estimate) {
+    if (!est.client_token) return
+    const businessName =
+      user?.user_metadata?.business_name ||
+      user?.email ||
+      'BillByDab'
+    const clientNameStr = est.client_name || 'there'
+    const reviewUrl = `${window.location.origin}/estimates/${est.id}/review?token=${est.client_token}`
+    const validUntilStr = est.valid_until
+      ? new Date(est.valid_until + 'T00:00:00').toLocaleDateString('en-GB', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })
+      : null
+    let message = `Hi ${clientNameStr}! 👋\n\nYou have a new estimate from ${businessName}.\n\nEstimate: ${est.estimate_number}`
+    if (est.title) message += `\n${est.title}`
+    message += `\nTotal: ${est.currency} ${est.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    if (validUntilStr) message += `\nValid until: ${validUntilStr}`
+    message += `\n\nReview, edit, and approve your estimate here:\n${reviewUrl}\n\nSent via BillByDab`
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
+    // Update status and log event client-side (fire and forget)
+    const supabase = createClient()
+    supabase
+      .from('estimates')
+      .update({ status: 'sent', updated_at: new Date().toISOString() })
+      .eq('id', est.id)
+      .then(() => {
+        setEstimates((prev) =>
+          prev.map((e) => (e.id === est.id ? { ...e, status: 'sent' as EstimateStatus } : e))
+        )
+      })
+    supabase.from('estimate_events').insert({
+      estimate_id: est.id,
+      event_type: 'sent_whatsapp',
+      actor: 'owner',
+    })
   }
 
   const filtered = useMemo(() => {
@@ -311,6 +355,18 @@ export default function EstimatesClient() {
                             {sendingId === est.id ? 'Sending…' : 'Send'}
                           </button>
                         )}
+                        {est.client_token && (
+                          <button
+                            onClick={() => handleWhatsApp(est)}
+                            className="inline-flex items-center gap-1 text-xs bg-green-500 hover:bg-green-600 text-white font-medium px-2 py-1 rounded-md transition"
+                            title="Send via WhatsApp"
+                          >
+                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
+                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                            </svg>
+                            WA
+                          </button>
+                        )}
                         {est.status === 'approved' && (
                           <button
                             onClick={() => handleConvert(est)}
@@ -385,6 +441,18 @@ export default function EstimatesClient() {
                                 className="text-xs text-blue-600 hover:text-blue-800 font-medium border border-blue-200 hover:border-blue-400 px-2 py-1 rounded-md transition disabled:opacity-50"
                               >
                                 {sendingId === est.id ? 'Sending…' : 'Send to Client'}
+                              </button>
+                            )}
+                            {est.client_token && (
+                              <button
+                                onClick={() => handleWhatsApp(est)}
+                                className="inline-flex items-center gap-1.5 text-xs bg-green-500 hover:bg-green-600 text-white font-medium px-2 py-1 rounded-md transition"
+                                title="Send via WhatsApp"
+                              >
+                                <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+                                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                </svg>
+                                WhatsApp
                               </button>
                             )}
                             {est.status === 'approved' && (

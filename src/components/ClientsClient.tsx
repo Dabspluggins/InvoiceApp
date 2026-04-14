@@ -14,7 +14,70 @@ interface Client {
   portal_token: string | null
 }
 
+interface CreditRow {
+  id: string
+  amount: number
+  type: 'credited' | 'applied'
+  description: string | null
+  reference_invoice_id: string | null
+  created_at: string
+}
+
+interface ClientCreditInfo {
+  balance: number
+  rows: CreditRow[]
+}
+
 const emptyForm = { name: '', company: '', email: '', phone: '', address: '' }
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function CreditHistory({ rows, balance }: { rows: CreditRow[]; balance: number }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Credit History</p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-gray-400 dark:text-gray-500 uppercase tracking-wide border-b border-gray-200 dark:border-gray-600">
+              <th className="text-left py-1.5 pr-4">Date</th>
+              <th className="text-left py-1.5 pr-4">Type</th>
+              <th className="text-right py-1.5 pr-4">Amount</th>
+              <th className="text-left py-1.5">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id} className="border-b border-gray-100 dark:border-gray-700 last:border-0">
+                <td className="py-1.5 pr-4 text-gray-500 dark:text-gray-400">{formatDate(row.created_at)}</td>
+                <td className="py-1.5 pr-4">
+                  <span className={`font-medium ${row.type === 'credited' ? 'text-green-600' : 'text-orange-500'}`}>
+                    {row.type === 'credited' ? 'Credited' : 'Applied'}
+                  </span>
+                </td>
+                <td className={`py-1.5 pr-4 text-right font-medium ${row.type === 'credited' ? 'text-green-600' : 'text-orange-500'}`}>
+                  {row.type === 'applied' ? '−' : '+'}₦{row.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </td>
+                <td className="py-1.5 text-gray-500 dark:text-gray-400">{row.description || '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-gray-200 dark:border-gray-600">
+              <td colSpan={2} className="pt-2 text-gray-500 dark:text-gray-400 font-medium">Balance</td>
+              <td className={`pt-2 text-right font-bold ${balance > 0 ? 'text-green-700' : 'text-gray-700 dark:text-gray-300'}`}>
+                ₦{balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </td>
+              <td />
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  )
+}
 
 export default function ClientsClient() {
   const [clients, setClients] = useState<Client[]>([])
@@ -26,6 +89,8 @@ export default function ClientsClient() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [creditInfo, setCreditInfo] = useState<Record<string, ClientCreditInfo>>({})
+  const [expandedCreditId, setExpandedCreditId] = useState<string | null>(null)
 
   useEffect(() => {
     loadClients()
@@ -33,6 +98,7 @@ export default function ClientsClient() {
 
   async function loadClients() {
     const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
     const { data } = await supabase
       .from('clients')
       .select('id, name, company, email, phone, address, created_at, portal_token')
@@ -55,6 +121,37 @@ export default function ClientsClient() {
     }
 
     setLoading(false)
+
+    if (data && data.length > 0 && user) {
+      loadCreditInfo(data.map((c) => c.id), user.id)
+    }
+  }
+
+  async function loadCreditInfo(clientIds: string[], userId: string) {
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('client_credits')
+      .select('id, client_id, amount, type, description, reference_invoice_id, created_at')
+      .in('client_id', clientIds)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (!data) return
+
+    const map: Record<string, ClientCreditInfo> = {}
+    for (const row of data) {
+      if (!map[row.client_id]) map[row.client_id] = { balance: 0, rows: [] }
+      map[row.client_id].rows.push({
+        id: row.id,
+        amount: row.amount,
+        type: row.type,
+        description: row.description,
+        reference_invoice_id: row.reference_invoice_id,
+        created_at: row.created_at,
+      })
+      map[row.client_id].balance += row.type === 'credited' ? row.amount : -row.amount
+    }
+    setCreditInfo(map)
   }
 
   async function handleCopyPortalLink(client: Client) {
@@ -174,53 +271,75 @@ export default function ClientsClient() {
         <>
           {/* Mobile: card list */}
           <div className="md:hidden flex flex-col gap-3">
-            {clients.map((client) => (
-              <div key={client.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{client.name}</p>
-                    {client.company && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{client.company}</p>
-                    )}
-                  </div>
-                  <div className="flex gap-1 flex-wrap">
-                    {client.portal_token && (
+            {clients.map((client) => {
+              const credit = creditInfo[client.id]
+              const balance = credit?.balance ?? 0
+              return (
+                <div key={client.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{client.name}</p>
+                      {client.company && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{client.company}</p>
+                      )}
+                      {balance > 0 && (
+                        <span className="inline-flex items-center mt-1 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300 px-2 py-0.5 rounded-full">
+                          ₦{balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit available
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex gap-1 flex-wrap">
+                      {client.portal_token && (
+                        <button
+                          onClick={() => handleCopyPortalLink(client)}
+                          className="text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 font-medium px-2 py-1 rounded transition"
+                        >
+                          {copiedId === client.id ? 'Copied!' : '🔗 Portal link'}
+                        </button>
+                      )}
                       <button
-                        onClick={() => handleCopyPortalLink(client)}
-                        className="text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 font-medium px-2 py-1 rounded transition"
+                        onClick={() => openEdit(client)}
+                        className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium px-2 py-1 rounded transition"
                       >
-                        {copiedId === client.id ? 'Copied!' : '🔗 Portal link'}
+                        ✎ Edit
                       </button>
-                    )}
-                    <button
-                      onClick={() => openEdit(client)}
-                      className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium px-2 py-1 rounded transition"
-                    >
-                      ✎ Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(client.id)}
-                      className="text-xs text-red-400 hover:text-red-600 hover:bg-red-50 font-medium px-2 py-1 rounded transition"
-                    >
-                      ✕ Delete
-                    </button>
+                      <button
+                        onClick={() => handleDelete(client.id)}
+                        className="text-xs text-red-400 hover:text-red-600 hover:bg-red-50 font-medium px-2 py-1 rounded transition"
+                      >
+                        ✕ Delete
+                      </button>
+                    </div>
                   </div>
+                  {(client.email || client.phone) && (
+                    <div className="text-xs text-gray-400 dark:text-gray-500 space-y-0.5">
+                      {client.email && <p>{client.email}</p>}
+                      {client.phone && <p>{client.phone}</p>}
+                    </div>
+                  )}
+                  {(estimateCounts[client.id] || 0) > 0 && (
+                    <div className="mt-2">
+                      <span className="text-xs font-medium bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full">
+                        {estimateCounts[client.id]} estimate{estimateCounts[client.id] !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  )}
+                  {credit && credit.rows.length > 0 && (
+                    <div className="mt-3">
+                      <button
+                        onClick={() => setExpandedCreditId(expandedCreditId === client.id ? null : client.id)}
+                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                      >
+                        {expandedCreditId === client.id ? '▲ Hide credit history' : '▼ Credit history'}
+                      </button>
+                      {expandedCreditId === client.id && (
+                        <CreditHistory rows={credit.rows} balance={balance} />
+                      )}
+                    </div>
+                  )}
                 </div>
-                {(client.email || client.phone) && (
-                  <div className="text-xs text-gray-400 dark:text-gray-500 space-y-0.5">
-                    {client.email && <p>{client.email}</p>}
-                    {client.phone && <p>{client.phone}</p>}
-                  </div>
-                )}
-                {(estimateCounts[client.id] || 0) > 0 && (
-                  <div className="mt-2">
-                    <span className="text-xs font-medium bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">
-                      {estimateCounts[client.id]} estimate{estimateCounts[client.id] !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           {/* Desktop: table */}
@@ -233,54 +352,80 @@ export default function ClientsClient() {
                   <th className="text-left px-6 py-3">Email</th>
                   <th className="text-left px-6 py-3">Phone</th>
                   <th className="text-center px-6 py-3">Estimates</th>
+                  <th className="text-left px-6 py-3">Credit</th>
                   <th className="text-right px-6 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {clients.map((client) => (
-                  <tr
-                    key={client.id}
-                    className="border-b border-gray-50 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
-                  >
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">{client.name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{client.company || '—'}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{client.email || '—'}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{client.phone || '—'}</td>
-                    <td className="px-6 py-4 text-center">
-                      {(estimateCounts[client.id] || 0) > 0 ? (
-                        <span className="text-xs font-medium bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full">
-                          {estimateCounts[client.id]}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-300 dark:text-gray-600">—</span>
+                {clients.map((client) => {
+                  const credit = creditInfo[client.id]
+                  const balance = credit?.balance ?? 0
+                  return (
+                    <>
+                      <tr
+                        key={client.id}
+                        className="border-b border-gray-50 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                      >
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">{client.name}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{client.company || '—'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{client.email || '—'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{client.phone || '—'}</td>
+                        <td className="px-6 py-4 text-center">
+                          {(estimateCounts[client.id] || 0) > 0 ? (
+                            <span className="text-xs font-medium bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full">
+                              {estimateCounts[client.id]}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-300 dark:text-gray-600">—</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          {balance > 0 ? (
+                            <button
+                              onClick={() => setExpandedCreditId(expandedCreditId === client.id ? null : client.id)}
+                              className="inline-flex items-center text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300 px-2 py-0.5 rounded-full hover:bg-green-200 dark:hover:bg-green-900 transition"
+                            >
+                              ₦{balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit
+                            </button>
+                          ) : (
+                            <span className="text-xs text-gray-400 dark:text-gray-600">—</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end gap-1">
+                            {client.portal_token && (
+                              <button
+                                onClick={() => handleCopyPortalLink(client)}
+                                className="text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 font-medium px-2 py-1 rounded transition"
+                              >
+                                {copiedId === client.id ? 'Copied!' : '🔗 Portal link'}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => openEdit(client)}
+                              className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium px-2 py-1 rounded transition"
+                            >
+                              ✎ Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(client.id)}
+                              className="text-xs text-red-400 hover:text-red-600 hover:bg-red-50 font-medium px-2 py-1 rounded transition"
+                            >
+                              ✕ Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {expandedCreditId === client.id && credit && (
+                        <tr key={`${client.id}-history`} className="bg-gray-50 dark:bg-gray-700/50">
+                          <td colSpan={7} className="px-6 py-4">
+                            <CreditHistory rows={credit.rows} balance={balance} />
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-1">
-                        {client.portal_token && (
-                          <button
-                            onClick={() => handleCopyPortalLink(client)}
-                            className="text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 font-medium px-2 py-1 rounded transition"
-                          >
-                            {copiedId === client.id ? 'Copied!' : '🔗 Portal link'}
-                          </button>
-                        )}
-                        <button
-                          onClick={() => openEdit(client)}
-                          className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium px-2 py-1 rounded transition"
-                        >
-                          ✎ Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(client.id)}
-                          className="text-xs text-red-400 hover:text-red-600 hover:bg-red-50 font-medium px-2 py-1 rounded transition"
-                        >
-                          ✕ Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                    </>
+                  )
+                })}
               </tbody>
             </table>
           </div>

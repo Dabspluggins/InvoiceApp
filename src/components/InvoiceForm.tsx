@@ -16,6 +16,7 @@ interface Props {
   data: InvoiceData
   onChange: (data: InvoiceData) => void
   isSignedIn: boolean
+  onClientSelect?: (clientId: string) => void
 }
 
 interface SavedClient {
@@ -35,7 +36,7 @@ const MOBILE_MONEY_PROVIDERS = [
 
 type PaymentTab = 'bankTransfer' | 'mobileMoney' | 'other'
 
-export default function InvoiceForm({ data, onChange, isSignedIn }: Props) {
+export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [savedClients, setSavedClients] = useState<SavedClient[]>([])
   const [savingClient, setSavingClient] = useState(false)
@@ -149,6 +150,7 @@ export default function InvoiceForm({ data, onChange, isSignedIn }: Props) {
       clientEmail: client.email || '',
       clientAddress: client.address || '',
     })
+    onClientSelect?.(id)
   }
 
   async function handleSaveAsClient() {

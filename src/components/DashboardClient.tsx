@@ -28,6 +28,22 @@ interface Invoice {
   payments?: { amount: number }[]
 }
 
+interface RecordPaymentModal {
+  open: boolean
+  invoice: Invoice | null
+  amount: string
+}
+
+interface CreditConfirmModal {
+  open: boolean
+  excess: number
+  clientName: string
+  clientId: string | null
+  invoiceId: string
+  invoiceNumber: string
+  currency: Currency
+}
+
 type StatusFilter = 'all' | 'unpaid' | 'paid' | 'overdue' | 'partial'
 
 interface Template {
@@ -87,6 +103,21 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
   const [toast, setToast] = useState<{ message: string; color: 'green' | 'indigo' } | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [recordPaymentModal, setRecordPaymentModal] = useState<RecordPaymentModal>({
+    open: false,
+    invoice: null,
+    amount: '',
+  })
+  const [creditConfirmModal, setCreditConfirmModal] = useState<CreditConfirmModal>({
+    open: false,
+    excess: 0,
+    clientName: '',
+    clientId: null,
+    invoiceId: '',
+    invoiceNumber: '',
+    currency: 'NGN',
+  })
+  const [recordingCredit, setRecordingCredit] = useState(false)
   const router = useRouter()
 
   const filteredInvoices = useMemo(() => {
@@ -161,9 +192,82 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
 
   // Fix 6: useCallback to prevent unnecessary re-renders of child components
   const handleStatusChange = useCallback(async (id: string, status: InvoiceStatus) => {
+    if (status === 'paid') {
+      const inv = invoices.find((i) => i.id === id)
+      if (inv) {
+        setRecordPaymentModal({ open: true, invoice: inv, amount: String(inv.total) })
+        return
+      }
+    }
     await supabase.from('invoices').update({ status }).eq('id', id)
     setInvoices((prev) => prev.map((inv) => (inv.id === id ? { ...inv, status } : inv)))
-  }, [supabase])
+  }, [supabase, invoices])
+
+  async function handleConfirmPayment() {
+    const { invoice, amount } = recordPaymentModal
+    if (!invoice) return
+
+    const amountPaid = parseFloat(amount)
+    if (isNaN(amountPaid) || amountPaid <= 0) return
+
+    await supabase.from('invoices').update({ status: 'paid' as InvoiceStatus }).eq('id', invoice.id)
+    setInvoices((prev) => prev.map((inv) => (inv.id === invoice.id ? { ...inv, status: 'paid' as InvoiceStatus } : inv)))
+    setRecordPaymentModal({ open: false, invoice: null, amount: '' })
+
+    const excess = amountPaid - invoice.total
+    if (excess > 0.005) {
+      // Look up client_id by name
+      const { data: clientRows } = await supabase
+        .from('clients')
+        .select('id, name')
+        .eq('name', invoice.client_name)
+        .limit(1)
+
+      const clientId = clientRows?.[0]?.id ?? null
+      setCreditConfirmModal({
+        open: true,
+        excess,
+        clientName: invoice.client_name,
+        clientId,
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoice_number,
+        currency: invoice.currency,
+      })
+    } else {
+      showToast('Invoice marked as paid ✓', 'green')
+    }
+  }
+
+  async function handleConfirmCredit() {
+    const { excess, clientId, clientName, invoiceId, invoiceNumber, currency } = creditConfirmModal
+    if (!clientId) {
+      showToast(`Save "${clientName}" as a client first to record credit`, 'indigo')
+      setCreditConfirmModal((s) => ({ ...s, open: false }))
+      return
+    }
+    setRecordingCredit(true)
+    try {
+      const res = await fetch('/api/credits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: clientId,
+          amount: excess,
+          type: 'credited',
+          reference_invoice_id: invoiceId,
+          description: `Overpayment on ${invoiceNumber}`,
+        }),
+      })
+      if (res.ok) {
+        showToast(`${formatCurrency(excess, currency)} credit recorded for ${clientName} ✓`, 'green')
+      } else {
+        showToast('Failed to record credit', 'indigo')
+      }
+    } finally {
+      setRecordingCredit(false)
+      setCreditConfirmModal((s) => ({ ...s, open: false }))
+    }
+  }
 
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm('Delete this invoice? This cannot be undone.')) return
@@ -903,6 +1007,114 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
           }`}
         >
           {toast.message}
+        </div>
+      )}
+
+      {/* Record Payment Modal */}
+      {recordPaymentModal.open && recordPaymentModal.invoice && (() => {
+        const inv = recordPaymentModal.invoice
+        const amountPaid = parseFloat(recordPaymentModal.amount) || 0
+        const excess = amountPaid - inv.total
+        return (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+                <h2 className="text-base font-semibold text-gray-900 dark:text-white">Record Payment</h2>
+                <button
+                  onClick={() => setRecordPaymentModal({ open: false, invoice: null, amount: '' })}
+                  className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">
+                    Invoice <span className="font-medium text-gray-900 dark:text-white">{inv.invoice_number}</span> — {inv.client_name}
+                  </p>
+                  <p className="text-xs text-gray-400">Invoice total: {formatCurrency(inv.total, inv.currency)}</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Amount Received</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={recordPaymentModal.amount}
+                    onChange={(e) => setRecordPaymentModal((s) => ({ ...s, amount: e.target.value }))}
+                    className="w-full border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 transition"
+                    autoFocus
+                  />
+                </div>
+                {excess > 0.005 && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 text-xs text-yellow-800">
+                    {formatCurrency(excess, inv.currency)} excess — will be recorded as client credit
+                  </div>
+                )}
+                <div className="flex justify-end gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setRecordPaymentModal({ open: false, invoice: null, amount: '' })}
+                    className="text-sm text-gray-600 hover:text-gray-800 px-4 py-2 rounded-lg border border-gray-200 hover:border-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmPayment}
+                    disabled={!recordPaymentModal.amount || parseFloat(recordPaymentModal.amount) <= 0}
+                    className="text-sm bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
+                  >
+                    Confirm Payment
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Credit Confirmation Modal */}
+      {creditConfirmModal.open && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">Record Overpayment as Credit?</h2>
+              <button
+                onClick={() => { setCreditConfirmModal((s) => ({ ...s, open: false })); showToast('Invoice marked as paid ✓', 'green') }}
+                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                <span className="font-semibold text-green-700 dark:text-green-400">{formatCurrency(creditConfirmModal.excess, creditConfirmModal.currency)}</span> is more than the invoice total. Would you like to record the excess as credit for <span className="font-medium">{creditConfirmModal.clientName}</span>?
+              </p>
+              {!creditConfirmModal.clientId && (
+                <p className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+                  This client is not in your saved clients list. Save them as a client first to record credit.
+                </p>
+              )}
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setCreditConfirmModal((s) => ({ ...s, open: false })); showToast('Invoice marked as paid ✓', 'green') }}
+                  className="text-sm text-gray-600 hover:text-gray-800 px-4 py-2 rounded-lg border border-gray-200 hover:border-gray-300"
+                >
+                  Skip
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmCredit}
+                  disabled={recordingCredit || !creditConfirmModal.clientId}
+                  className="text-sm bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
+                >
+                  {recordingCredit ? 'Recording…' : 'Record Credit'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </>

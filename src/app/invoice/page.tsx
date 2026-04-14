@@ -105,6 +105,10 @@ function InvoicePageInner() {
   const [savingPayment, setSavingPayment] = useState(false)
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit')
   const [isSignedIn, setIsSignedIn] = useState(false)
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
+  const [clientCreditBalance, setClientCreditBalance] = useState<number>(0)
+  const [creditDismissed, setCreditDismissed] = useState(false)
+  const [creditApplied, setCreditApplied] = useState<number>(0)
   const [sendModal, setSendModal] = useState<SendModalState>({
     open: false,
     toEmail: '',
@@ -383,7 +387,7 @@ function InvoicePageInner() {
       showToast('Save your invoice first to share via WhatsApp', 'error')
       return
     }
-    const { total } = calcTotals(data.lineItems, data.taxRate)
+    const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
     const shareUrl = `https://www.billbydab.com/i/${savedShareToken}`
     const businessName = data.businessName || 'Your Service Provider'
     const clientName = data.clientName || 'there'
@@ -399,6 +403,29 @@ function InvoicePageInner() {
       `Invoice No: ${data.invoiceNumber}\nAmount Due: ${data.currency}${total.toLocaleString()}\nDue Date: ${dueDate}\n\n` +
       `View & download your invoice here:\n${shareUrl}\n\nThank you for your business.`
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
+  }
+
+  async function handleClientSelect(clientId: string) {
+    setSelectedClientId(clientId)
+    setCreditDismissed(false)
+    setCreditApplied(0)
+
+    const supabase = createClient()
+    const { data: rows } = await supabase
+      .from('client_credits')
+      .select('amount, type')
+      .eq('client_id', clientId)
+
+    const credited = rows?.filter((r) => r.type === 'credited').reduce((s, r) => s + Number(r.amount), 0) ?? 0
+    const applied = rows?.filter((r) => r.type === 'applied').reduce((s, r) => s + Number(r.amount), 0) ?? 0
+    setClientCreditBalance(credited - applied)
+  }
+
+  function handleApplyCredit() {
+    const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
+    const toApply = Math.min(clientCreditBalance, total)
+    setCreditApplied(toApply)
+    setCreditDismissed(true)
   }
 
   function openSendModal() {
@@ -554,6 +581,23 @@ function InvoicePageInner() {
         }))
         const { error } = await supabase.from('line_items').insert(lineItemsPayload)
         if (error) throw error
+      }
+
+      // Record applied credit if any
+      if (creditApplied > 0 && selectedClientId && currentId) {
+        await fetch('/api/credits', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            client_id: selectedClientId,
+            amount: creditApplied,
+            type: 'applied',
+            reference_invoice_id: currentId,
+            description: `Credit applied to ${data.invoiceNumber}`,
+          }),
+        })
+        setClientCreditBalance((prev) => prev - creditApplied)
+        setCreditApplied(0)
       }
 
       showToast('Invoice saved!', 'success')
@@ -1021,7 +1065,39 @@ function InvoicePageInner() {
             </button>
           </LockedFeature>
         </div>
-        <InvoiceForm data={data} onChange={setData} isSignedIn={isSignedIn} />
+        {clientCreditBalance > 0 && !creditDismissed && (
+          <div className="mx-4 mt-4 px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <span>
+              This client has <strong>₦{clientCreditBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> in credit. Apply credit to this invoice?
+            </span>
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={handleApplyCredit}
+                className="text-xs font-semibold bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition"
+              >
+                Apply ₦{Math.min(clientCreditBalance, calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType).total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit
+              </button>
+              <button
+                onClick={() => setCreditDismissed(true)}
+                className="text-xs font-medium text-green-700 hover:text-green-900 px-2 py-1.5"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+        {creditApplied > 0 && (
+          <div className="mx-4 mt-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700 flex items-center justify-between gap-3">
+            <span>Credit applied: −₦{creditApplied.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <button
+              onClick={() => { setCreditApplied(0); setCreditDismissed(false) }}
+              className="text-green-500 hover:text-green-700"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+        <InvoiceForm data={data} onChange={setData} isSignedIn={isSignedIn} onClientSelect={handleClientSelect} />
 
         {savedInvoiceId && (() => {
           const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)

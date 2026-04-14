@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
 import { CURRENCIES } from '@/lib/currencies'
-import type { Currency, EstimateLineItem } from '@/lib/types'
+import type { Currency, EstimateLineItem, EstimateStatus } from '@/lib/types'
 
 interface SavedClient {
   id: string
@@ -269,12 +269,25 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
         const { data: inserted, error } = await supabase
           .from('estimates')
           .insert(payload)
-          .select('id')
+          .select('id, client_token')
           .single()
         if (error) throw error
         currentId = inserted.id
         setSavedId(currentId)
         window.history.replaceState(null, '', `/estimates/${currentId}`)
+      }
+
+      // Re-fetch the full saved row to hydrate server-generated fields (client_token, etc.)
+      const { data: saved } = await supabase
+        .from('estimates')
+        .select('*')
+        .eq('id', currentId!)
+        .single()
+
+      if (saved) {
+        setClientToken(saved.client_token || null)
+        setStatus(saved.status as EstimateStatus)
+        setEstimateNumber(saved.estimate_number)
       }
 
       if (lineItems.length > 0) {

@@ -383,7 +383,7 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
     message += `\nTotal: ${currency} ${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     if (validUntilStr) message += `\nValid until: ${validUntilStr}`
     message += `\n\nReview, edit, and approve your estimate here:\n${reviewUrl}\n\nSent via BillByDab`
-    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, '_blank')
     // Update status to 'sent'
     await supabase
       .from('estimates')

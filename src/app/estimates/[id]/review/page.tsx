@@ -110,8 +110,8 @@ export default async function EstimateReviewPage({
     .eq('deleted_by_client', false)
     .order('sort_order')
 
-  // Log client_viewed event (fire-and-forget)
-  supabase
+  // Log client_viewed event
+  await supabase
     .from('estimate_events')
     .insert({
       estimate_id: id,
@@ -119,15 +119,46 @@ export default async function EstimateReviewPage({
       actor: 'client',
       details: { at: new Date().toISOString() },
     })
-    .then(() => {})
 
   // Update status to client_reviewing if currently 'sent'
   if (estimate.status === 'sent') {
-    supabase
+    await supabase
       .from('estimates')
       .update({ status: 'client_reviewing', updated_at: new Date().toISOString() })
       .eq('id', id)
-      .then(() => {})
+  }
+
+  // Notify owner that client opened the estimate
+  try {
+    const apiKey = process.env.RESEND_API_KEY
+    if (apiKey) {
+      const { data: userData } = await supabase.auth.admin.getUserById(estimate.user_id)
+      const ownerEmail = userData?.user?.email
+      if (ownerEmail) {
+        const { Resend } = await import('resend')
+        const resend = new Resend(apiKey)
+        const clientDisplayName = estimate.client_name || 'Your client'
+        await resend.emails.send({
+          from: 'BillByDab <noreply@billbydab.com>',
+          to: ownerEmail,
+          subject: `${clientDisplayName} has opened estimate ${estimate.estimate_number}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
+              <h2 style="color: #4F46E5;">Estimate Opened</h2>
+              <p><strong>${clientDisplayName}</strong> has just opened and is reviewing your estimate <strong>${estimate.estimate_number}</strong>.</p>
+              ${estimate.title ? `<p style="color: #6B7280;">${estimate.title}</p>` : ''}
+              <p>They may approve, edit, or send back a revised version soon.</p>
+              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://www.billbydab.com'}/estimates/${estimate.id}"
+                 style="display: inline-block; background: #4F46E5; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 16px;">
+                View Estimate
+              </a>
+            </div>
+          `,
+        })
+      }
+    }
+  } catch (notifyErr) {
+    console.error('Failed to send owner open notification:', notifyErr)
   }
 
   return (

@@ -113,7 +113,7 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
     const supabase = createClient()
     const { data } = await supabase
       .from('profiles')
-      .select('profile_picture_url, brand_color, dashboard_theme, logo_url, business_name, payment_methods')
+      .select('profile_picture_url, brand_color, dashboard_theme, logo_url, business_name, payment_methods, dark_mode')
       .eq('id', user.id)
       .maybeSingle()
 

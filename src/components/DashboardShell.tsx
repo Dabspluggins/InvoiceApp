@@ -3,23 +3,51 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import type { User } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/client'
 import DashboardClient from './DashboardClient'
 import ProfileDropdown from './ProfileDropdown'
 
 export default function DashboardShell({ user }: { user: User }) {
   const [darkMode, setDarkMode] = useState(false)
   const [themeColor, setThemeColor] = useState('#4F46E5')
+  const supabase = createClient()
 
   useEffect(() => {
+    // Fast: apply localStorage immediately to avoid flash
     const saved = localStorage.getItem('theme')
-    const isDark = saved === 'dark' || (saved === null && localStorage.getItem('dashboard_dark_mode') === 'true')
-    if (isDark) setDarkMode(true)
-  }, [])
+    const localDark = saved === 'dark' || (saved === null && localStorage.getItem('dashboard_dark_mode') === 'true')
+    if (localDark) {
+      setDarkMode(true)
+      document.documentElement.classList.add('dark')
+    }
+
+    // Reliable: fetch from Supabase and use as source of truth
+    supabase
+      .from('profiles')
+      .select('dark_mode')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => {
+        if (data && typeof data.dark_mode === 'boolean') {
+          const dbDark = data.dark_mode
+          setDarkMode(dbDark)
+          document.documentElement.classList.toggle('dark', dbDark)
+          localStorage.setItem('theme', dbDark ? 'dark' : 'light')
+        }
+      })
+  }, [user.id])
 
   function handleSetDarkMode(v: boolean) {
+    // Apply immediately
     setDarkMode(v)
-    localStorage.setItem('theme', v ? 'dark' : 'light')
     document.documentElement.classList.toggle('dark', v)
+    localStorage.setItem('theme', v ? 'dark' : 'light')
+
+    // Persist to Supabase for cross-device sync
+    supabase
+      .from('profiles')
+      .upsert({ id: user.id, dark_mode: v }, { onConflict: 'id' })
+      .then(() => {}) // fire and forget
   }
 
   return (

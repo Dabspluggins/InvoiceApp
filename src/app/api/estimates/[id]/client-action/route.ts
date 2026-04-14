@@ -17,10 +17,11 @@ export async function POST(
 
   try {
     const body = await req.json()
-    const { client_token, action, deletedItemIds } = body as {
+    const { client_token, action, deletedItemIds, proposedPrices } = body as {
       client_token: string
       action: 'approve' | 'revise'
       deletedItemIds: string[]
+      proposedPrices?: Record<string, number>
     }
 
     if (!client_token || !action) {
@@ -102,6 +103,36 @@ export async function POST(
       })
     } else {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+    }
+
+    // Handle proposed prices (server-side validation + persistence)
+    if (proposedPrices && Object.keys(proposedPrices).length > 0) {
+      const { data: estimateData } = await admin
+        .from('estimates')
+        .select('max_discount_pct')
+        .eq('id', id)
+        .single()
+      const maxDiscountPct = estimateData?.max_discount_pct || 0
+
+      for (const [itemId, proposed] of Object.entries(proposedPrices)) {
+        const { data: itemData } = await admin
+          .from('estimate_line_items')
+          .select('unit_price, min_price')
+          .eq('id', itemId)
+          .single()
+        if (!itemData) continue
+
+        const discountFloor = itemData.unit_price * (1 - maxDiscountPct / 100)
+        const itemFloor = itemData.min_price != null ? itemData.min_price : 0
+        const effectiveFloor = Math.max(discountFloor, itemFloor)
+        const safePrice = Math.max(Number(proposed), effectiveFloor)
+
+        await admin
+          .from('estimate_line_items')
+          .update({ client_proposed_price: safePrice })
+          .eq('id', itemId)
+          .eq('estimate_id', id) // safety — only items on this estimate
+      }
     }
 
     // Log all events

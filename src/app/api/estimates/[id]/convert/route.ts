@@ -73,9 +73,12 @@ export async function POST(
     const invoiceNumber = nextInvoiceNumber(latestInvNum?.invoice_number)
     const today = new Date().toISOString().split('T')[0]
 
-    // Recalculate totals from non-deleted items
+    // Recalculate totals from non-deleted items, using client_proposed_price when available
     const activeItems = estItems || []
-    const subtotal = activeItems.reduce((sum, i) => sum + i.amount, 0)
+    const subtotal = activeItems.reduce(
+      (sum, i) => sum + (i.client_proposed_price ?? i.unit_price) * i.quantity,
+      0
+    )
     const discountAmount =
       estimate.discount_type === 'percentage'
         ? subtotal * (estimate.discount_value / 100)
@@ -127,8 +130,8 @@ export async function POST(
         invoice_id: invoice.id,
         description: item.description,
         quantity: item.quantity,
-        rate: item.unit_price, // invoices use 'rate', estimates use 'unit_price'
-        amount: item.amount,
+        rate: item.client_proposed_price ?? item.unit_price,
+        amount: (item.client_proposed_price ?? item.unit_price) * item.quantity,
         sort_order: idx,
       }))
       const { error: liError } = await supabase.from('line_items').insert(lineItemsPayload)

@@ -36,6 +36,8 @@ export interface EstimateLineItem {
   amount: number
   deleted_by_client?: boolean
   sort_order?: number
+  min_price?: number | null
+  client_proposed_price?: number | null
 }
 
 export interface PaymentDetails {

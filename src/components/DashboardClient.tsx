@@ -215,7 +215,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     const message = overdue
       ? `Hi ${clientName},\n\nYour invoice ${inv.invoice_number} for ${formatCurrency(inv.total, inv.currency)} was due on ${dueDate} and remains unpaid.\n\nPlease view and settle your invoice here: ${shareUrl}\n\nThank you,\n${businessName}`
       : `Hi ${clientName},\n\nThis is a friendly reminder that invoice ${inv.invoice_number} for ${formatCurrency(inv.total, inv.currency)} is due on ${dueDate}.\n\nView your invoice here: ${shareUrl}\n\nPlease let us know if you have any questions.\n\n${businessName}`
-    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, '_blank')
   }, [user])
 
   async function loadUnbilledExpenses() {

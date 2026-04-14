@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 interface Client {
@@ -14,6 +14,15 @@ interface Client {
   portal_token: string | null
 }
 
+interface CreditRecord {
+  id: string
+  client_id: string
+  amount: number
+  type: 'credited' | 'applied'
+  description: string | null
+  created_at: string
+}
+
 const emptyForm = { name: '', company: '', email: '', phone: '', address: '' }
 
 export default function ClientsClient() {
@@ -25,6 +34,8 @@ export default function ClientsClient() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [clientCredits, setClientCredits] = useState<Record<string, { balance: number; history: CreditRecord[] }>>({})
+  const [expandedCreditId, setExpandedCreditId] = useState<string | null>(null)
 
   useEffect(() => {
     loadClients()
@@ -38,6 +49,28 @@ export default function ClientsClient() {
       .order('created_at', { ascending: false })
     setClients(data || [])
     setLoading(false)
+    if (data && data.length > 0) {
+      await loadClientCredits(data.map((c) => c.id))
+    }
+  }
+
+  async function loadClientCredits(clientIds: string[]) {
+    if (clientIds.length === 0) return
+    const supabase = createClient()
+    const { data: credits } = await supabase
+      .from('client_credits')
+      .select('id, client_id, amount, type, description, created_at')
+      .in('client_id', clientIds)
+      .order('created_at', { ascending: false })
+
+    const map: Record<string, { balance: number; history: CreditRecord[] }> = {}
+    for (const credit of credits || []) {
+      if (!map[credit.client_id]) map[credit.client_id] = { balance: 0, history: [] }
+      map[credit.client_id].history.push(credit as CreditRecord)
+      if (credit.type === 'credited') map[credit.client_id].balance += Number(credit.amount)
+      else map[credit.client_id].balance -= Number(credit.amount)
+    }
+    setClientCredits(map)
   }
 
   async function handleCopyPortalLink(client: Client) {
@@ -165,6 +198,11 @@ export default function ClientsClient() {
                     {client.company && (
                       <p className="text-xs text-gray-500 mt-0.5">{client.company}</p>
                     )}
+                    {(clientCredits[client.id]?.balance ?? 0) > 0 && (
+                      <span className="inline-block mt-1 text-xs bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300 px-2 py-0.5 rounded-full font-medium">
+                        ₦{(clientCredits[client.id]?.balance ?? 0).toLocaleString()} credit
+                      </span>
+                    )}
                   </div>
                   <div className="flex gap-1 flex-wrap">
                     {client.portal_token && (
@@ -195,6 +233,44 @@ export default function ClientsClient() {
                     {client.phone && <p>{client.phone}</p>}
                   </div>
                 )}
+                {(clientCredits[client.id]?.history ?? []).length > 0 && (
+                  <div className="mt-2 border-t border-gray-100 pt-2">
+                    <button
+                      onClick={() => setExpandedCreditId(expandedCreditId === client.id ? null : client.id)}
+                      className="text-xs text-indigo-500 hover:text-indigo-700 font-medium"
+                    >
+                      {expandedCreditId === client.id ? '▲ Hide credit history' : '▼ Credit History'}
+                    </button>
+                    {expandedCreditId === client.id && (
+                      <div className="mt-2 overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="text-gray-400 border-b border-gray-100">
+                              <th className="text-left py-1 pr-3">Date</th>
+                              <th className="text-left py-1 pr-3">Type</th>
+                              <th className="text-right py-1 pr-3">Amount</th>
+                              <th className="text-left py-1">Description</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {clientCredits[client.id].history.map((record) => (
+                              <tr key={record.id} className="border-b border-gray-50 last:border-0">
+                                <td className="py-1 pr-3 text-gray-500">{new Date(record.created_at).toLocaleDateString('en-GB')}</td>
+                                <td className="py-1 pr-3">
+                                  <span className={record.type === 'credited' ? 'text-green-600 font-medium' : 'text-orange-500 font-medium'}>
+                                    {record.type}
+                                  </span>
+                                </td>
+                                <td className="py-1 pr-3 text-right font-medium">₦{Number(record.amount).toLocaleString()}</td>
+                                <td className="py-1 text-gray-400">{record.description || '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -208,19 +284,38 @@ export default function ClientsClient() {
                   <th className="text-left px-6 py-3">Company</th>
                   <th className="text-left px-6 py-3">Email</th>
                   <th className="text-left px-6 py-3">Phone</th>
+                  <th className="text-left px-6 py-3">Credit</th>
                   <th className="text-right px-6 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {clients.map((client) => (
+                  <React.Fragment key={client.id}>
                   <tr
-                    key={client.id}
                     className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition"
                   >
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">{client.name}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{client.company || '—'}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{client.email || '—'}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{client.phone || '—'}</td>
+                    <td className="px-6 py-4">
+                      {(clientCredits[client.id]?.balance ?? 0) > 0 ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300 px-2 py-0.5 rounded-full font-medium">
+                            ₦{(clientCredits[client.id]?.balance ?? 0).toLocaleString()} credit
+                          </span>
+                          <button
+                            onClick={() => setExpandedCreditId(expandedCreditId === client.id ? null : client.id)}
+                            className="text-xs text-indigo-500 hover:text-indigo-700"
+                            title="Toggle credit history"
+                          >
+                            {expandedCreditId === client.id ? '▲' : '▼'}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-1">
                         {client.portal_token && (
@@ -246,6 +341,37 @@ export default function ClientsClient() {
                       </div>
                     </td>
                   </tr>
+                  {expandedCreditId === client.id && (clientCredits[client.id]?.history ?? []).length > 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-3 bg-gray-50 dark:bg-gray-800/50">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                              <th className="text-left py-1 pr-4">Date</th>
+                              <th className="text-left py-1 pr-4">Type</th>
+                              <th className="text-right py-1 pr-4">Amount</th>
+                              <th className="text-left py-1">Description</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {clientCredits[client.id].history.map((record) => (
+                              <tr key={record.id} className="border-b border-gray-100 dark:border-gray-700 last:border-0">
+                                <td className="py-1 pr-4 text-gray-500">{new Date(record.created_at).toLocaleDateString('en-GB')}</td>
+                                <td className="py-1 pr-4">
+                                  <span className={record.type === 'credited' ? 'text-green-600 font-medium' : 'text-orange-500 font-medium'}>
+                                    {record.type}
+                                  </span>
+                                </td>
+                                <td className="py-1 pr-4 text-right font-medium">₦{Number(record.amount).toLocaleString()}</td>
+                                <td className="py-1 text-gray-400">{record.description || '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

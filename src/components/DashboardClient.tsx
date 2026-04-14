@@ -62,6 +62,9 @@ export default function DashboardClient({ user }: { user?: User | null }) {
   const [toast, setToast] = useState<{ message: string; color: 'green' | 'indigo' } | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [pendingPaidChange, setPendingPaidChange] = useState<{ invoiceId: string; invoice: Invoice } | null>(null)
+  const [paymentAmount, setPaymentAmount] = useState('')
+  const [overpaymentModal, setOverpaymentModal] = useState<{ invoiceId: string; clientId: string | null; clientName: string; excess: number } | null>(null)
   const router = useRouter()
 
   const filteredInvoices = useMemo(() => {
@@ -109,9 +112,68 @@ export default function DashboardClient({ user }: { user?: User | null }) {
   }
 
   async function handleStatusChange(id: string, status: InvoiceStatus) {
+    if (status === 'paid') {
+      const invoice = invoices.find((inv) => inv.id === id)
+      if (invoice) {
+        setPendingPaidChange({ invoiceId: id, invoice })
+        setPaymentAmount(invoice.total.toString())
+        return
+      }
+    }
     const supabase = createClient()
     await supabase.from('invoices').update({ status }).eq('id', id)
     setInvoices((prev) => prev.map((inv) => (inv.id === id ? { ...inv, status } : inv)))
+  }
+
+  async function handleConfirmPaid() {
+    if (!pendingPaidChange) return
+    const { invoiceId, invoice } = pendingPaidChange
+    const amountPaid = parseFloat(paymentAmount) || 0
+    const excess = amountPaid - invoice.total
+
+    const supabase = createClient()
+    await supabase.from('invoices').update({ status: 'paid' }).eq('id', invoiceId)
+    setInvoices((prev) => prev.map((inv) => (inv.id === invoiceId ? { ...inv, status: 'paid' } : inv)))
+    setPendingPaidChange(null)
+    setPaymentAmount('')
+
+    if (excess > 0) {
+      const { data: clientData } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('name', invoice.client_name)
+        .maybeSingle()
+
+      setOverpaymentModal({
+        invoiceId,
+        clientId: clientData?.id ?? null,
+        clientName: invoice.client_name,
+        excess,
+      })
+    } else {
+      showToast('Invoice marked as paid ✓', 'green')
+    }
+  }
+
+  async function handleRecordCredit() {
+    if (!overpaymentModal || !overpaymentModal.clientId) return
+    const { invoiceId, clientId, clientName, excess } = overpaymentModal
+    const invoice = invoices.find((inv) => inv.id === invoiceId)
+
+    await fetch('/api/credits', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: clientId,
+        amount: excess,
+        type: 'credited',
+        reference_invoice_id: invoiceId,
+        description: `Overpayment on ${invoice?.invoice_number ?? invoiceId}`,
+      }),
+    })
+
+    setOverpaymentModal(null)
+    showToast(`₦${excess.toLocaleString()} credit recorded for ${clientName}`, 'green')
   }
 
   async function handleDelete(id: string) {
@@ -712,6 +774,72 @@ export default function DashboardClient({ user }: { user?: User | null }) {
           }`}
         >
           {toast.message}
+        </div>
+      )}
+
+      {/* Record Payment Modal */}
+      {pendingPaidChange && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-sm p-6">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Record Payment</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Invoice total: {formatCurrency(pendingPaidChange.invoice.total, pendingPaidChange.invoice.currency)}
+            </p>
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Amount received</label>
+              <input
+                type="number"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setPendingPaidChange(null); setPaymentAmount('') }}
+                className="flex-1 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmPaid}
+                className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition"
+              >
+                Confirm Paid
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Overpayment Credit Modal */}
+      {overpaymentModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-sm p-6">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-3">Overpayment Detected</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-5">
+              ₦{overpaymentModal.excess.toLocaleString()} excess payment detected. Record ₦{overpaymentModal.excess.toLocaleString()} as credit for <strong>{overpaymentModal.clientName}</strong>?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setOverpaymentModal(null)}
+                className="flex-1 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+              >
+                Skip
+              </button>
+              <button
+                onClick={handleRecordCredit}
+                disabled={!overpaymentModal.clientId}
+                className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                Record Credit
+              </button>
+            </div>
+            {!overpaymentModal.clientId && (
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 text-center">Client not found in saved clients</p>
+            )}
+          </div>
         </div>
       )}
     </>

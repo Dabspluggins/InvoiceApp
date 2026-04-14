@@ -77,6 +77,10 @@ function InvoicePageInner() {
   const [savedInvoiceId, setSavedInvoiceId] = useState<string | null>(null)
   const [savedShareToken, setSavedShareToken] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
+  const [clientCreditBalance, setClientCreditBalance] = useState(0)
+  const [creditApplied, setCreditApplied] = useState(0)
+  const [creditBannerDismissed, setCreditBannerDismissed] = useState(false)
   const [duplicateBanner, setDuplicateBanner] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit')
@@ -297,6 +301,35 @@ function InvoicePageInner() {
     setTimeout(() => setToast(null), 3000)
   }
 
+  async function fetchClientCredit(clientId: string) {
+    const supabase = createClient()
+    const { data: credits } = await supabase
+      .from('client_credits')
+      .select('amount, type')
+      .eq('client_id', clientId)
+
+    const credited = credits?.filter((r) => r.type === 'credited').reduce((s, r) => s + Number(r.amount), 0) ?? 0
+    const applied = credits?.filter((r) => r.type === 'applied').reduce((s, r) => s + Number(r.amount), 0) ?? 0
+    setClientCreditBalance(Math.max(0, credited - applied))
+    setCreditBannerDismissed(false)
+    setCreditApplied(0)
+  }
+
+  function handleClientSelect(clientId: string | null) {
+    setSelectedClientId(clientId)
+    setCreditApplied(0)
+    setCreditBannerDismissed(false)
+    setClientCreditBalance(0)
+    if (clientId) {
+      fetchClientCredit(clientId)
+    }
+  }
+
+  function handleApplyCredit() {
+    const { total } = calcTotals(data.lineItems, data.taxRate)
+    setCreditApplied(Math.min(clientCreditBalance, total))
+  }
+
   function openSendModal() {
     setSendModal({
       open: true,
@@ -446,6 +479,23 @@ function InvoicePageInner() {
         }))
         const { error } = await supabase.from('line_items').insert(lineItemsPayload)
         if (error) throw error
+      }
+
+      if (creditApplied > 0 && selectedClientId && currentId) {
+        const appliedAmount = Math.min(creditApplied, total)
+        await fetch('/api/credits', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            client_id: selectedClientId,
+            amount: appliedAmount,
+            type: 'applied',
+            reference_invoice_id: currentId,
+            description: `Credit applied to ${data.invoiceNumber}`,
+          }),
+        })
+        setCreditApplied(0)
+        setClientCreditBalance((prev) => Math.max(0, prev - appliedAmount))
       }
 
       showToast('Invoice saved!', 'success')
@@ -676,7 +726,15 @@ function InvoicePageInner() {
             </button>
           </div>
         )}
-        <InvoiceForm data={data} onChange={setData} />
+        <InvoiceForm
+          data={data}
+          onChange={setData}
+          onClientSelect={handleClientSelect}
+          creditBalance={!creditBannerDismissed && clientCreditBalance > 0 ? clientCreditBalance : undefined}
+          creditApplied={creditApplied > 0 ? creditApplied : undefined}
+          onApplyCredit={handleApplyCredit}
+          onDismissCreditBanner={() => setCreditBannerDismissed(true)}
+        />
       </div>
 
       {/* Right: Preview + Actions */}

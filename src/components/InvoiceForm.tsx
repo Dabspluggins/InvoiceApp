@@ -5,7 +5,7 @@
 
 import { useRef, useEffect, useState } from 'react'
 import { InvoiceData, Currency, RecurringFrequency, PaymentDetails } from '@/lib/types'
-import { calcTotals } from '@/lib/utils'
+import { calcTotals, formatCurrency } from '@/lib/utils'
 import { CURRENCIES } from '@/lib/currencies'
 import LineItemsTable from './LineItemsTable'
 import Totals from './Totals'
@@ -14,6 +14,11 @@ import { createClient } from '@/lib/supabase/client'
 interface Props {
   data: InvoiceData
   onChange: (data: InvoiceData) => void
+  onClientSelect?: (clientId: string | null) => void
+  creditBalance?: number
+  creditApplied?: number
+  onApplyCredit?: () => void
+  onDismissCreditBanner?: () => void
 }
 
 interface SavedClient {
@@ -33,7 +38,7 @@ const MOBILE_MONEY_PROVIDERS = [
 
 type PaymentTab = 'bankTransfer' | 'mobileMoney' | 'other'
 
-export default function InvoiceForm({ data, onChange }: Props) {
+export default function InvoiceForm({ data, onChange, onClientSelect, creditBalance, creditApplied, onApplyCredit, onDismissCreditBanner }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [savedClients, setSavedClients] = useState<SavedClient[]>([])
   const [savingClient, setSavingClient] = useState(false)
@@ -97,7 +102,10 @@ export default function InvoiceForm({ data, onChange }: Props) {
   }
 
   function handleSelectClient(id: string) {
-    if (!id) return
+    if (!id) {
+      onClientSelect?.(null)
+      return
+    }
     const client = savedClients.find((c) => c.id === id)
     if (!client) return
     onChange({
@@ -107,6 +115,7 @@ export default function InvoiceForm({ data, onChange }: Props) {
       clientEmail: client.email || '',
       clientAddress: client.address || '',
     })
+    onClientSelect?.(id)
   }
 
   async function handleSaveAsClient() {
@@ -317,6 +326,32 @@ export default function InvoiceForm({ data, onChange }: Props) {
           </div>
         )}
 
+        {/* Credit Banner */}
+        {creditBalance !== undefined && creditBalance > 0 && (
+          <div className="mb-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3 flex items-center justify-between gap-2">
+            <span className="text-sm text-amber-800 dark:text-amber-300">
+              💳 {data.clientName} has ₦{creditBalance.toLocaleString()} in credit
+            </span>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={onApplyCredit}
+                className="text-xs bg-amber-600 text-white px-3 py-1 rounded hover:bg-amber-700 transition"
+              >
+                Apply Credit
+              </button>
+              <button
+                type="button"
+                onClick={onDismissCreditBanner}
+                className="text-gray-400 hover:text-gray-600 text-sm leading-none"
+                aria-label="Dismiss"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={labelCls}>Client Name</label>
@@ -373,6 +408,19 @@ export default function InvoiceForm({ data, onChange }: Props) {
         currency={data.currency}
         onTaxRateChange={(rate) => set('taxRate', rate)}
       />
+
+      {creditApplied !== undefined && creditApplied > 0 && (
+        <div className="mt-2 space-y-1 border-t border-gray-100 pt-2">
+          <div className="flex justify-between text-sm text-green-700 dark:text-green-400">
+            <span>Credit applied</span>
+            <span>-{formatCurrency(creditApplied, data.currency)}</span>
+          </div>
+          <div className="flex justify-between text-sm font-bold text-gray-900 dark:text-gray-100">
+            <span>Amount Due</span>
+            <span>{formatCurrency(Math.max(0, total - creditApplied), data.currency)}</span>
+          </div>
+        </div>
+      )}
 
       {/* Notes */}
       <div className="mt-6 mb-6">

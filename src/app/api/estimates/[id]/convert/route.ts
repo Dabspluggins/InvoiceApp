@@ -26,9 +26,9 @@ export async function POST(
       return NextResponse.json({ error: 'Estimate not found' }, { status: 404 })
     }
 
-    if (estimate.status !== 'approved') {
+    if (estimate.status !== 'approved' && estimate.status !== 'revised') {
       return NextResponse.json(
-        { error: 'Only approved estimates can be converted to invoices' },
+        { error: 'Only approved or revised estimates can be converted to invoices' },
         { status: 400 }
       )
     }
@@ -110,6 +110,9 @@ export async function POST(
         client_address: null,
         client_email: estimate.client_email,
         subtotal,
+        discount_type: estimate.discount_type || 'percentage',
+        discount_value: estimate.discount_value || 0,
+        discount_amount: discountAmount,
         tax_rate: estimate.tax_rate,
         tax_amount: taxAmount,
         total,

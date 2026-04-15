@@ -2,14 +2,15 @@
  * POST /api/welcome-email
  *
  * Sends a one-time welcome email to a newly confirmed user.
- * Called from the client-side auth callback after session is established.
+ * Called from DashboardShell on first visit after signup — cookies are fully set
+ * at that point, so standard cookie-based auth works reliably.
  *
  * SQL required (run once in Supabase):
  *   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS welcome_sent BOOLEAN DEFAULT false;
  */
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 
 function buildWelcomeEmailHtml(firstName: string, year: number): string {
   return `<!DOCTYPE html>
@@ -127,25 +128,13 @@ function buildWelcomeEmailHtml(firstName: string, year: number): string {
 </html>`
 }
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    // Get token from Authorization header (passed from callback before cookies are set)
-    const authHeader = request.headers.get('Authorization')
-    const token = authHeader?.replace('Bearer ', '')
-
-    if (!token) {
-      return NextResponse.json({ error: 'No token provided' }, { status: 401 })
-    }
-
-    // Use the token to get the user
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user?.email) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const apiKey = process.env.RESEND_API_KEY
@@ -174,6 +163,11 @@ export async function POST(request: NextRequest) {
       console.error('Resend error:', sendError)
       return NextResponse.json({ error: sendError.message }, { status: 500 })
     }
+
+    // Mark as sent so dashboard doesn't trigger it again
+    await supabase
+      .from('profiles')
+      .upsert({ id: user!.id, welcome_sent: true }, { onConflict: 'id' })
 
     return NextResponse.json({ success: true })
   } catch (err) {

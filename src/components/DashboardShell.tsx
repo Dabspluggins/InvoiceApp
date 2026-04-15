@@ -24,10 +24,14 @@ export default function DashboardShell({ user }: { user: User }) {
     // Reliable: fetch from Supabase and use as source of truth
     supabase
       .from('profiles')
-      .select('dark_mode')
+      .select('dark_mode, welcome_sent')
       .eq('id', user.id)
       .single()
       .then(({ data }) => {
+        // Send welcome email if not yet sent (fire-and-forget, no navigation issues here)
+        if (data && data.welcome_sent === false) {
+          fetch('/api/welcome-email', { method: 'POST' }).catch(() => {})
+        }
         if (data && typeof data.dark_mode === 'boolean') {
           const dbDark = data.dark_mode
           setDarkMode(dbDark)

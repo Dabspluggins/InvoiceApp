@@ -15,9 +15,15 @@ export default function AuthCallbackPage() {
     const code = params.get('code')
 
     // Fire-and-forget welcome email for new signups (not password resets or email changes)
-    function maybeSendWelcomeEmail(flowType: string | null) {
-      if (flowType !== 'recovery' && flowType !== 'email_change') {
-        fetch('/api/welcome-email', { method: 'POST' }).catch(() => {})
+    function maybeSendWelcomeEmail(flowType: string | null, accessToken?: string) {
+      if (flowType !== 'recovery' && flowType !== 'email_change' && accessToken) {
+        fetch('/api/welcome-email', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }).catch(() => {})
       }
     }
 
@@ -25,7 +31,7 @@ export default function AuthCallbackPage() {
     if (token_hash && type) {
       supabase.auth.verifyOtp({ token_hash, type }).then(({ data: { session }, error }) => {
         if (!error && session) {
-          maybeSendWelcomeEmail(type)
+          maybeSendWelcomeEmail(type, session.access_token)
           if (type === 'recovery' || next === '/reset-password') {
             router.replace(
               `/reset-password?access_token=${session.access_token}&refresh_token=${session.refresh_token}`
@@ -45,7 +51,7 @@ export default function AuthCallbackPage() {
       supabase.auth.exchangeCodeForSession(code).then(({ data: { session }, error }) => {
         if (!error && session) {
           // code flow: recovery is indicated by next=/reset-password
-          maybeSendWelcomeEmail(next === '/reset-password' ? 'recovery' : null)
+          maybeSendWelcomeEmail(next === '/reset-password' ? 'recovery' : null, session.access_token)
           if (next === '/reset-password') {
             router.replace(
               `/reset-password?access_token=${session.access_token}&refresh_token=${session.refresh_token}`
@@ -71,7 +77,7 @@ export default function AuthCallbackPage() {
       if (access_token && refresh_token) {
         supabase.auth.setSession({ access_token, refresh_token }).then(({ error }) => {
           if (!error) {
-            maybeSendWelcomeEmail(next === '/reset-password' ? 'recovery' : hashType)
+            maybeSendWelcomeEmail(next === '/reset-password' ? 'recovery' : hashType, access_token)
             if (hashType === 'recovery' || next === '/reset-password') {
               router.replace(
                 `/reset-password?access_token=${access_token}&refresh_token=${refresh_token}`

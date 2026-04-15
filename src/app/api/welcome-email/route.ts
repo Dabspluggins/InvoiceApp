@@ -7,9 +7,10 @@
  * SQL required (run once in Supabase):
  *   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS welcome_sent BOOLEAN DEFAULT false;
  */
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { Resend } from 'resend'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 
 function buildWelcomeEmailHtml(firstName: string, year: number): string {
   return `<!DOCTYPE html>
@@ -127,17 +128,33 @@ function buildWelcomeEmailHtml(firstName: string, year: number): string {
 </html>`
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    // Get token from Authorization header (passed from callback before cookies are set)
+    const authHeader = request.headers.get('Authorization')
+    const token = authHeader?.replace('Bearer ', '')
 
-    if (!user?.email) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    if (!token) {
+      return NextResponse.json({ error: 'No token provided' }, { status: 401 })
     }
 
+    // Use the token to get the user
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+
+    if (authError || !user?.email) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
+
+    // Use admin client for profiles queries (RLS can't use token directly)
+    const adminClient = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+
     // Check if welcome email already sent to avoid duplicates
-    const { data: profile } = await supabase
+    const { data: profile } = await adminClient
       .from('profiles')
       .select('welcome_sent')
       .eq('id', user.id)
@@ -175,7 +192,7 @@ export async function POST() {
     }
 
     // Mark as sent so we never send it twice
-    await supabase
+    await adminClient
       .from('profiles')
       .upsert({ id: user.id, welcome_sent: true }, { onConflict: 'id' })
 

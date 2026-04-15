@@ -111,7 +111,7 @@ export async function POST(
         client_email: estimate.client_email,
         subtotal,
         discount_type: estimate.discount_type || 'percentage',
-        discount_value: estimate.discount_value || 0,
+        discount: estimate.discount_value || 0,
         discount_amount: discountAmount,
         tax_rate: estimate.tax_rate,
         tax_amount: taxAmount,

@@ -107,6 +107,7 @@ export async function POST(
         client_address: null,
         client_email: estimate.client_email,
         subtotal,
+        discount: estimate.discount_value || 0,
         tax_rate: estimate.tax_rate,
         tax_amount: taxAmount,
         total,

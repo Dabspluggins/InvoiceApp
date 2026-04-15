@@ -34,10 +34,10 @@ export interface EstimateLineItem {
   quantity: number
   unit_price: number
   amount: number
-  deleted_by_client?: boolean
-  sort_order?: number
   min_price?: number | null
   client_proposed_price?: number | null
+  deleted_by_client?: boolean
+  sort_order?: number
 }
 
 export interface PaymentDetails {
@@ -65,6 +65,32 @@ export interface LineItem {
   quantity: number
   rate: number
   amount: number
+}
+
+export interface EstimateTemplate {
+  id: string
+  user_id: string
+  name: string
+  tax_rate: number
+  discount_type: 'percentage' | 'fixed'
+  discount_value: number
+  notes: string | null
+  terms: string | null
+  allow_negotiation: boolean
+  max_discount_pct: number
+  valid_days: number
+  created_at: string
+  items?: EstimateTemplateItem[]
+}
+
+export interface EstimateTemplateItem {
+  id: string
+  template_id: string
+  description: string
+  quantity: number
+  unit_price: number
+  min_price: number | null
+  sort_order: number
 }
 
 export type RecurringFrequency = 'weekly' | 'monthly' | 'quarterly'

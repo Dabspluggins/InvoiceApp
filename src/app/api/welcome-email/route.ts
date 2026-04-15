@@ -9,7 +9,7 @@
  */
 import { NextResponse, type NextRequest } from 'next/server'
 import { Resend } from 'resend'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 
 function buildWelcomeEmailHtml(firstName: string, year: number): string {
   return `<!DOCTYPE html>
@@ -138,7 +138,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Use the token to get the user
-    const supabase = await createClient()
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
 
     if (authError || !user?.email) {

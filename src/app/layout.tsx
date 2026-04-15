@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import Nav from '@/components/Nav'
+import DarkModeSync from '@/components/DarkModeSync'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -75,6 +76,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${inter.className} min-h-full bg-gray-50 dark:bg-gray-900 antialiased`} suppressHydrationWarning>
         <Nav />
+        <DarkModeSync />
         {children}
       </body>
     </html>

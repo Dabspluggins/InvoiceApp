@@ -69,6 +69,8 @@ const EVENT_LABELS: Record<string, string> = {
   rejected: '❌ Client rejected the estimate',
   revised: '✏️ Client submitted revisions',
   converted: '📄 Converted to invoice',
+  negotiation_accepted: '✓ Negotiation accepted — client notified',
+  negotiation_rejected: '✗ Negotiation rejected — client notified',
 }
 
 export default function EstimateEditor({ estimateId }: { estimateId?: string }) {
@@ -105,6 +107,10 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
   const [sendModalOpen, setSendModalOpen] = useState(false)
   const [sendEmail, setSendEmail] = useState('')
   const [sendName, setSendName] = useState('')
+  const [acceptingNegotiation, setAcceptingNegotiation] = useState(false)
+  const [rejectingNegotiation, setRejectingNegotiation] = useState(false)
+  const [showRejectModal, setShowRejectModal] = useState(false)
+  const [rejectionNote, setRejectionNote] = useState('')
 
   function showToast(message: string, type: 'success' | 'error') {
     setToast({ message, type })
@@ -433,6 +439,43 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
     }
   }
 
+  async function handleAcceptNegotiation() {
+    if (!savedId) return
+    setAcceptingNegotiation(true)
+    try {
+      const res = await fetch(`/api/estimates/${savedId}/accept-negotiation`, { method: 'POST' })
+      if (!res.ok) throw new Error('Failed')
+      setStatus('approved')
+      showToast('Negotiation accepted. Client has been notified.', 'success')
+    } catch {
+      showToast('Failed to accept negotiation', 'error')
+    } finally {
+      setAcceptingNegotiation(false)
+    }
+  }
+
+  async function handleRejectNegotiation() {
+    if (!savedId) return
+    setRejectingNegotiation(true)
+    try {
+      const res = await fetch(`/api/estimates/${savedId}/reject-negotiation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note: rejectionNote.trim() || null }),
+      })
+      if (!res.ok) throw new Error('Failed')
+      setStatus('sent')
+      setLineItems(prev => prev.map(item => ({ ...item, client_proposed_price: null })))
+      setShowRejectModal(false)
+      setRejectionNote('')
+      showToast('Negotiation rejected. Client has been notified.', 'success')
+    } catch {
+      showToast('Failed to reject negotiation', 'error')
+    } finally {
+      setRejectingNegotiation(false)
+    }
+  }
+
   const actionBar = (
     <div className="flex gap-3 flex-wrap">
       <button
@@ -464,7 +507,7 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
           disabled={converting}
           className="bg-purple-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-purple-700 disabled:opacity-50 transition"
         >
-          {converting ? 'Converting…' : 'Convert to Invoice'}
+          {converting ? 'Converting…' : status === 'revised' ? 'Convert at Negotiated Price' : 'Convert to Invoice'}
         </button>
       )}
     </div>
@@ -543,6 +586,45 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
                 className="flex-1 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 transition"
               >
                 {sending ? 'Sending…' : 'Send Estimate'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Negotiation Modal */}
+      {showRejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md p-6">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Reject Negotiation</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              The client will be notified that their proposed prices were not accepted. The estimate will revert to its original prices.
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Note to client (optional)
+              </label>
+              <textarea
+                value={rejectionNote}
+                onChange={e => setRejectionNote(e.target.value)}
+                rows={3}
+                placeholder="e.g. Our prices are fixed due to material costs…"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowRejectModal(false); setRejectionNote('') }}
+                className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRejectNegotiation}
+                disabled={rejectingNegotiation}
+                className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition"
+              >
+                {rejectingNegotiation ? 'Rejecting…' : 'Confirm Reject'}
               </button>
             </div>
           </div>
@@ -1071,36 +1153,58 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
             )}
           </div>
 
-          {/* Negotiation review — visible to Theo when client has proposed prices */}
-          {lineItems.some(item => item.client_proposed_price != null) && (
+          {/* Negotiation Review Panel */}
+          {status === 'revised' && (
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-amber-300 dark:border-amber-600 p-5">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                💬 Client&apos;s Proposed Prices
+                💬 Client Submitted Revisions
               </h3>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
-                    <th className="text-left pb-2">Item</th>
-                    <th className="text-right pb-2">Original</th>
-                    <th className="text-right pb-2">Proposed</th>
-                    <th className="text-right pb-2">Change</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lineItems.filter(item => item.client_proposed_price != null).map((item, idx) => {
-                    const diff = item.unit_price - (item.client_proposed_price ?? item.unit_price)
-                    const diffPct = ((diff / item.unit_price) * 100).toFixed(1)
-                    return (
-                      <tr key={idx} className="border-b border-gray-50 dark:border-gray-700">
-                        <td className="py-2 text-gray-800 dark:text-gray-200">{item.description}</td>
-                        <td className="py-2 text-right text-gray-600 dark:text-gray-400">{formatCurrency(item.unit_price, currency)}</td>
-                        <td className="py-2 text-right font-semibold text-gray-900 dark:text-white">{formatCurrency(item.client_proposed_price!, currency)}</td>
-                        <td className="py-2 text-right text-red-500">-{diffPct}%</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+              {lineItems.some(item => item.client_proposed_price != null) ? (
+                <table className="w-full text-sm mb-1">
+                  <thead>
+                    <tr className="text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
+                      <th className="text-left pb-2">Item</th>
+                      <th className="text-right pb-2">Original</th>
+                      <th className="text-right pb-2">Proposed</th>
+                      <th className="text-right pb-2">Change</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lineItems.filter(item => item.client_proposed_price != null).map((item, idx) => {
+                      const diff = item.unit_price - (item.client_proposed_price ?? item.unit_price)
+                      const diffPct = ((diff / item.unit_price) * 100).toFixed(1)
+                      return (
+                        <tr key={idx} className="border-b border-gray-50 dark:border-gray-700">
+                          <td className="py-2 text-gray-800 dark:text-gray-200">{item.description}</td>
+                          <td className="py-2 text-right text-gray-600 dark:text-gray-400">{formatCurrency(item.unit_price, currency)}</td>
+                          <td className="py-2 text-right font-semibold text-gray-900 dark:text-white">{formatCurrency(item.client_proposed_price!, currency)}</td>
+                          <td className="py-2 text-right text-red-500">-{diffPct}%</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                  The client removed line items. Review and accept or reject.
+                </p>
+              )}
+              <div className="flex gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                <button
+                  onClick={handleAcceptNegotiation}
+                  disabled={acceptingNegotiation}
+                  className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 transition"
+                >
+                  {acceptingNegotiation ? 'Accepting…' : '✓ Accept Negotiation'}
+                </button>
+                <button
+                  onClick={() => setShowRejectModal(true)}
+                  disabled={rejectingNegotiation}
+                  className="flex-1 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-100 dark:hover:bg-red-900/40 disabled:opacity-50 transition"
+                >
+                  ✗ Reject Negotiation
+                </button>
+              </div>
             </div>
           )}
 

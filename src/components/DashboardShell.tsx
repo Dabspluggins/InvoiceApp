@@ -29,7 +29,7 @@ export default function DashboardShell({ user }: { user: User }) {
       .single()
       .then(({ data }) => {
         // Send welcome email if not yet sent (fire-and-forget, no navigation issues here)
-        if (data && data.welcome_sent === false) {
+        if (!data || !data.welcome_sent) {
           fetch('/api/welcome-email', { method: 'POST' }).catch(() => {})
         }
         if (data && typeof data.dark_mode === 'boolean') {

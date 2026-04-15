@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
+import type { EstimateTemplate } from '@/lib/types'
 
 const inputCls =
   'w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition'
@@ -52,7 +53,23 @@ export default function SettingsClient({ user }: { user: User }) {
         if (data?.default_notes != null) setDefaultNotes(data.default_notes)
         if (data?.default_terms != null) setDefaultTerms(data.default_terms)
       })
+
+    fetch('/api/estimates/templates')
+      .then(r => r.json())
+      .then(({ templates: tpls }) => setTemplates(tpls || []))
+      .catch(() => {})
+      .finally(() => setTemplatesLoading(false))
   }, [user.id])
+
+  async function handleDeleteTemplate(id: string) {
+    setDeletingTemplateId(id)
+    try {
+      await fetch(`/api/estimates/templates/${id}`, { method: 'DELETE' })
+      setTemplates(prev => prev.filter(t => t.id !== id))
+    } finally {
+      setDeletingTemplateId(null)
+    }
+  }
 
   async function saveInvoiceDefaults(e: React.FormEvent) {
     e.preventDefault()
@@ -77,6 +94,11 @@ export default function SettingsClient({ user }: { user: User }) {
   // Security section
   const [revokingOtherSessions, setRevokingOtherSessions] = useState(false)
   const [revokeMsg, setRevokeMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // Estimate Templates section
+  const [templates, setTemplates] = useState<EstimateTemplate[]>([])
+  const [templatesLoading, setTemplatesLoading] = useState(true)
+  const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null)
 
   // Danger zone
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -380,6 +402,41 @@ export default function SettingsClient({ user }: { user: User }) {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Estimate Templates section */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">Estimate Templates</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Reusable estimate setups saved from the estimate editor</p>
+        </div>
+        <div className="p-6">
+          {templatesLoading ? (
+            <p className="text-sm text-gray-400 dark:text-gray-500">Loading…</p>
+          ) : templates.length === 0 ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">No templates saved yet. Open an estimate and click &quot;Save as Template&quot; to create one.</p>
+          ) : (
+            <ul className="divide-y divide-gray-100 dark:divide-gray-700">
+              {templates.map(t => (
+                <li key={t.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{t.name}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                      {t.items?.length ?? 0} items · valid {t.valid_days}d · saved {new Date(t.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteTemplate(t.id)}
+                    disabled={deletingTemplateId === t.id}
+                    className="text-xs text-red-500 hover:text-red-700 disabled:opacity-40 transition ml-4 shrink-0"
+                  >
+                    {deletingTemplateId === t.id ? 'Deleting…' : 'Delete'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       {/* Security section */}

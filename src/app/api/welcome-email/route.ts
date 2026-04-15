@@ -18,67 +18,107 @@ function buildWelcomeEmailHtml(firstName: string, year: number): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
-<body style="margin:0;padding:0;background:#f9fafb;font-family:Arial,Helvetica,sans-serif;">
-  <div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:580px;margin:40px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.10);">
 
     <!-- Header -->
-    <div style="background:#4F46E5;padding:32px 40px;">
-      <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:-0.5px;">BillByDab</h1>
-      <p style="margin:6px 0 0;color:#c7d2fe;font-size:14px;">Free invoicing for freelancers &amp; small businesses</p>
+    <div style="background:#111827;padding:32px 40px;">
+      <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;letter-spacing:-0.5px;">BillByDab</h1>
+      <p style="margin:6px 0 0;color:#9ca3af;font-size:14px;">Built in Lagos. Free everywhere.</p>
     </div>
 
     <!-- Body -->
     <div style="padding:40px;">
-      <p style="margin:0 0 16px;color:#111827;font-size:16px;line-height:1.6;">
-        Hey ${firstName} &#128075;
+
+      <p style="margin:0 0 20px;color:#111827;font-size:16px;line-height:1.6;">
+        Hey ${firstName},
       </p>
-      <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.7;">
-        Welcome to BillByDab. I&#39;m genuinely glad you&#39;re here.
+
+      <p style="margin:0 0 16px;color:#111827;font-size:16px;font-weight:700;line-height:1.5;">
+        Someone built BillByDab for you.
       </p>
-      <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.7;">
-        Whether you&#39;re a freelancer chasing payments, a small business owner keeping things tidy, or just someone tired of creating invoices in Word &#8212; this is for you. BillByDab is free, always.
+
+      <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.75;">
+        Too many freelancers and business owners were building invoices in Word, chasing clients on WhatsApp, and tracking payments in their heads. That&#39;s not a system &#8212; that&#39;s survival mode.
       </p>
-      <p style="margin:0 0 24px;color:#374151;font-size:15px;line-height:1.7;">
-        You can create your first invoice right now &#8212; it takes about 60 seconds. Add your client, line items, and send. That&#39;s it.
+
+      <p style="margin:0 0 28px;color:#374151;font-size:15px;line-height:1.75;">
+        We built something better. And we kept it free &#8212; because the people who need it most are the ones who can least afford another subscription.
+      </p>
+
+      <!-- Divider -->
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:0 0 28px;">
+
+      <p style="margin:0 0 20px;color:#111827;font-size:15px;font-weight:600;line-height:1.5;">
+        Here&#39;s what makes BillByDab different:
+      </p>
+
+      <!-- Feature card: Price Negotiation -->
+      <div style="border-left:4px solid #4F46E5;background:#f5f3ff;border-radius:0 8px 8px 0;padding:16px 20px;margin:0 0 16px;">
+        <p style="margin:0 0 6px;color:#4F46E5;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Price Negotiation on Estimates</p>
+        <p style="margin:0;color:#374151;font-size:14px;line-height:1.7;">
+          Send a price proposal and let clients negotiate within a range you control. They can remove items or propose lower prices &#8212; you see their offer and decide to accept, reject, or convert directly to invoice. No other free invoicing tool does this.
+        </p>
+      </div>
+
+      <!-- Feature card: WhatsApp-native -->
+      <div style="border-left:4px solid #16a34a;background:#f0fdf4;border-radius:0 8px 8px 0;padding:16px 20px;margin:0 0 16px;">
+        <p style="margin:0 0 6px;color:#16a34a;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">WhatsApp-Native</p>
+        <p style="margin:0;color:#374151;font-size:14px;line-height:1.7;">
+          Send invoices and estimates via WhatsApp in one click. Your client gets a link, reviews everything in a clean portal, and you&#39;re notified the moment they open it. Meet your clients where they already are.
+        </p>
+      </div>
+
+      <!-- Feature card: Client Credit -->
+      <div style="border-left:4px solid #ea580c;background:#fff7ed;border-radius:0 8px 8px 0;padding:16px 20px;margin:0 0 28px;">
+        <p style="margin:0 0 6px;color:#ea580c;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Client Credit</p>
+        <p style="margin:0;color:#374151;font-size:14px;line-height:1.7;">
+          When a client overpays, record the excess as credit in their favour. Next invoice, it&#39;s automatically available to apply &#8212; no awkward conversations, no mental math.
+        </p>
+      </div>
+
+      <p style="margin:0 0 32px;color:#6b7280;font-size:14px;line-height:1.7;">
+        There&#39;s more &#8212; analytics, expense tracking, recurring invoices, client management, invoice templates. All free.
       </p>
 
       <!-- CTA Button -->
-      <div style="text-align:center;margin:32px 0;">
+      <div style="margin:0 0 36px;">
         <a href="https://www.billbydab.com/invoice"
-           style="display:inline-block;background:#4F46E5;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600;letter-spacing:0.2px;">
-          Create your first invoice &#8594;
+           style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;letter-spacing:0.2px;">
+          Send your first invoice &#8594;
         </a>
       </div>
 
-      <!-- Quick tips -->
-      <div style="background:#f5f3ff;border-radius:8px;padding:20px 24px;margin:24px 0;">
-        <p style="margin:0 0 12px;color:#4F46E5;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;">A few things worth knowing</p>
-        <p style="margin:0 0 8px;color:#374151;font-size:14px;line-height:1.6;">&#128196; <strong>Invoices</strong> &#8212; create, send via email or WhatsApp, track payments</p>
-        <p style="margin:0 0 8px;color:#374151;font-size:14px;line-height:1.6;">&#128203; <strong>Estimates</strong> &#8212; send price proposals clients can review and negotiate</p>
-        <p style="margin:0 0 8px;color:#374151;font-size:14px;line-height:1.6;">&#128101; <strong>Clients</strong> &#8212; save client details for faster invoicing</p>
-        <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">&#128202; <strong>Analytics</strong> &#8212; see what you&#39;ve earned, what&#39;s outstanding, what&#39;s overdue</p>
-      </div>
-
-      <p style="margin:24px 0 8px;color:#374151;font-size:15px;line-height:1.7;">
-        If you ever get stuck or have a question, just reply to this email. I read every message.
+      <!-- Bridge line -->
+      <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.75;font-style:italic;">
+        One last thing before you go &#8212;
       </p>
-      <p style="margin:0 0 32px;color:#374151;font-size:15px;line-height:1.7;">
+
+      <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.75;">
+        I&#39;m genuinely glad you&#39;re here. If you ever get stuck or have a question, just reply to this email. I read every message.
+      </p>
+
+      <p style="margin:0 0 32px;color:#374151;font-size:15px;line-height:1.75;">
         Let&#39;s get you paid.
       </p>
 
-      <p style="margin:0;color:#374151;font-size:15px;">
-        Warm regards,<br>
+      <!-- Signature -->
+      <p style="margin:0;color:#111827;font-size:15px;line-height:1.8;">
         <strong>Dab</strong><br>
-        <span style="color:#6b7280;font-size:13px;">Founder, BillByDab</span>
+        <span style="color:#6b7280;font-size:13px;">Founder, BillByDab &#183; Built in Lagos</span><br>
+        <a href="mailto:onboarding@billbydab.com" style="color:#6b7280;font-size:13px;text-decoration:none;">onboarding@billbydab.com</a>
       </p>
+
     </div>
 
     <!-- Footer -->
     <div style="padding:24px 40px;border-top:1px solid #f3f4f6;background:#f9fafb;">
-      <p style="margin:0;color:#9ca3af;font-size:12px;line-height:1.6;text-align:center;">
-        You&#39;re receiving this because you just signed up at
+      <p style="margin:0;color:#9ca3af;font-size:12px;line-height:1.7;text-align:center;">
+        You&#39;re receiving this because you just created an account at
         <a href="https://www.billbydab.com" style="color:#4F46E5;text-decoration:none;">billbydab.com</a>.<br>
-        &#169; ${year} BillByDab &#183; <a href="https://www.billbydab.com/privacy" style="color:#9ca3af;">Privacy Policy</a>
+        &#169; ${year} BillByDab &#183;
+        <a href="https://www.billbydab.com/privacy" style="color:#9ca3af;text-decoration:none;">Privacy Policy</a> &#183;
+        <a href="https://www.billbydab.com/terms" style="color:#9ca3af;text-decoration:none;">Terms</a>
       </p>
     </div>
 

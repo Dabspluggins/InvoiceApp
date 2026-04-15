@@ -23,6 +23,7 @@ export default function AuthCallbackPage() {
             'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
+          keepalive: true,
         }).catch(() => {})
       }
     }

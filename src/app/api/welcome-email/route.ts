@@ -10,7 +10,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { Resend } from 'resend'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
 
 function buildWelcomeEmailHtml(firstName: string, year: number): string {
   return `<!DOCTYPE html>
@@ -146,24 +145,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
-    // Use admin client for profiles queries (RLS can't use token directly)
-    const adminClient = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
-
-    // Check if welcome email already sent to avoid duplicates
-    const { data: profile } = await adminClient
-      .from('profiles')
-      .select('welcome_sent')
-      .eq('id', user.id)
-      .single()
-
-    if (profile?.welcome_sent) {
-      return NextResponse.json({ skipped: true })
-    }
-
     const apiKey = process.env.RESEND_API_KEY
     if (!apiKey) {
       return NextResponse.json({ error: 'RESEND_API_KEY not configured' }, { status: 500 })
@@ -190,11 +171,6 @@ export async function POST(request: NextRequest) {
       console.error('Resend error:', sendError)
       return NextResponse.json({ error: sendError.message }, { status: 500 })
     }
-
-    // Mark as sent so we never send it twice
-    await adminClient
-      .from('profiles')
-      .upsert({ id: user.id, welcome_sent: true }, { onConflict: 'id' })
 
     return NextResponse.json({ success: true })
   } catch (err) {

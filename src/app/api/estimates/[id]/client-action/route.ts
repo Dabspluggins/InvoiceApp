@@ -17,10 +17,11 @@ export async function POST(
 
   try {
     const body = await req.json()
-    const { client_token, action, deletedItemIds } = body as {
+    const { client_token, action, deletedItemIds, proposedPrices } = body as {
       client_token: string
       action: 'approve' | 'revise'
       deletedItemIds: string[]
+      proposedPrices?: Record<string, number>
     }
 
     if (!client_token || !action) {
@@ -89,6 +90,47 @@ export async function POST(
         })
       }
 
+      // Apply proposed prices (server-side floor enforcement)
+      const safeProposed =
+        proposedPrices && typeof proposedPrices === 'object' ? proposedPrices : {}
+      const proposedItemIds = Object.keys(safeProposed)
+
+      if (proposedItemIds.length > 0) {
+        const maxDiscountPct = (estimate.max_discount_pct || 0) as number
+
+        const { data: lineItems } = await admin
+          .from('estimate_line_items')
+          .select('id, unit_price, min_price, quantity')
+          .in('id', proposedItemIds)
+          .eq('estimate_id', id)
+
+        for (const itemData of lineItems || []) {
+          const proposed = safeProposed[itemData.id]
+          if (proposed === undefined) continue
+
+          const discountFloor = maxDiscountPct > 0 ? itemData.unit_price * (1 - maxDiscountPct / 100) : 0
+          const itemFloor = itemData.min_price != null ? Number(itemData.min_price) : 0
+          const effectiveFloor = Math.max(discountFloor, itemFloor)
+          const safePrice = effectiveFloor > 0 ? Math.max(Number(proposed), effectiveFloor) : Math.max(Number(proposed), 0.01)
+
+          await admin
+            .from('estimate_line_items')
+            .update({
+              unit_price: safePrice,
+              amount: safePrice * itemData.quantity,
+            })
+            .eq('id', itemData.id)
+            .eq('estimate_id', id)
+        }
+
+        events.push({
+          estimate_id: id,
+          event_type: 'price_proposed',
+          actor: 'client',
+          details: { proposed_prices: safeProposed, count: proposedItemIds.length },
+        })
+      }
+
       await admin
         .from('estimates')
         .update({ status: 'revised', updated_at: now })
@@ -98,7 +140,7 @@ export async function POST(
         estimate_id: id,
         event_type: 'revised',
         actor: 'client',
-        details: { deleted_count: safeDeletedIds.length },
+        details: { deleted_count: safeDeletedIds.length, price_changes: proposedItemIds.length },
       })
     } else {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
@@ -152,6 +194,13 @@ export async function POST(
               action === 'revise' && Array.isArray(deletedItemIds) && deletedItemIds.length > 0
                 ? `<p style="margin:0 0 16px;color:#374151;font-size:14px;">
                 They removed <strong>${deletedItemIds.length} item${deletedItemIds.length !== 1 ? 's' : ''}</strong> from the estimate.
+              </p>`
+                : ''
+            }
+            ${
+              action === 'revise' && proposedPrices && Object.keys(proposedPrices).length > 0
+                ? `<p style="margin:0 0 16px;color:#374151;font-size:14px;">
+                They proposed new prices for <strong>${Object.keys(proposedPrices).length} item${Object.keys(proposedPrices).length !== 1 ? 's' : ''}</strong>.
               </p>`
                 : ''
             }

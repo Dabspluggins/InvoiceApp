@@ -11,6 +11,7 @@ interface LineItem {
   amount: number
   deleted_by_client: boolean
   sort_order: number
+  min_price?: number | null
 }
 
 interface EstimateRow {
@@ -33,6 +34,7 @@ interface EstimateRow {
   notes: string | null
   terms: string | null
   user_id: string
+  max_discount_pct?: number | null
 }
 
 interface Props {
@@ -45,10 +47,16 @@ function calcTotals(
   items: LineItem[],
   taxRate: number,
   discountType: string,
-  discountValue: number
+  discountValue: number,
+  proposedPrices: Record<string, string>
 ) {
   const activeItems = items.filter((i) => !i.deleted_by_client)
-  const subtotal = activeItems.reduce((sum, i) => sum + i.amount, 0)
+  const subtotal = activeItems.reduce((sum, i) => {
+    const proposed = proposedPrices[i.id]
+    const parsedProposed = proposed ? parseFloat(proposed) : NaN
+    const unitPrice = !isNaN(parsedProposed) && parsedProposed > 0 ? parsedProposed : i.unit_price
+    return sum + unitPrice * i.quantity
+  }, 0)
   const discountAmount =
     discountType === 'percentage' ? subtotal * (discountValue / 100) : discountValue
   const taxable = Math.max(0, subtotal - discountAmount)
@@ -72,16 +80,21 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
   const [submitting, setSubmitting] = useState(false)
   const [actionTaken, setActionTaken] = useState<'approved' | 'revised' | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [proposedPrices, setProposedPrices] = useState<Record<string, string>>({})
+  const [priceErrors, setPriceErrors] = useState<Record<string, string>>({})
 
   const activeItems = items.filter((i) => !i.pendingDelete)
   const deletedItems = items.filter((i) => i.pendingDelete)
   const hasDeletedItems = deletedItems.length > 0
+  const hasProposedPrices = Object.values(proposedPrices).some((v) => v !== '' && v !== undefined)
+  const canRevise = hasDeletedItems || hasProposedPrices
 
   const { subtotal, discountAmount, taxAmount, total } = calcTotals(
     items.map((i) => ({ ...i, deleted_by_client: i.pendingDelete })),
     estimate.tax_rate,
     estimate.discount_type,
-    estimate.discount_value
+    estimate.discount_value,
+    proposedPrices
   )
 
   function toggleDelete(id: string) {
@@ -92,10 +105,55 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
     )
   }
 
+  function handleProposedPriceChange(id: string, value: string) {
+    setProposedPrices((prev) => ({ ...prev, [id]: value }))
+    if (priceErrors[id]) {
+      setPriceErrors((prev) => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
+    }
+  }
+
   async function handleAction(action: 'approve' | 'revise') {
     setSubmitting(true)
     setError(null)
+    setPriceErrors({})
     try {
+      // Validate proposed prices before submitting
+      const errors: Record<string, string> = {}
+      const parsedProposedPrices: Record<string, number> = {}
+
+      for (const item of items.filter((i) => !i.pendingDelete)) {
+        const rawProposed = proposedPrices[item.id]
+        if (!rawProposed || rawProposed.trim() === '') continue
+
+        const proposed = parseFloat(rawProposed)
+        if (isNaN(proposed) || proposed < 0) {
+          errors[item.id] = 'Please enter a valid price'
+          continue
+        }
+
+        const maxDiscount = estimate.max_discount_pct || 0
+        const discountFloor = maxDiscount > 0 ? item.unit_price * (1 - maxDiscount / 100) : 0
+        const itemFloor = item.min_price != null ? Number(item.min_price) : 0
+        const effectiveFloor = Math.max(discountFloor, itemFloor)
+
+        if (effectiveFloor > 0 && proposed < effectiveFloor) {
+          errors[item.id] = `Minimum price for this item is ${formatCurrency(effectiveFloor, estimate.currency)}`
+          continue
+        }
+
+        parsedProposedPrices[item.id] = proposed
+      }
+
+      if (Object.keys(errors).length > 0) {
+        setPriceErrors(errors)
+        setSubmitting(false)
+        return
+      }
+
       const deletedItemIds = items.filter((i) => i.pendingDelete).map((i) => i.id)
       const res = await fetch(`/api/estimates/${estimate.id}/client-action`, {
         method: 'POST',
@@ -104,6 +162,7 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
           client_token: token,
           action,
           deletedItemIds: action === 'revise' ? deletedItemIds : [],
+          proposedPrices: action === 'revise' ? parsedProposedPrices : {},
         }),
       })
       const result = await res.json()
@@ -212,17 +271,16 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
         {estimate.client_name && (
           <p className="text-gray-700 text-base">
             Hi <span className="font-semibold">{estimate.client_name}</span>, please review the
-            items below. You can remove any items you don&apos;t want, then either approve or
-            submit revisions.
+            items below. You can remove items you don&apos;t want or propose a different price.
+            When done, approve or submit your revisions.
           </p>
         )}
 
         {/* Instructions */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-800">
-          Click the{' '}
-          <span className="font-semibold">✕</span> button on any line item to remove it. You can
-          undo by clicking again. When done, use the buttons at the bottom to approve or submit
-          revisions.
+          Click <span className="font-semibold">✕</span> to remove an item, or enter a price in
+          the <span className="font-semibold">Your offer</span> field to propose a lower price.
+          Undo a removal by clicking again.
         </div>
 
         {/* Line items card */}
@@ -244,116 +302,202 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
                 <tr>
                   <th className="text-left px-5 py-3">Description</th>
                   <th className="text-center px-4 py-3 w-16">Qty</th>
-                  <th className="text-right px-4 py-3 w-28">Unit Price</th>
+                  <th className="text-right px-4 py-3 w-36">Unit Price</th>
                   <th className="text-right px-4 py-3 w-28">Amount</th>
                   <th className="w-12 px-4 py-3" />
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
-                  <tr
-                    key={item.id}
-                    className={`border-t border-gray-100 transition-colors ${
-                      item.pendingDelete ? 'bg-red-50' : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <td className="px-5 py-4">
-                      <span
-                        className={`text-sm transition-all ${
-                          item.pendingDelete
-                            ? 'line-through text-gray-400'
-                            : 'text-gray-800'
+                {items.map((item) => {
+                  const rawProposed = proposedPrices[item.id] ?? ''
+                  const parsedProposed = rawProposed ? parseFloat(rawProposed) : NaN
+                  const effectiveUnit =
+                    !isNaN(parsedProposed) && parsedProposed > 0
+                      ? parsedProposed
+                      : item.unit_price
+                  const effectiveAmount = effectiveUnit * item.quantity
+
+                  return (
+                    <tr
+                      key={item.id}
+                      className={`border-t border-gray-100 transition-colors ${
+                        item.pendingDelete ? 'bg-red-50' : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <td className="px-5 py-4">
+                        <span
+                          className={`text-sm transition-all ${
+                            item.pendingDelete
+                              ? 'line-through text-gray-400'
+                              : 'text-gray-800'
+                          }`}
+                        >
+                          {item.description}
+                        </span>
+                      </td>
+                      <td
+                        className={`px-4 py-4 text-center text-sm ${
+                          item.pendingDelete ? 'text-gray-300' : 'text-gray-600'
                         }`}
                       >
-                        {item.description}
-                      </span>
-                    </td>
-                    <td
-                      className={`px-4 py-4 text-center text-sm ${
-                        item.pendingDelete ? 'text-gray-300' : 'text-gray-600'
-                      }`}
-                    >
-                      {item.quantity}
-                    </td>
-                    <td
-                      className={`px-4 py-4 text-right text-sm ${
-                        item.pendingDelete ? 'text-gray-300' : 'text-gray-600'
-                      }`}
-                    >
-                      {formatCurrency(item.unit_price, estimate.currency)}
-                    </td>
-                    <td
-                      className={`px-4 py-4 text-right text-sm font-medium ${
-                        item.pendingDelete ? 'text-gray-300 line-through' : 'text-gray-800'
-                      }`}
-                    >
-                      {formatCurrency(item.amount, estimate.currency)}
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      <button
-                        onClick={() => toggleDelete(item.id)}
-                        className={`w-7 h-7 rounded-full text-sm font-bold transition-all flex items-center justify-center mx-auto ${
-                          item.pendingDelete
-                            ? 'bg-orange-100 text-orange-600 hover:bg-orange-200'
-                            : 'bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-600'
+                        {item.quantity}
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <div
+                          className={`text-sm ${
+                            item.pendingDelete ? 'text-gray-300 line-through' : 'text-gray-600'
+                          }`}
+                        >
+                          {formatCurrency(item.unit_price, estimate.currency)}
+                        </div>
+                        {!item.pendingDelete && (
+                          <div className="mt-1">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="Your offer"
+                              value={rawProposed}
+                              onChange={(e) =>
+                                handleProposedPriceChange(item.id, e.target.value)
+                              }
+                              className={`w-28 text-right text-xs px-2 py-1 rounded border transition-colors
+                                dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500
+                                ${
+                                  priceErrors[item.id]
+                                    ? 'border-red-400 bg-red-50 text-red-700 dark:bg-red-900/30 dark:border-red-500'
+                                    : rawProposed
+                                    ? 'border-indigo-400 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-500 dark:text-indigo-300'
+                                    : 'border-gray-200 bg-white text-gray-700 focus:border-indigo-300 focus:ring-1 focus:ring-indigo-200'
+                                }`}
+                            />
+                            {priceErrors[item.id] && (
+                              <p className="text-xs text-red-600 dark:text-red-400 mt-0.5 text-right">
+                                {priceErrors[item.id]}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td
+                        className={`px-4 py-4 text-right text-sm font-medium ${
+                          item.pendingDelete ? 'text-gray-300 line-through' : 'text-gray-800'
                         }`}
-                        title={item.pendingDelete ? 'Undo removal' : 'Remove this item'}
                       >
-                        {item.pendingDelete ? '↩' : '×'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                        {formatCurrency(effectiveAmount, estimate.currency)}
+                        {!item.pendingDelete && rawProposed && !isNaN(parsedProposed) && (
+                          <span className="block text-xs text-indigo-500 dark:text-indigo-400">
+                            proposed
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <button
+                          onClick={() => toggleDelete(item.id)}
+                          className={`w-7 h-7 rounded-full text-sm font-bold transition-all flex items-center justify-center mx-auto ${
+                            item.pendingDelete
+                              ? 'bg-orange-100 text-orange-600 hover:bg-orange-200'
+                              : 'bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-600'
+                          }`}
+                          title={item.pendingDelete ? 'Undo removal' : 'Remove this item'}
+                        >
+                          {item.pendingDelete ? '↩' : '×'}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
 
           {/* Mobile cards */}
           <div className="md:hidden divide-y divide-gray-100">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className={`px-4 py-3 flex items-start gap-3 transition-colors ${
-                  item.pendingDelete ? 'bg-red-50' : ''
-                }`}
-              >
-                <div className="flex-1 min-w-0">
-                  <p
-                    className={`text-sm font-medium transition-all ${
-                      item.pendingDelete ? 'line-through text-gray-400' : 'text-gray-800'
-                    }`}
-                  >
-                    {item.description}
-                  </p>
-                  <p
-                    className={`text-xs mt-0.5 ${
-                      item.pendingDelete ? 'text-gray-300' : 'text-gray-500'
-                    }`}
-                  >
-                    {item.quantity} × {formatCurrency(item.unit_price, estimate.currency)}
-                  </p>
+            {items.map((item) => {
+              const rawProposed = proposedPrices[item.id] ?? ''
+              const parsedProposed = rawProposed ? parseFloat(rawProposed) : NaN
+              const effectiveUnit =
+                !isNaN(parsedProposed) && parsedProposed > 0 ? parsedProposed : item.unit_price
+              const effectiveAmount = effectiveUnit * item.quantity
+
+              return (
+                <div
+                  key={item.id}
+                  className={`px-4 py-3 transition-colors ${
+                    item.pendingDelete ? 'bg-red-50' : ''
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className={`text-sm font-medium transition-all ${
+                          item.pendingDelete ? 'line-through text-gray-400' : 'text-gray-800'
+                        }`}
+                      >
+                        {item.description}
+                      </p>
+                      <p
+                        className={`text-xs mt-0.5 ${
+                          item.pendingDelete ? 'text-gray-300' : 'text-gray-500'
+                        }`}
+                      >
+                        {item.quantity} × {formatCurrency(item.unit_price, estimate.currency)}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p
+                        className={`text-sm font-semibold ${
+                          item.pendingDelete ? 'line-through text-gray-300' : 'text-gray-800'
+                        }`}
+                      >
+                        {formatCurrency(effectiveAmount, estimate.currency)}
+                        {!item.pendingDelete && rawProposed && !isNaN(parsedProposed) && (
+                          <span className="block text-xs font-normal text-indigo-500 dark:text-indigo-400">
+                            proposed
+                          </span>
+                        )}
+                      </p>
+                      <button
+                        onClick={() => toggleDelete(item.id)}
+                        className={`mt-1 text-xs font-medium px-2 py-0.5 rounded-full transition-all ${
+                          item.pendingDelete
+                            ? 'bg-orange-100 text-orange-600'
+                            : 'bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-600'
+                        }`}
+                      >
+                        {item.pendingDelete ? 'Undo' : 'Remove'}
+                      </button>
+                    </div>
+                  </div>
+                  {!item.pendingDelete && (
+                    <div className="mt-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Your offer (optional)"
+                        value={rawProposed}
+                        onChange={(e) => handleProposedPriceChange(item.id, e.target.value)}
+                        className={`w-full text-sm px-3 py-1.5 rounded border transition-colors
+                          dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500
+                          ${
+                            priceErrors[item.id]
+                              ? 'border-red-400 bg-red-50 text-red-700 dark:bg-red-900/30 dark:border-red-500'
+                              : rawProposed
+                              ? 'border-indigo-400 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-500 dark:text-indigo-300'
+                              : 'border-gray-200 bg-white text-gray-700 focus:border-indigo-300 focus:ring-1 focus:ring-indigo-200'
+                          }`}
+                      />
+                      {priceErrors[item.id] && (
+                        <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                          {priceErrors[item.id]}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="text-right shrink-0">
-                  <p
-                    className={`text-sm font-semibold ${
-                      item.pendingDelete ? 'line-through text-gray-300' : 'text-gray-800'
-                    }`}
-                  >
-                    {formatCurrency(item.amount, estimate.currency)}
-                  </p>
-                  <button
-                    onClick={() => toggleDelete(item.id)}
-                    className={`mt-1 text-xs font-medium px-2 py-0.5 rounded-full transition-all ${
-                      item.pendingDelete
-                        ? 'bg-orange-100 text-orange-600'
-                        : 'bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-600'
-                    }`}
-                  >
-                    {item.pendingDelete ? 'Undo' : 'Remove'}
-                  </button>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           {/* Totals */}
@@ -381,9 +525,9 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
                 <span>{formatCurrency(taxAmount, estimate.currency)}</span>
               </div>
             )}
-            {hasDeletedItems && (
+            {(hasDeletedItems || hasProposedPrices) && (
               <p className="text-xs text-orange-600 italic">
-                * Total reflects your selected items only
+                * Total reflects your selected items and proposed prices
               </p>
             )}
             <div className="flex justify-between font-bold text-base text-gray-900 border-t border-gray-200 pt-2">
@@ -424,11 +568,13 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h3 className="text-sm font-semibold text-gray-700 mb-1">Your Response</h3>
           <p className="text-xs text-gray-500 mb-4">
-            {hasDeletedItems
-              ? `You have removed ${deletedItems.length} item${
-                  deletedItems.length !== 1 ? 's' : ''
-                }. Click "Submit Revisions" to send your changes.`
-              : 'If you\'re happy with everything, click "Approve Estimate". To remove items, click × next to them first.'}
+            {canRevise
+              ? hasDeletedItems && hasProposedPrices
+                ? `You have removed ${deletedItems.length} item${deletedItems.length !== 1 ? 's' : ''} and proposed new prices. Click "Submit Revisions" to send.`
+                : hasDeletedItems
+                ? `You have removed ${deletedItems.length} item${deletedItems.length !== 1 ? 's' : ''}. Click "Submit Revisions" to send your changes.`
+                : 'You have proposed new prices. Click "Submit Revisions" to send.'
+              : 'If you\'re happy with everything, click "Approve Estimate". To remove items or propose prices, use the controls above.'}
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             <button
@@ -447,9 +593,9 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
             </button>
             <button
               onClick={() => handleAction('revise')}
-              disabled={submitting || !hasDeletedItems}
+              disabled={submitting || !canRevise}
               className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
-              title={!hasDeletedItems ? 'Remove at least one item to submit revisions' : ''}
+              title={!canRevise ? 'Remove items or propose prices to submit revisions' : ''}
             >
               {submitting ? (
                 <span>Submitting…</span>
@@ -461,9 +607,9 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
               )}
             </button>
           </div>
-          {!hasDeletedItems && (
+          {!canRevise && (
             <p className="text-xs text-gray-400 text-center mt-2">
-              Remove items above to enable "Submit Revised Estimate"
+              Remove items or propose prices above to enable "Submit Revised Estimate"
             </p>
           )}
         </div>
@@ -476,36 +622,50 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
             </h3>
             <ul className="space-y-1">
               {deletedItems.map((item) => (
-                <li key={item.id} className="text-sm text-orange-700 flex items-center gap-2">
-                  <span className="text-red-400">×</span>
-                  <span>{item.description}</span>
-                  <span className="text-orange-500 ml-auto">
-                    {formatCurrency(item.amount, estimate.currency)}
-                  </span>
+                <li key={item.id} className="text-sm text-orange-700 flex items-start gap-2">
+                  <span className="shrink-0">×</span>
+                  {item.description}
                 </li>
               ))}
             </ul>
-            <button
-              onClick={() =>
-                setItems((prev) => prev.map((i) => ({ ...i, pendingDelete: false })))
-              }
-              className="mt-3 text-xs text-orange-600 hover:text-orange-800 underline"
-            >
-              Undo all removals
-            </button>
+            <p className="text-xs text-orange-600 mt-2">
+              These items will be removed when you submit revisions.
+            </p>
           </div>
         )}
 
-        {/* Remaining active items count */}
-        {hasDeletedItems && activeItems.length > 0 && (
-          <p className="text-xs text-center text-gray-500">
-            {activeItems.length} item{activeItems.length !== 1 ? 's' : ''} remaining
-          </p>
+        {/* Proposed prices summary */}
+        {hasProposedPrices && (
+          <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 dark:bg-indigo-900/20 dark:border-indigo-700">
+            <h3 className="text-sm font-semibold text-indigo-800 dark:text-indigo-300 mb-2">
+              Proposed prices:
+            </h3>
+            <ul className="space-y-1">
+              {activeItems
+                .filter((item) => proposedPrices[item.id])
+                .map((item) => {
+                  const raw = proposedPrices[item.id]
+                  const parsed = parseFloat(raw)
+                  return (
+                    <li
+                      key={item.id}
+                      className="text-sm text-indigo-700 dark:text-indigo-300 flex items-start gap-2 justify-between"
+                    >
+                      <span className="truncate">{item.description}</span>
+                      <span className="shrink-0 font-medium">
+                        {isNaN(parsed)
+                          ? raw
+                          : `${formatCurrency(item.unit_price, estimate.currency)} → ${formatCurrency(parsed, estimate.currency)}`}
+                      </span>
+                    </li>
+                  )
+                })}
+            </ul>
+            <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-2">
+              These prices will be sent as your offer when you submit revisions.
+            </p>
+          </div>
         )}
-
-        <p className="text-center text-xs text-gray-400 pb-8">
-          Sent via <span className="font-medium">BillByDab</span>
-        </p>
       </div>
     </div>
   )

@@ -122,9 +122,11 @@ export async function POST(
           .single()
         if (!itemData) continue
 
+        // Only apply discount floor if a positive % is configured
         const discountFloor = maxDiscountPct > 0 ? itemData.unit_price * (1 - maxDiscountPct / 100) : 0
-        const itemFloor = itemData.min_price != null ? itemData.min_price : 0
+        const itemFloor = itemData.min_price != null ? Number(itemData.min_price) : 0
         const effectiveFloor = Math.max(discountFloor, itemFloor)
+        // If no floor constraints set, allow any positive price (don't clamp to original price)
         const safePrice = effectiveFloor > 0 ? Math.max(Number(proposed), effectiveFloor) : Math.max(Number(proposed), 0.01)
 
         await admin

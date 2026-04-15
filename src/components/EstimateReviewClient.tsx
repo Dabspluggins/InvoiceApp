@@ -112,10 +112,13 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
       if (proposed === undefined) continue
 
       const maxDiscount = estimate.max_discount_pct || 0
+      // Only apply discount floor if a positive % was actually configured
+      // When maxDiscount is 0 it means "no global limit" — NOT "limit to 100% of original price"
       const discountFloor = maxDiscount > 0 ? item.unit_price * (1 - maxDiscount / 100) : 0
-      const itemFloor = item.min_price != null ? item.min_price : 0
+      const itemFloor = item.min_price != null ? Number(item.min_price) : 0
       const effectiveFloor = Math.max(discountFloor, itemFloor)
 
+      // Only block submission if there's an actual constraint AND it was violated
       if (effectiveFloor > 0 && proposed < effectiveFloor) {
         errors[item.id] = `Minimum price for this item is ${formatCurrency(effectiveFloor, estimate.currency)}`
       }

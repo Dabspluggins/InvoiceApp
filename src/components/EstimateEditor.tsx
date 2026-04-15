@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
 import { CURRENCIES } from '@/lib/currencies'
-import type { Currency, EstimateLineItem } from '@/lib/types'
+import type { Currency, EstimateLineItem, EstimateTemplate } from '@/lib/types'
 
 interface SavedClient {
   id: string
@@ -104,6 +104,18 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
   const [sendEmail, setSendEmail] = useState('')
   const [sendName, setSendName] = useState('')
 
+  // Negotiation settings (used by templates)
+  const [allowNegotiation, setAllowNegotiation] = useState(false)
+  const [maxDiscountPct, setMaxDiscountPct] = useState(0)
+
+  // Template state
+  const [templates, setTemplates] = useState<EstimateTemplate[]>([])
+  const [showTemplateDropdown, setShowTemplateDropdown] = useState(false)
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false)
+  const [templateName, setTemplateName] = useState('')
+  const [savingTemplate, setSavingTemplate] = useState(false)
+  const [templateValidDays, setTemplateValidDays] = useState(7)
+
   function showToast(message: string, type: 'success' | 'error') {
     setToast({ message, type })
     setTimeout(() => setToast(null), 3500)
@@ -188,6 +200,11 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
     } else {
       loadNextNumber()
     }
+    // Load templates
+    fetch('/api/estimates/templates')
+      .then(r => r.json())
+      .then(({ templates: tpls }) => setTemplates(tpls || []))
+      .catch(() => {/* non-critical */})
   }, [estimateId, loadClients, loadEstimate, loadNextNumber])
 
   // Auto-recalc amounts
@@ -411,6 +428,85 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
     }
   }
 
+  async function handleSaveAsTemplate() {
+    if (!templateName.trim()) return
+    setSavingTemplate(true)
+    try {
+      const res = await fetch('/api/estimates/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: templateName.trim(),
+          tax_rate: taxRate,
+          discount_type: discountType,
+          discount_value: discountValue,
+          notes,
+          terms,
+          allow_negotiation: allowNegotiation,
+          max_discount_pct: maxDiscountPct,
+          valid_days: templateValidDays,
+          items: lineItems.map(item => ({
+            description: item.description,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            min_price: item.min_price || null,
+          })),
+        }),
+      })
+      if (!res.ok) throw new Error('Failed')
+      const { id } = await res.json()
+      setTemplates(prev => [{
+        id,
+        name: templateName.trim(),
+        user_id: '',
+        tax_rate: taxRate,
+        discount_type: discountType,
+        discount_value: discountValue,
+        notes,
+        terms,
+        allow_negotiation: allowNegotiation,
+        max_discount_pct: maxDiscountPct,
+        valid_days: templateValidDays,
+        created_at: new Date().toISOString(),
+      }, ...prev])
+      setShowSaveTemplateModal(false)
+      setTemplateName('')
+      showToast('Template saved!', 'success')
+    } catch {
+      showToast('Failed to save template', 'error')
+    } finally {
+      setSavingTemplate(false)
+    }
+  }
+
+  function handleLoadTemplate(template: EstimateTemplate) {
+    setTaxRate(template.tax_rate || 0)
+    setDiscountType((template.discount_type as 'percentage' | 'fixed') || 'percentage')
+    setDiscountValue(template.discount_value || 0)
+    setNotes(template.notes || '')
+    setTerms(template.terms || '')
+    setAllowNegotiation(template.allow_negotiation || false)
+    setMaxDiscountPct(template.max_discount_pct || 0)
+    if (template.valid_days) {
+      const d = new Date()
+      d.setDate(d.getDate() + template.valid_days)
+      setValidUntil(d.toISOString().split('T')[0])
+    }
+    if (template.items && template.items.length > 0) {
+      setLineItems(template.items.map(item => ({
+        id: `new-${Math.random()}`,
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        amount: item.unit_price * item.quantity,
+        min_price: item.min_price ?? null,
+        client_proposed_price: null,
+      })))
+    }
+    setShowTemplateDropdown(false)
+    showToast(`Template "${template.name}" loaded`, 'success')
+  }
+
   const actionBar = (
     <div className="flex gap-3 flex-wrap">
       <button
@@ -527,6 +623,63 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
         </div>
       )}
 
+      {/* Save as Template Modal */}
+      {showSaveTemplateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm p-6">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Save as Template</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Template name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={templateName}
+                  onChange={e => setTemplateName(e.target.value)}
+                  placeholder="e.g. Full Car Service"
+                  autoFocus
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Valid for (days)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={templateValidDays}
+                  onChange={e => setTemplateValidDays(Number(e.target.value))}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  When loaded, valid_until will be set to today + {templateValidDays} days
+                </p>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2">
+                Saves: {lineItems.length} line item{lineItems.length !== 1 ? 's' : ''}, tax rate, discount, notes, terms, and negotiation settings.
+              </p>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => { setShowSaveTemplateModal(false); setTemplateName('') }}
+                className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveAsTemplate}
+                disabled={savingTemplate || !templateName.trim()}
+                className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition"
+              >
+                {savingTemplate ? 'Saving…' : 'Save Template'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mobile tab toggle */}
       <div className="md:hidden flex border-b border-gray-200 bg-white sticky top-0 z-10">
         <button
@@ -558,6 +711,61 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
         }`}
       >
         <div className="p-6 space-y-6">
+          {/* Template Controls */}
+          <div className="flex items-center gap-2">
+            {/* Load Template dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowTemplateDropdown(!showTemplateDropdown)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+                </svg>
+                Load Template
+                {templates.length > 0 && (
+                  <span className="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 text-xs px-1.5 rounded-full">
+                    {templates.length}
+                  </span>
+                )}
+              </button>
+              {showTemplateDropdown && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowTemplateDropdown(false)} />
+                  <div className="absolute top-full left-0 mt-1 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg w-64 max-h-64 overflow-y-auto">
+                  {templates.length === 0 ? (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 p-4 text-center">No templates saved yet</p>
+                  ) : (
+                    templates.map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => handleLoadTemplate(t)}
+                        className="w-full text-left px-4 py-3 text-sm text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-0 transition"
+                      >
+                        <p className="font-medium">{t.name}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                          {t.items?.length || 0} items · valid {t.valid_days}d
+                        </p>
+                      </button>
+                    ))
+                  )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Save as Template button */}
+            <button
+              onClick={() => setShowSaveTemplateModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+              </svg>
+              Save as Template
+            </button>
+          </div>
+
           {/* Estimate Details */}
           <section>
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">

@@ -112,11 +112,11 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
       if (proposed === undefined) continue
 
       const maxDiscount = estimate.max_discount_pct || 0
-      const discountFloor = item.unit_price * (1 - maxDiscount / 100)
+      const discountFloor = maxDiscount > 0 ? item.unit_price * (1 - maxDiscount / 100) : 0
       const itemFloor = item.min_price != null ? item.min_price : 0
       const effectiveFloor = Math.max(discountFloor, itemFloor)
 
-      if (proposed < effectiveFloor) {
+      if (effectiveFloor > 0 && proposed < effectiveFloor) {
         errors[item.id] = `Minimum price for this item is ${formatCurrency(effectiveFloor, estimate.currency)}`
       }
     }

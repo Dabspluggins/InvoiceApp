@@ -122,10 +122,10 @@ export async function POST(
           .single()
         if (!itemData) continue
 
-        const discountFloor = itemData.unit_price * (1 - maxDiscountPct / 100)
+        const discountFloor = maxDiscountPct > 0 ? itemData.unit_price * (1 - maxDiscountPct / 100) : 0
         const itemFloor = itemData.min_price != null ? itemData.min_price : 0
         const effectiveFloor = Math.max(discountFloor, itemFloor)
-        const safePrice = Math.max(Number(proposed), effectiveFloor)
+        const safePrice = effectiveFloor > 0 ? Math.max(Number(proposed), effectiveFloor) : Math.max(Number(proposed), 0.01)
 
         await admin
           .from('estimate_line_items')

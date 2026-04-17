@@ -2,9 +2,13 @@
 
 import { InvoiceData } from '@/lib/types'
 import { calcTotals, formatCurrency } from '@/lib/utils'
+import InvoiceWatermark from '@/components/InvoiceWatermark'
 
 interface Props {
   data: InvoiceData
+  watermarkEnabled?: boolean
+  watermarkOpacity?: number
+  watermarkLogoUrl?: string | null
 }
 
 // ─── Shared payment details renderer ──────────────────────────────────────────
@@ -64,15 +68,18 @@ function PaymentBlock({ data, accentColor }: { data: InvoiceData; accentColor: s
 
 // ─── Minimal Template ──────────────────────────────────────────────────────────
 
-function MinimalPreview({ data }: Props) {
+function MinimalPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLogoUrl }: Props) {
   const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
 
   return (
     <div
       id="invoice-preview"
       className="bg-white text-gray-800 shadow-sm"
-      style={{ fontFamily: 'Helvetica Neue, Arial, sans-serif', minHeight: '297mm', width: '100%' }}
+      style={{ fontFamily: 'Helvetica Neue, Arial, sans-serif', minHeight: '297mm', width: '100%', position: 'relative' }}
     >
+      {watermarkEnabled && watermarkLogoUrl && (
+        <InvoiceWatermark logoUrl={watermarkLogoUrl} opacity={watermarkOpacity ?? 10} />
+      )}
       {/* Header: business name left, INVOICE right */}
       <div className="px-10 pt-10 pb-6 flex justify-between items-start">
         <div>
@@ -198,7 +205,7 @@ function MinimalPreview({ data }: Props) {
 
 // ─── Classic Template (existing layout) ──────────────────────────────────────
 
-function ClassicPreview({ data }: Props) {
+function ClassicPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLogoUrl }: Props) {
   const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
   const brand = data.brandColor || '#4F46E5'
 
@@ -206,8 +213,11 @@ function ClassicPreview({ data }: Props) {
     <div
       id="invoice-preview"
       className="bg-white text-gray-800 shadow-sm"
-      style={{ fontFamily: 'Georgia, serif', minHeight: '297mm', width: '100%' }}
+      style={{ fontFamily: 'Georgia, serif', minHeight: '297mm', width: '100%', position: 'relative' }}
     >
+      {watermarkEnabled && watermarkLogoUrl && (
+        <InvoiceWatermark logoUrl={watermarkLogoUrl} opacity={watermarkOpacity ?? 10} />
+      )}
       {/* Header banner */}
       <div
         className="px-10 py-8 flex justify-between items-start"
@@ -333,7 +343,7 @@ function ClassicPreview({ data }: Props) {
 
 // ─── Bold Template ────────────────────────────────────────────────────────────
 
-function BoldPreview({ data }: Props) {
+function BoldPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLogoUrl }: Props) {
   const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
   const brand = data.brandColor || '#4F46E5'
 
@@ -341,8 +351,11 @@ function BoldPreview({ data }: Props) {
     <div
       id="invoice-preview"
       className="bg-white text-gray-800 shadow-sm"
-      style={{ fontFamily: 'system-ui, -apple-system, sans-serif', minHeight: '297mm', width: '100%' }}
+      style={{ fontFamily: 'system-ui, -apple-system, sans-serif', minHeight: '297mm', width: '100%', position: 'relative' }}
     >
+      {watermarkEnabled && watermarkLogoUrl && (
+        <InvoiceWatermark logoUrl={watermarkLogoUrl} opacity={watermarkOpacity ?? 10} />
+      )}
       {/* Full-width colored header */}
       <div
         className="px-10 py-10"
@@ -479,9 +492,10 @@ function BoldPreview({ data }: Props) {
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-export default function InvoicePreview({ data }: Props) {
+export default function InvoicePreview({ data, watermarkEnabled, watermarkOpacity, watermarkLogoUrl }: Props) {
   const template = data.template || 'classic'
-  if (template === 'minimal') return <MinimalPreview data={data} />
-  if (template === 'bold') return <BoldPreview data={data} />
-  return <ClassicPreview data={data} />
+  const wProps = { watermarkEnabled, watermarkOpacity, watermarkLogoUrl }
+  if (template === 'minimal') return <MinimalPreview data={data} {...wProps} />
+  if (template === 'bold') return <BoldPreview data={data} {...wProps} />
+  return <ClassicPreview data={data} {...wProps} />
 }

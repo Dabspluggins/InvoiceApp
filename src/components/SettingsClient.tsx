@@ -68,11 +68,17 @@ export default function SettingsClient({
   auditLogs = [],
   loginAlertsEnabled: initialLoginAlertsEnabled = true,
   trustedDevices: initialTrustedDevices = [],
+  watermarkEnabled: initialWatermarkEnabled = false,
+  watermarkOpacity: initialWatermarkOpacity = 10,
+  logoUrl: initialLogoUrl = null,
 }: {
   user: User
   auditLogs?: AuditLog[]
   loginAlertsEnabled?: boolean
   trustedDevices?: TrustedDevice[]
+  watermarkEnabled?: boolean
+  watermarkOpacity?: number
+  logoUrl?: string | null
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -181,6 +187,12 @@ export default function SettingsClient({
   const [loginAlertsSaving, setLoginAlertsSaving] = useState(false)
   const [loginAlertsMsg, setLoginAlertsMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [showDisableAlertsWarning, setShowDisableAlertsWarning] = useState(false)
+
+  // Watermark
+  const [watermarkEnabled, setWatermarkEnabled] = useState(initialWatermarkEnabled)
+  const [watermarkOpacity, setWatermarkOpacity] = useState(initialWatermarkOpacity)
+  const [watermarkSaving, setWatermarkSaving] = useState(false)
+  const [watermarkMsg, setWatermarkMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // Trusted devices
   const [trustedDevices, setTrustedDevices] = useState<TrustedDevice[]>(initialTrustedDevices)
@@ -328,6 +340,20 @@ export default function SettingsClient({
         type: 'success',
         text: enabled ? 'Login alerts enabled.' : 'Login alerts disabled.',
       })
+    }
+  }
+
+  async function saveWatermark(enabled: boolean, opacity: number) {
+    setWatermarkSaving(true)
+    setWatermarkMsg(null)
+    const { error } = await supabase
+      .from('profiles')
+      .upsert({ id: user.id, watermark_enabled: enabled, watermark_opacity: opacity }, { onConflict: 'id' })
+    setWatermarkSaving(false)
+    if (error) {
+      setWatermarkMsg({ type: 'error', text: error.message })
+    } else {
+      setWatermarkMsg({ type: 'success', text: 'Watermark settings saved.' })
     }
   }
 
@@ -568,6 +594,115 @@ export default function SettingsClient({
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Invoice Watermark section */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">Invoice Watermark</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Show your logo as a faint background watermark on all invoices</p>
+        </div>
+        <div className="p-6 space-y-5">
+          {!initialLogoUrl ? (
+            <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-4 py-3">
+              Upload a logo in your profile to enable this feature.
+            </p>
+          ) : (
+            <>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Show my logo as a watermark on invoices</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Applies globally to all your invoices and share links.</p>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={watermarkEnabled}
+                  onClick={() => {
+                    const next = !watermarkEnabled
+                    setWatermarkEnabled(next)
+                    saveWatermark(next, watermarkOpacity)
+                  }}
+                  disabled={watermarkSaving}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-50 ${
+                    watermarkEnabled ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${
+                      watermarkEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {watermarkEnabled && (
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className={labelCls} style={{ marginBottom: 0 }}>Watermark opacity</label>
+                      <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">{watermarkOpacity}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={5}
+                      max={20}
+                      step={1}
+                      value={watermarkOpacity}
+                      onChange={(e) => setWatermarkOpacity(Number(e.target.value))}
+                      onMouseUp={() => saveWatermark(watermarkEnabled, watermarkOpacity)}
+                      onTouchEnd={() => saveWatermark(watermarkEnabled, watermarkOpacity)}
+                      className="w-full accent-indigo-600"
+                    />
+                    <div className="flex justify-between text-xs text-gray-400 dark:text-gray-500 mt-1">
+                      <span>5%</span>
+                      <span>20%</span>
+                    </div>
+                  </div>
+
+                  {/* Live preview */}
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">Preview</p>
+                    <div className="relative rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white" style={{ height: '120px' }}>
+                      {/* Watermark layer */}
+                      <div
+                        className="absolute inset-0 flex items-center justify-center"
+                        style={{ opacity: watermarkOpacity / 100, pointerEvents: 'none' }}
+                        aria-hidden="true"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={initialLogoUrl}
+                          alt=""
+                          style={{ maxHeight: '80%', maxWidth: '55%', objectFit: 'contain' }}
+                        />
+                      </div>
+                      {/* Fake invoice content */}
+                      <div className="relative z-10 p-4 space-y-2">
+                        <div className="h-2 w-24 bg-gray-300 rounded" />
+                        <div className="h-1.5 w-40 bg-gray-200 rounded" />
+                        <div className="h-1.5 w-32 bg-gray-100 rounded" />
+                        <div className="h-1.5 w-36 bg-gray-100 rounded" />
+                        <div className="mt-3 h-2 w-16 bg-gray-300 rounded" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {watermarkMsg && (
+            <div
+              className={`text-sm px-4 py-3 rounded-lg border ${
+                watermarkMsg.type === 'success'
+                  ? 'bg-green-50 border-green-200 text-green-700'
+                  : 'bg-red-50 border-red-200 text-red-600'
+              }`}
+            >
+              {watermarkMsg.text}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Email Preferences section */}

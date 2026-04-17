@@ -216,7 +216,7 @@ export default async function PublicInvoicePage({
             </svg>
             Share
           </a>
-          <PrintButton />
+          <PrintButton invoiceNumber={invoice.invoice_number} clientName={invoice.client_name ?? undefined} />
         </div>
       </nav>
 

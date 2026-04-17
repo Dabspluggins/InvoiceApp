@@ -18,6 +18,19 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
+    const rlRes = await fetch('/api/auth/check-rate-limit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'login' }),
+    })
+    const rlData = await rlRes.json()
+    if (!rlData.allowed) {
+      const minutes = Math.ceil(rlData.retryAfter / 60)
+      setError(`Too many attempts. Please try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`)
+      setLoading(false)
+      return
+    }
+
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
 

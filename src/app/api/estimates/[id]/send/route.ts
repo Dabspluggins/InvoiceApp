@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { Resend } from 'resend'
 import { getCurrencySymbol } from '@/lib/currencies'
+import { sendLimiter } from '@/lib/ratelimit'
 
 interface LineItem {
   description: string
@@ -207,6 +208,15 @@ export async function POST(
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { success, reset } = await sendLimiter.limit(user.id)
+    if (!success) {
+      const retryAfter = Math.ceil((reset - Date.now()) / 1000)
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.', retryAfter },
+        { status: 429 }
+      )
+    }
 
     const body = await req.json()
     const { toEmail, toName } = body

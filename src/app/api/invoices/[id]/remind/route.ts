@@ -2,6 +2,7 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { Resend } from 'resend'
 import type { NextRequest } from 'next/server'
+import { logAudit } from '@/lib/audit'
 
 export const dynamic = 'force-dynamic'
 
@@ -145,6 +146,14 @@ export async function POST(
       reminders_sent: (inv.reminders_sent ?? 0) + 1,
     })
     .eq('id', id)
+
+  logAudit({
+    userId: user.id,
+    action: 'invoice.reminded',
+    entityType: 'invoice',
+    entityId: id,
+    metadata: { to: inv.client_email, invoice_number: inv.invoice_number },
+  }).catch(console.error)
 
   return Response.json({ success: true })
 }

@@ -3,6 +3,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { announcementLimiter } from '@/lib/ratelimit'
 
 const ADMIN_EMAIL = 'enyinnayadaberechi@gmail.com'
 
@@ -21,6 +22,15 @@ export async function POST(request: NextRequest) {
   if (user.email !== ADMIN_EMAIL) {
     console.log('[send-announcement] Forbidden — not admin:', user.email)
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const { success, reset } = await announcementLimiter.limit(user.id)
+  if (!success) {
+    const retryAfter = Math.ceil((reset - Date.now()) / 1000)
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.', retryAfter },
+      { status: 429 }
+    )
   }
 
   const body = await request.json()

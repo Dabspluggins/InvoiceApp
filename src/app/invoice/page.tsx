@@ -385,7 +385,7 @@ function InvoicePageInner() {
   function handleDownloadPDF() {
     const invoiceNumber = data.invoiceNumber
     const clientName = data.clientName
-    const parts = ['Invoice', invoiceNumber, clientName].filter(Boolean)
+    const parts = ['BillByDab', 'Invoice', invoiceNumber, clientName].filter(Boolean)
     const title = parts.join(' - ')
     const prev = document.title
     document.title = title

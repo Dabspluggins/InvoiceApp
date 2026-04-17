@@ -382,6 +382,17 @@ function InvoicePageInner() {
     setTimeout(() => setToast(null), 3000)
   }
 
+  function handleDownloadPDF() {
+    const invoiceNumber = data.invoiceNumber
+    const clientName = data.clientName
+    const parts = ['Invoice', invoiceNumber, clientName].filter(Boolean)
+    const title = parts.join(' - ')
+    const prev = document.title
+    document.title = title
+    window.print()
+    setTimeout(() => { document.title = prev }, 1000)
+  }
+
   function handleWhatsApp() {
     if (!savedShareToken) {
       showToast('Save your invoice first to share via WhatsApp', 'error')
@@ -1296,7 +1307,7 @@ function InvoicePageInner() {
             Save as Template
           </button>
           <button
-            onClick={() => window.print()}
+            onClick={handleDownloadPDF}
             className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
           >
             Download PDF
@@ -1340,7 +1351,7 @@ function InvoicePageInner() {
           Template
         </button>
         <button
-          onClick={() => window.print()}
+          onClick={handleDownloadPDF}
           className="flex-1 bg-indigo-600 text-white px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-indigo-700 transition"
         >
           PDF

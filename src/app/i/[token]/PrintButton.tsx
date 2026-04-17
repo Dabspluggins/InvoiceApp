@@ -1,9 +1,23 @@
 'use client'
 
-export default function PrintButton() {
+interface Props {
+  invoiceNumber?: string
+  clientName?: string
+}
+
+export default function PrintButton({ invoiceNumber, clientName }: Props) {
+  function handleDownloadPDF() {
+    const parts = ['Invoice', invoiceNumber, clientName].filter(Boolean)
+    const title = parts.join(' - ')
+    const prev = document.title
+    document.title = title
+    window.print()
+    setTimeout(() => { document.title = prev }, 1000)
+  }
+
   return (
     <button
-      onClick={() => window.print()}
+      onClick={handleDownloadPDF}
       className="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
     >
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -6,13 +6,55 @@ import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
 import type { EstimateTemplate } from '@/lib/types'
 
+export interface AuditLog {
+  id: string
+  action: string
+  entity_type: string | null
+  entity_id: string | null
+  created_at: string
+}
+
+function humanizeAction(action: string): string {
+  const labels: Record<string, string> = {
+    'login': 'Signed in',
+    'logout': 'Signed out',
+    'signup': 'Account created',
+    'invoice.created': 'Invoice created',
+    'invoice.updated': 'Invoice updated',
+    'invoice.deleted': 'Invoice deleted',
+    'invoice.sent': 'Invoice sent',
+    'invoice.marked_paid': 'Invoice marked as paid',
+    'invoice.reminded': 'Reminder sent',
+    'estimate.created': 'Estimate created',
+    'estimate.updated': 'Estimate updated',
+    'estimate.deleted': 'Estimate deleted',
+    'estimate.sent': 'Estimate sent',
+    'profile.updated': 'Profile updated',
+    'password.changed': 'Password changed',
+    'email.changed': 'Email changed',
+  }
+  return labels[action] ?? action
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60_000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 30) return `${days}d ago`
+  return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
 const inputCls =
   'w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition'
 const labelCls = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'
 const textareaCls =
   'w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition resize-none'
 
-export default function SettingsClient({ user }: { user: User }) {
+export default function SettingsClient({ user, auditLogs = [] }: { user: User; auditLogs?: AuditLog[] }) {
   const router = useRouter()
   const supabase = createClient()
 
@@ -497,6 +539,40 @@ export default function SettingsClient({ user }: { user: User }) {
                   >
                     {deletingTemplateId === t.id ? 'Deleting…' : 'Delete'}
                   </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {/* Recent Activity section */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">Recent Activity</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Last 20 actions on your account</p>
+        </div>
+        <div className="p-6">
+          {auditLogs.length === 0 ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">No activity recorded yet.</p>
+          ) : (
+            <ul className="divide-y divide-gray-100 dark:divide-gray-700">
+              {auditLogs.map(log => (
+                <li key={log.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0 gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="inline-block w-2 h-2 rounded-full bg-indigo-400 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {humanizeAction(log.action)}
+                      </p>
+                      {log.entity_type && (
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">
+                          {log.entity_type}{log.entity_id ? ` · ${log.entity_id}` : ''}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">{timeAgo(log.created_at)}</span>
                 </li>
               ))}
             </ul>

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Resend } from 'resend'
 import { getCurrencySymbol } from '@/lib/currencies'
 import { sendLimiter } from '@/lib/ratelimit'
+import { logAudit } from '@/lib/audit'
 
 interface LineItem {
   description: string
@@ -280,6 +281,14 @@ export async function POST(
       actor: 'owner',
       details: { to: toEmail, name: toName },
     })
+
+    logAudit({
+      userId: user.id,
+      action: 'estimate.sent',
+      entityType: 'estimate',
+      entityId: id,
+      metadata: { to: toEmail },
+    }).catch(console.error)
 
     return NextResponse.json({ success: true })
   } catch (err) {

@@ -7,7 +7,7 @@ interface Props {
 
 export default function PrintButton({ invoiceNumber, clientName }: Props) {
   function handleDownloadPDF() {
-    const parts = ['Invoice', invoiceNumber, clientName].filter(Boolean)
+    const parts = ['BillByDab', 'Invoice', invoiceNumber, clientName].filter(Boolean)
     const title = parts.join(' - ')
     const prev = document.title
     document.title = title

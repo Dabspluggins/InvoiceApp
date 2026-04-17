@@ -1,10 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
 
-const adminClient = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 export type AuditAction =
   | 'login'
   | 'logout'
@@ -36,6 +31,10 @@ export async function logAudit({
   entityId?: string
   metadata?: Record<string, unknown>
 }) {
+  const adminClient = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
   await adminClient.from('audit_logs').insert({
     user_id: userId,
     action,

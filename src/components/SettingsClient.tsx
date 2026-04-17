@@ -7,6 +7,7 @@ import type { User } from '@supabase/supabase-js'
 import type { EstimateTemplate } from '@/lib/types'
 import MfaTwoFactor from '@/components/MfaTwoFactor'
 import ActiveSessions from '@/components/ActiveSessions'
+import type { TrustedDevice } from '@/app/settings/page'
 
 export interface AuditLog {
   id: string
@@ -36,6 +37,10 @@ function humanizeAction(action: string): string {
     'email.changed': 'Email changed',
     'mfa.enabled': '2FA enabled',
     'mfa.disabled': '2FA disabled',
+    'auth.suspicious_login': 'Suspicious login detected',
+    'auth.secured': 'Account secured',
+    'device.trusted': 'Device trusted',
+    'device.untrusted': 'Device removed from trusted',
   }
   return labels[action] ?? action
 }
@@ -58,7 +63,17 @@ const labelCls = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-
 const textareaCls =
   'w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition resize-none'
 
-export default function SettingsClient({ user, auditLogs = [] }: { user: User; auditLogs?: AuditLog[] }) {
+export default function SettingsClient({
+  user,
+  auditLogs = [],
+  loginAlertsEnabled: initialLoginAlertsEnabled = true,
+  trustedDevices: initialTrustedDevices = [],
+}: {
+  user: User
+  auditLogs?: AuditLog[]
+  loginAlertsEnabled?: boolean
+  trustedDevices?: TrustedDevice[]
+}) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const mfaReset = searchParams.get('mfa_reset') === '1'
@@ -93,7 +108,7 @@ export default function SettingsClient({ user, auditLogs = [] }: { user: User; a
     const supabaseClient = createClient()
     supabaseClient
       .from('profiles')
-      .select('default_tax_rate, default_notes, default_terms, email_updates, idle_timeout_minutes')
+      .select('default_tax_rate, default_notes, default_terms, email_updates, idle_timeout_minutes, login_alerts_enabled')
       .eq('id', user.id)
       .maybeSingle()
       .then(({ data }) => {
@@ -102,6 +117,7 @@ export default function SettingsClient({ user, auditLogs = [] }: { user: User; a
         if (data?.default_terms != null) setDefaultTerms(data.default_terms)
         if (data?.email_updates != null) setEmailUpdates(data.email_updates)
         setIdleTimeout(data?.idle_timeout_minutes ?? null)
+        if (data?.login_alerts_enabled != null) setLoginAlerts(data.login_alerts_enabled)
       })
 
     fetch('/api/estimates/templates')
@@ -159,6 +175,16 @@ export default function SettingsClient({ user, auditLogs = [] }: { user: User; a
   const [templates, setTemplates] = useState<EstimateTemplate[]>([])
   const [templatesLoading, setTemplatesLoading] = useState(true)
   const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null)
+
+  // Login alerts
+  const [loginAlerts, setLoginAlerts] = useState(initialLoginAlertsEnabled)
+  const [loginAlertsSaving, setLoginAlertsSaving] = useState(false)
+  const [loginAlertsMsg, setLoginAlertsMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [showDisableAlertsWarning, setShowDisableAlertsWarning] = useState(false)
+
+  // Trusted devices
+  const [trustedDevices, setTrustedDevices] = useState<TrustedDevice[]>(initialTrustedDevices)
+  const [removingDeviceId, setRemovingDeviceId] = useState<string | null>(null)
 
   // Danger zone
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -283,6 +309,49 @@ export default function SettingsClient({ user, auditLogs = [] }: { user: User; a
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Failed to delete account')
       setDeleting(false)
+    }
+  }
+
+  async function saveLoginAlerts(enabled: boolean) {
+    setLoginAlertsSaving(true)
+    setLoginAlertsMsg(null)
+    const { error } = await supabase
+      .from('profiles')
+      .upsert({ id: user.id, login_alerts_enabled: enabled }, { onConflict: 'id' })
+    setLoginAlertsSaving(false)
+    if (error) {
+      setLoginAlerts(!enabled) // revert
+      setLoginAlertsMsg({ type: 'error', text: error.message })
+    } else {
+      setLoginAlerts(enabled)
+      setLoginAlertsMsg({
+        type: 'success',
+        text: enabled ? 'Login alerts enabled.' : 'Login alerts disabled.',
+      })
+    }
+  }
+
+  function handleLoginAlertsToggle(checked: boolean) {
+    if (!checked) {
+      // Show warning before turning off
+      setShowDisableAlertsWarning(true)
+    } else {
+      setShowDisableAlertsWarning(false)
+      saveLoginAlerts(true)
+    }
+  }
+
+  async function removeDevice(id: string) {
+    setRemovingDeviceId(id)
+    try {
+      await fetch('/api/sessions/trust-device', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      setTrustedDevices(prev => prev.filter(d => d.id !== id))
+    } finally {
+      setRemovingDeviceId(null)
     }
   }
 
@@ -684,6 +753,111 @@ export default function SettingsClient({ user, auditLogs = [] }: { user: User; a
               </div>
             )}
           </div>
+
+          {/* Login Alerts toggle */}
+          <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-900 dark:text-white">Login alerts</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                  Email me when a new device and location signs into my account.
+                </p>
+              </div>
+              <button
+                role="switch"
+                aria-checked={loginAlerts}
+                onClick={() => handleLoginAlertsToggle(!loginAlerts)}
+                disabled={loginAlertsSaving}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-50 ${
+                  loginAlerts ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-600'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${
+                    loginAlerts ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {showDisableAlertsWarning && (
+              <div className="mt-3 rounded-lg border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-4 py-3">
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-1">
+                  ⚠️ Are you sure?
+                </p>
+                <p className="text-sm text-amber-700 dark:text-amber-400 mb-3">
+                  Disabling login alerts means you won&apos;t be notified if someone else signs into your account from an unknown device and location. We strongly recommend keeping this on.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowDisableAlertsWarning(false)}
+                    className="text-sm px-4 py-1.5 rounded-lg border border-amber-300 dark:border-amber-600 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDisableAlertsWarning(false)
+                      saveLoginAlerts(false)
+                    }}
+                    disabled={loginAlertsSaving}
+                    className="text-sm px-4 py-1.5 rounded-lg bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 transition-colors"
+                  >
+                    Turn off anyway
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {loginAlertsMsg && !showDisableAlertsWarning && (
+              <div
+                className={`mt-3 text-sm px-4 py-3 rounded-lg border ${
+                  loginAlertsMsg.type === 'success'
+                    ? 'bg-green-50 border-green-200 text-green-700'
+                    : 'bg-red-50 border-red-200 text-red-600'
+                }`}
+              >
+                {loginAlertsMsg.text}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Trusted Devices */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">Trusted Devices</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            Trusted devices never trigger login alerts.
+          </p>
+        </div>
+        <div className="p-6">
+          {trustedDevices.length === 0 ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">No trusted devices yet.</p>
+          ) : (
+            <ul className="divide-y divide-gray-100 dark:divide-gray-700">
+              {trustedDevices.map(device => (
+                <li key={device.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0 gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {device.label ?? 'Unknown device'}
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                      Trusted {new Date(device.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => removeDevice(device.id)}
+                    disabled={removingDeviceId === device.id}
+                    className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-40 transition shrink-0"
+                  >
+                    {removingDeviceId === device.id ? 'Removing…' : 'Remove'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
 

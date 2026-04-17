@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
 import type { EstimateTemplate } from '@/lib/types'
 import MfaTwoFactor from '@/components/MfaTwoFactor'
+import ActiveSessions from '@/components/ActiveSessions'
 
 export interface AuditLog {
   id: string
@@ -92,7 +93,7 @@ export default function SettingsClient({ user, auditLogs = [] }: { user: User; a
     const supabaseClient = createClient()
     supabaseClient
       .from('profiles')
-      .select('default_tax_rate, default_notes, default_terms, email_updates')
+      .select('default_tax_rate, default_notes, default_terms, email_updates, idle_timeout_minutes')
       .eq('id', user.id)
       .maybeSingle()
       .then(({ data }) => {
@@ -100,6 +101,7 @@ export default function SettingsClient({ user, auditLogs = [] }: { user: User; a
         if (data?.default_notes != null) setDefaultNotes(data.default_notes)
         if (data?.default_terms != null) setDefaultTerms(data.default_terms)
         if (data?.email_updates != null) setEmailUpdates(data.email_updates)
+        setIdleTimeout(data?.idle_timeout_minutes ?? null)
       })
 
     fetch('/api/estimates/templates')
@@ -147,6 +149,11 @@ export default function SettingsClient({ user, auditLogs = [] }: { user: User; a
   // Security section
   const [revokingOtherSessions, setRevokingOtherSessions] = useState(false)
   const [revokeMsg, setRevokeMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // Idle timeout
+  const [idleTimeout, setIdleTimeout] = useState<number | null>(null)
+  const [idleTimeoutSaving, setIdleTimeoutSaving] = useState(false)
+  const [idleTimeoutMsg, setIdleTimeoutMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // Estimate Templates section
   const [templates, setTemplates] = useState<EstimateTemplate[]>([])
@@ -245,6 +252,21 @@ export default function SettingsClient({ user, auditLogs = [] }: { user: User; a
       setRevokeMsg({ type: 'error', text: err instanceof Error ? err.message : 'Something went wrong' })
     } finally {
       setRevokingOtherSessions(false)
+    }
+  }
+
+  async function saveIdleTimeout(minutes: number | null) {
+    setIdleTimeoutSaving(true)
+    setIdleTimeoutMsg(null)
+    const { error } = await supabase
+      .from('profiles')
+      .upsert({ id: user.id, idle_timeout_minutes: minutes }, { onConflict: 'id' })
+    setIdleTimeoutSaving(false)
+    if (error) {
+      setIdleTimeoutMsg({ type: 'error', text: error.message })
+    } else {
+      setIdleTimeout(minutes)
+      setIdleTimeoutMsg({ type: 'success', text: minutes ? `Auto sign-out set to ${minutes} minutes.` : 'Auto sign-out disabled.' })
     }
   }
 
@@ -623,8 +645,50 @@ export default function SettingsClient({ user, auditLogs = [] }: { user: User; a
               {revokeMsg.text}
             </div>
           )}
+
+          <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-900 dark:text-white">Idle timeout</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  Automatically sign you out after a period of inactivity.
+                </p>
+              </div>
+              <select
+                value={idleTimeout ?? ''}
+                onChange={e => {
+                  const val = e.target.value === '' ? null : Number(e.target.value)
+                  saveIdleTimeout(val)
+                }}
+                disabled={idleTimeoutSaving}
+                className="shrink-0 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-300 transition disabled:opacity-50 sm:w-40"
+              >
+                <option value="">Off</option>
+                <option value="5">5 minutes</option>
+                <option value="10">10 minutes</option>
+                <option value="15">15 minutes</option>
+                <option value="30">30 minutes</option>
+                <option value="60">1 hour</option>
+                <option value="120">2 hours</option>
+              </select>
+            </div>
+            {idleTimeoutMsg && (
+              <div
+                className={`mt-3 text-sm px-4 py-3 rounded-lg border ${
+                  idleTimeoutMsg.type === 'success'
+                    ? 'bg-green-50 border-green-200 text-green-700'
+                    : 'bg-red-50 border-red-200 text-red-600'
+                }`}
+              >
+                {idleTimeoutMsg.text}
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Active Sessions */}
+      <ActiveSessions />
 
       {/* Two-Factor Authentication */}
       <MfaTwoFactor user={user} />

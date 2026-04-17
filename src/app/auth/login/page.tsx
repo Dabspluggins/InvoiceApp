@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [screen, setScreen] = useState<Screen>('credentials')
+  const [rememberMe, setRememberMe] = useState(false)
   const [totpCode, setTotpCode] = useState('')
   const [backupCode, setBackupCode] = useState('')
   const totpRef = useRef<HTMLInputElement>(null)
@@ -59,6 +60,8 @@ export default function LoginPage() {
       return
     }
 
+    if (!rememberMe) sessionStorage.setItem('remember_me', 'false')
+    fetch('/api/sessions/register', { method: 'POST' }).catch(() => {})
     router.push('/dashboard')
     router.refresh()
   }
@@ -92,6 +95,7 @@ export default function LoginPage() {
       return
     }
 
+    fetch('/api/sessions/register', { method: 'POST' }).catch(() => {})
     router.push('/dashboard')
     router.refresh()
   }
@@ -175,6 +179,15 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={e => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 accent-blue-600"
+              />
+              <span className="text-sm text-gray-600 dark:text-gray-400">Remember me on this device</span>
+            </label>
             {error && (
               <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 text-sm px-4 py-3 rounded-lg">
                 {error}

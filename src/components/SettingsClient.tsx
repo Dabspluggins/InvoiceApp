@@ -420,8 +420,8 @@ export default function SettingsClient({
             <div
               className={`text-sm px-4 py-3 rounded-lg border ${
                 profileMsg.type === 'success'
-                  ? 'bg-green-50 border-green-200 text-green-700'
-                  : 'bg-red-50 border-red-200 text-red-600'
+                  ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-700 dark:text-green-400'
+                  : 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 text-red-600 dark:text-red-400'
               }`}
             >
               {profileMsg.text}
@@ -465,8 +465,8 @@ export default function SettingsClient({
             <div
               className={`text-sm px-4 py-3 rounded-lg border ${
                 emailMsg.type === 'success'
-                  ? 'bg-green-50 border-green-200 text-green-700'
-                  : 'bg-red-50 border-red-200 text-red-600'
+                  ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-700 dark:text-green-400'
+                  : 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 text-red-600 dark:text-red-400'
               }`}
             >
               {emailMsg.text}
@@ -514,8 +514,8 @@ export default function SettingsClient({
             <div
               className={`text-sm px-4 py-3 rounded-lg border ${
                 passwordMsg.type === 'success'
-                  ? 'bg-green-50 border-green-200 text-green-700'
-                  : 'bg-red-50 border-red-200 text-red-600'
+                  ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-700 dark:text-green-400'
+                  : 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 text-red-600 dark:text-red-400'
               }`}
             >
               {passwordMsg.text}
@@ -577,8 +577,8 @@ export default function SettingsClient({
             <div
               className={`text-sm px-4 py-3 rounded-lg border ${
                 defaultsMsg.type === 'success'
-                  ? 'bg-green-50 border-green-200 text-green-700'
-                  : 'bg-red-50 border-red-200 text-red-600'
+                  ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-700 dark:text-green-400'
+                  : 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 text-red-600 dark:text-red-400'
               }`}
             >
               {defaultsMsg.text}
@@ -695,8 +695,8 @@ export default function SettingsClient({
             <div
               className={`text-sm px-4 py-3 rounded-lg border ${
                 watermarkMsg.type === 'success'
-                  ? 'bg-green-50 border-green-200 text-green-700'
-                  : 'bg-red-50 border-red-200 text-red-600'
+                  ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-700 dark:text-green-400'
+                  : 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 text-red-600 dark:text-red-400'
               }`}
             >
               {watermarkMsg.text}
@@ -738,8 +738,8 @@ export default function SettingsClient({
             <div
               className={`mt-4 text-sm px-4 py-3 rounded-lg border ${
                 emailUpdatesMsg.type === 'success'
-                  ? 'bg-green-50 border-green-200 text-green-700'
-                  : 'bg-red-50 border-red-200 text-red-600'
+                  ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-700 dark:text-green-400'
+                  : 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 text-red-600 dark:text-red-400'
               }`}
             >
               {emailUpdatesMsg.text}
@@ -842,8 +842,8 @@ export default function SettingsClient({
             <div
               className={`mt-4 text-sm px-4 py-3 rounded-lg border ${
                 revokeMsg.type === 'success'
-                  ? 'bg-green-50 border-green-200 text-green-700'
-                  : 'bg-red-50 border-red-200 text-red-600'
+                  ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-700 dark:text-green-400'
+                  : 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 text-red-600 dark:text-red-400'
               }`}
             >
               {revokeMsg.text}
@@ -880,8 +880,8 @@ export default function SettingsClient({
               <div
                 className={`mt-3 text-sm px-4 py-3 rounded-lg border ${
                   idleTimeoutMsg.type === 'success'
-                    ? 'bg-green-50 border-green-200 text-green-700'
-                    : 'bg-red-50 border-red-200 text-red-600'
+                    ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-700 dark:text-green-400'
+                    : 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 text-red-600 dark:text-red-400'
                 }`}
               >
                 {idleTimeoutMsg.text}
@@ -948,8 +948,8 @@ export default function SettingsClient({
               <div
                 className={`mt-3 text-sm px-4 py-3 rounded-lg border ${
                   loginAlertsMsg.type === 'success'
-                    ? 'bg-green-50 border-green-200 text-green-700'
-                    : 'bg-red-50 border-red-200 text-red-600'
+                    ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-700 dark:text-green-400'
+                    : 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 text-red-600 dark:text-red-400'
                 }`}
               >
                 {loginAlertsMsg.text}
@@ -1022,7 +1022,7 @@ export default function SettingsClient({
           {!showDeleteConfirm ? (
             <button
               onClick={() => setShowDeleteConfirm(true)}
-              className="text-sm text-red-600 border border-red-300 px-5 py-2 rounded-lg hover:bg-red-50 transition-colors"
+              className="text-sm text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700 px-5 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
             >
               Delete Account
             </button>
@@ -1039,7 +1039,7 @@ export default function SettingsClient({
                 className="w-full border border-red-200 dark:border-red-700 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300 transition"
               />
               {deleteError && (
-                <p className="text-sm text-red-600">{deleteError}</p>
+                <p className="text-sm text-red-600 dark:text-red-400">{deleteError}</p>
               )}
               <div className="flex gap-3">
                 <button

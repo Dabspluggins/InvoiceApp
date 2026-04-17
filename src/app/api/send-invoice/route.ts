@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { PaymentDetails } from '@/lib/types'
 import { getCurrencySymbol } from '@/lib/currencies'
+import { createClient } from '@/lib/supabase/server'
+import { sendLimiter } from '@/lib/ratelimit'
 
 interface LineItem {
   description: string
@@ -237,6 +239,18 @@ function buildEmailHtml(payload: InvoicePayload): string {
 }
 
 export async function POST(req: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const identifier = user?.id ?? req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '127.0.0.1'
+  const { success, reset } = await sendLimiter.limit(identifier)
+  if (!success) {
+    const retryAfter = Math.ceil((reset - Date.now()) / 1000)
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.', retryAfter },
+      { status: 429 }
+    )
+  }
+
   try {
     const apiKey = process.env.RESEND_API_KEY
     if (!apiKey) {

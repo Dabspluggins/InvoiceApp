@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import { contactLimiter } from '@/lib/ratelimit'
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '127.0.0.1'
+  const { success, reset } = await contactLimiter.limit(ip)
+  if (!success) {
+    const retryAfter = Math.ceil((reset - Date.now()) / 1000)
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.', retryAfter },
+      { status: 429 }
+    )
+  }
+
   try {
     const apiKey = process.env.RESEND_API_KEY
     if (!apiKey) {

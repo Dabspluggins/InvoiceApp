@@ -47,9 +47,9 @@ export default async function RevokeSessionsPage({
   }
 
   const supabase = await createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (userError || !user) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center">
@@ -65,6 +65,9 @@ export default async function RevokeSessionsPage({
     )
   }
 
+  // getSession() is safe here — only used to retrieve the access_token, not for auth
+  const { data: { session } } = await supabase.auth.getSession()
+
   const adminClient = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -75,7 +78,7 @@ export default async function RevokeSessionsPage({
   const { data: profile } = await adminClient
     .from('profiles')
     .select('id, revoke_token_expires_at')
-    .eq('id', session.user.id)
+    .eq('id', user.id)
     .eq('revoke_token', token)
     .gt('revoke_token_expires_at', new Date().toISOString())
     .single()
@@ -86,7 +89,7 @@ export default async function RevokeSessionsPage({
 
   // Sign out all other sessions (keep the current one)
   const { error: signOutError } = await adminClient.auth.admin.signOut(
-    session.access_token,
+    session?.access_token ?? '',
     'others'
   )
 
@@ -94,7 +97,7 @@ export default async function RevokeSessionsPage({
   await adminClient
     .from('profiles')
     .update({ revoke_token: null, revoke_token_expires_at: null })
-    .eq('id', session.user.id)
+    .eq('id', user.id)
 
   if (signOutError) {
     console.error('revoke-sessions signout error:', signOutError)

@@ -17,6 +17,8 @@ export type AuditAction =
   | 'profile.updated'
   | 'password.changed'
   | 'email.changed'
+  | 'mfa.enabled'
+  | 'mfa.disabled'
 
 export async function logAudit({
   userId,

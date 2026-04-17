@@ -19,6 +19,10 @@ export type AuditAction =
   | 'email.changed'
   | 'mfa.enabled'
   | 'mfa.disabled'
+  | 'auth.suspicious_login'
+  | 'auth.secured'
+  | 'device.trusted'
+  | 'device.untrusted'
 
 export async function logAudit({
   userId,

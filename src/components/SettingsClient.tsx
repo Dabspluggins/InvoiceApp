@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
 import type { EstimateTemplate } from '@/lib/types'
+import MfaTwoFactor from '@/components/MfaTwoFactor'
 
 export interface AuditLog {
   id: string
@@ -32,6 +33,8 @@ function humanizeAction(action: string): string {
     'profile.updated': 'Profile updated',
     'password.changed': 'Password changed',
     'email.changed': 'Email changed',
+    'mfa.enabled': '2FA enabled',
+    'mfa.disabled': '2FA disabled',
   }
   return labels[action] ?? action
 }
@@ -56,6 +59,8 @@ const textareaCls =
 
 export default function SettingsClient({ user, auditLogs = [] }: { user: User; auditLogs?: AuditLog[] }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const mfaReset = searchParams.get('mfa_reset') === '1'
   const supabase = createClient()
 
   // Profile section
@@ -265,6 +270,12 @@ export default function SettingsClient({ user, auditLogs = [] }: { user: User; a
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Account Settings</h1>
         <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage your profile and account preferences</p>
       </div>
+
+      {mfaReset && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+          Your 2FA has been disabled. Please re-enable it in the Two-Factor Authentication section below with your new device.
+        </div>
+      )}
 
       {/* Profile section */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -614,6 +625,9 @@ export default function SettingsClient({ user, auditLogs = [] }: { user: User; a
           )}
         </div>
       </div>
+
+      {/* Two-Factor Authentication */}
+      <MfaTwoFactor user={user} />
 
       {/* Support link */}
       <p className="text-sm text-gray-500 dark:text-gray-400 text-center">

@@ -4,6 +4,7 @@ import { PaymentDetails } from '@/lib/types'
 import { getCurrencySymbol } from '@/lib/currencies'
 import { createClient } from '@/lib/supabase/server'
 import { sendLimiter } from '@/lib/ratelimit'
+import { logAudit } from '@/lib/audit'
 
 interface LineItem {
   description: string
@@ -284,6 +285,16 @@ export async function POST(req: NextRequest) {
     if (error) {
       console.error('Resend error:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    if (user) {
+      logAudit({
+        userId: user.id,
+        action: 'invoice.sent',
+        entityType: 'invoice',
+        entityId: body.invoiceId,
+        metadata: { to: toEmail },
+      }).catch(console.error)
     }
 
     return NextResponse.json({ success: true })

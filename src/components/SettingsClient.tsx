@@ -45,13 +45,14 @@ export default function SettingsClient({ user }: { user: User }) {
     const supabaseClient = createClient()
     supabaseClient
       .from('profiles')
-      .select('default_tax_rate, default_notes, default_terms')
+      .select('default_tax_rate, default_notes, default_terms, email_updates')
       .eq('id', user.id)
       .maybeSingle()
       .then(({ data }) => {
         if (data?.default_tax_rate != null) setDefaultTaxRate(Number(data.default_tax_rate))
         if (data?.default_notes != null) setDefaultNotes(data.default_notes)
         if (data?.default_terms != null) setDefaultTerms(data.default_terms)
+        if (data?.email_updates != null) setEmailUpdates(data.email_updates)
       })
 
     fetch('/api/estimates/templates')
@@ -90,6 +91,11 @@ export default function SettingsClient({ user }: { user: User }) {
       setDefaultsMsg({ type: 'success', text: 'Invoice defaults saved.' })
     }
   }
+
+  // Email preferences
+  const [emailUpdates, setEmailUpdates] = useState(true)
+  const [emailUpdatesSaving, setEmailUpdatesSaving] = useState(false)
+  const [emailUpdatesMsg, setEmailUpdatesMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // Security section
   const [revokingOtherSessions, setRevokingOtherSessions] = useState(false)
@@ -161,6 +167,22 @@ export default function SettingsClient({ user }: { user: User }) {
       setPasswordMsg({ type: 'success', text: 'Password changed successfully.' })
       setNewPassword('')
       setConfirmPassword('')
+    }
+  }
+
+  async function toggleEmailUpdates(checked: boolean) {
+    setEmailUpdates(checked)
+    setEmailUpdatesSaving(true)
+    setEmailUpdatesMsg(null)
+    const { error } = await supabase
+      .from('profiles')
+      .upsert({ id: user.id, email_updates: checked }, { onConflict: 'id' })
+    setEmailUpdatesSaving(false)
+    if (error) {
+      setEmailUpdates(!checked) // revert
+      setEmailUpdatesMsg({ type: 'error', text: error.message })
+    } else {
+      setEmailUpdatesMsg({ type: 'success', text: checked ? 'Product updates enabled.' : 'You\'ve been unsubscribed from product updates.' })
     }
   }
 
@@ -402,6 +424,49 @@ export default function SettingsClient({ user }: { user: User }) {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Email Preferences section */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">Email Preferences</h2>
+        </div>
+        <div className="p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900 dark:text-white">Product updates &amp; announcements</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                Get notified about new features and improvements to BillByDab.
+              </p>
+            </div>
+            <button
+              role="switch"
+              aria-checked={emailUpdates}
+              onClick={() => toggleEmailUpdates(!emailUpdates)}
+              disabled={emailUpdatesSaving}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-50 ${
+                emailUpdates ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${
+                  emailUpdates ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+          {emailUpdatesMsg && (
+            <div
+              className={`mt-4 text-sm px-4 py-3 rounded-lg border ${
+                emailUpdatesMsg.type === 'success'
+                  ? 'bg-green-50 border-green-200 text-green-700'
+                  : 'bg-red-50 border-red-200 text-red-600'
+              }`}
+            >
+              {emailUpdatesMsg.text}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Estimate Templates section */}

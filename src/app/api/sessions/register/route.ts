@@ -20,6 +20,19 @@ async function hashToken(token: string): Promise<string> {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
+export async function computeHmac(message: string): Promise<string> {
+  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message))
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
 function buildSuspiciousLoginEmail({
   browser,
   deviceType,
@@ -27,6 +40,7 @@ function buildSuspiciousLoginEmail({
   ip,
   timestamp,
   secureLink,
+  trustLink,
 }: {
   browser: string
   deviceType: string
@@ -34,6 +48,7 @@ function buildSuspiciousLoginEmail({
   ip: string | null
   timestamp: string
   secureLink: string
+  trustLink: string
 }): string {
   const displayLocation = location ?? ip ?? 'Unknown location'
   const displayTime = new Date(timestamp).toLocaleString('en-GB', {
@@ -79,17 +94,23 @@ function buildSuspiciousLoginEmail({
                 </td>
               </tr>
             </table>
-            <p style="margin:0 0 24px;color:#374151;font-size:15px;line-height:1.6;">
-              If this was you, no action is needed.
-            </p>
             <div style="text-align:center;margin-bottom:16px;">
               <a href="${secureLink}" style="display:inline-block;background:#DC2626;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">
                 This wasn't me — Secure My Account
               </a>
             </div>
-            <p style="margin:0;color:#9ca3af;font-size:12px;text-align:center;line-height:1.5;">
+            <p style="margin:0 0 20px;color:#9ca3af;font-size:12px;text-align:center;line-height:1.5;">
               This link expires in 24 hours. Clicking it will sign out all other devices.
             </p>
+            <div style="border-top:1px solid #f3f4f6;padding-top:20px;text-align:center;">
+              <p style="margin:0 0 10px;color:#374151;font-size:14px;">Recognised this sign-in?</p>
+              <a href="${trustLink}" style="display:inline-block;color:#4f46e5;font-size:14px;font-weight:500;text-decoration:none;border:1px solid #e0e7ff;padding:10px 24px;border-radius:8px;background:#f5f3ff;">
+                This was me — trust this device &rarr;
+              </a>
+              <p style="margin:10px 0 0;color:#9ca3af;font-size:12px;">
+                You won't receive alerts from this device again.
+              </p>
+            </div>
           </td>
         </tr>
         <tr>
@@ -210,17 +231,8 @@ async function detectAndAlertSuspiciousLogin({
 
   if (trustedDevice) return // known trusted device
 
-  // Check new location — look for any prior session with same location (excluding rows with no location)
+  // Check new location
   if (location) {
-    const { data: priorLocationSession } = await admin
-      .from('user_sessions')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('location', location)
-      .limit(2) // at least 2 rows means there's a prior one (the current upsert may already be in)
-      .maybeSingle()
-
-    // If any prior row with this location exists beyond the one we just upserted, it's not new
     const { count } = await admin
       .from('user_sessions')
       .select('id', { count: 'exact', head: true })
@@ -256,6 +268,11 @@ async function detectAndAlertSuspiciousLogin({
     .update({ secure_account_token: tokenHash, secure_account_token_expires_at: expiresAt })
     .eq('id', userId)
 
+  const label = `${browser} on ${deviceType}`
+  const hmacMessage = `${deviceFingerprint}|${label}|${userId}`
+  const sig = await computeHmac(hmacMessage)
+  const trustLink = `https://billbydab.com/api/sessions/trust-device-token?fingerprint=${deviceFingerprint}&label=${encodeURIComponent(label)}&uid=${userId}&sig=${sig}`
+
   const secureLink = `https://billbydab.com/api/auth/secure-account?token=${rawToken}`
   const resend = new Resend(apiKey)
 
@@ -270,6 +287,7 @@ async function detectAndAlertSuspiciousLogin({
       ip,
       timestamp: new Date().toISOString(),
       secureLink,
+      trustLink,
     }),
   })
 

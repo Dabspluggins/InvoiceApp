@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { Metadata } from 'next'
 import { Resend } from 'resend'
 import PrintButton from './PrintButton'
+import InvoiceWatermark from '@/components/InvoiceWatermark'
 import { PaymentDetails } from '@/lib/types'
 
 interface LineItem {
@@ -13,6 +14,7 @@ interface LineItem {
 
 interface InvoiceRow {
   id: string
+  user_id: string
   invoice_number: string
   issue_date: string
   due_date: string | null
@@ -63,6 +65,20 @@ async function getInvoice(token: string) {
     .order('sort_order')
 
   return { invoice: invoice as InvoiceRow, lineItems: (items || []) as LineItem[] }
+}
+
+async function getOwnerWatermark(userId: string) {
+  const supabase = getServiceClient()
+  const { data } = await supabase
+    .from('profiles')
+    .select('watermark_enabled, watermark_opacity, logo_url')
+    .eq('id', userId)
+    .maybeSingle()
+  return {
+    enabled: data?.watermark_enabled ?? false,
+    opacity: data?.watermark_opacity ?? 10,
+    logoUrl: data?.logo_url ?? null,
+  }
 }
 
 async function recordView(token: string, invoice: InvoiceRow) {
@@ -155,6 +171,10 @@ export default async function PublicInvoicePage({
     await recordView(token, result.invoice)
   }
 
+  const watermark = result
+    ? await getOwnerWatermark(result.invoice.user_id)
+    : { enabled: false, opacity: 10, logoUrl: null as string | null }
+
   if (!result) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
@@ -221,7 +241,10 @@ export default async function PublicInvoicePage({
       </nav>
 
       <main className="min-h-screen bg-gray-100 py-8 px-4 print:bg-white print:py-0 print:px-0">
-        <div className="invoice-card max-w-3xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden print:shadow-none print:rounded-none">
+        <div className="invoice-card max-w-3xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden print:shadow-none print:rounded-none" style={{ position: 'relative' }}>
+          {watermark.enabled && watermark.logoUrl && (
+            <InvoiceWatermark logoUrl={watermark.logoUrl} opacity={watermark.opacity} />
+          )}
 
           {template === 'minimal' ? (
             /* ── Minimal ── */

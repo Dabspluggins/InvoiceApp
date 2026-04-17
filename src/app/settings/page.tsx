@@ -34,7 +34,7 @@ export default async function SettingsPage() {
       .limit(20),
     admin
       .from('profiles')
-      .select('login_alerts_enabled')
+      .select('login_alerts_enabled, watermark_enabled, watermark_opacity, logo_url')
       .eq('id', user.id)
       .maybeSingle(),
     admin
@@ -46,6 +46,9 @@ export default async function SettingsPage() {
 
   const loginAlertsEnabled = profileResult.data?.login_alerts_enabled ?? true
   const trustedDevices = (devicesResult.data ?? []) as TrustedDevice[]
+  const watermarkEnabled = profileResult.data?.watermark_enabled ?? false
+  const watermarkOpacity = profileResult.data?.watermark_opacity ?? 10
+  const logoUrl = profileResult.data?.logo_url ?? null
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
@@ -55,6 +58,9 @@ export default async function SettingsPage() {
           auditLogs={(auditResult.data ?? []) as AuditLog[]}
           loginAlertsEnabled={loginAlertsEnabled}
           trustedDevices={trustedDevices}
+          watermarkEnabled={watermarkEnabled}
+          watermarkOpacity={watermarkOpacity}
+          logoUrl={logoUrl}
         />
       </div>
     </div>

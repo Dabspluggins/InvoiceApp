@@ -105,6 +105,9 @@ function InvoicePageInner() {
   const [savingPayment, setSavingPayment] = useState(false)
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit')
   const [isSignedIn, setIsSignedIn] = useState(false)
+  const [watermarkEnabled, setWatermarkEnabled] = useState(false)
+  const [watermarkOpacity, setWatermarkOpacity] = useState(10)
+  const [watermarkLogoUrl, setWatermarkLogoUrl] = useState<string | null>(null)
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [clientCreditBalance, setClientCreditBalance] = useState<number>(0)
   const [creditDismissed, setCreditDismissed] = useState(false)
@@ -139,6 +142,18 @@ function InvoicePageInner() {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       setIsSignedIn(!!user)
+      if (!user) return
+      supabase
+        .from('profiles')
+        .select('watermark_enabled, watermark_opacity, logo_url')
+        .eq('id', user.id)
+        .maybeSingle()
+        .then(({ data: profile }) => {
+          if (!profile) return
+          setWatermarkEnabled(profile.watermark_enabled ?? false)
+          setWatermarkOpacity(profile.watermark_opacity ?? 10)
+          setWatermarkLogoUrl(profile.logo_url || null)
+        })
     })
   }, [])
 
@@ -1289,7 +1304,12 @@ function InvoicePageInner() {
             </div>
           </div>
           <div>
-            <InvoicePreview data={data} />
+            <InvoicePreview
+              data={data}
+              watermarkEnabled={watermarkEnabled}
+              watermarkOpacity={watermarkOpacity}
+              watermarkLogoUrl={watermarkLogoUrl}
+            />
           </div>
         </div>
         <div className="hidden md:flex p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 gap-3 print:hidden">

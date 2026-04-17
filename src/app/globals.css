@@ -46,4 +46,10 @@ input::placeholder, textarea::placeholder {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+
+  .invoice-watermark {
+    display: block !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }

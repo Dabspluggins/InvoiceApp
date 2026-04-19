@@ -37,6 +37,7 @@ export async function GET() {
   }
 
   const allUsers: Array<{ id: string; email: string; created_at: string }> = []
+
   let page = 1
   while (true) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 })
@@ -46,7 +47,7 @@ export async function GET() {
     page++
   }
 
-  const result = allUsers
+  const users = allUsers
     .filter(u => u.email)
     .map(u => {
       const profile = profileMap.get(u.id)
@@ -60,5 +61,5 @@ export async function GET() {
     })
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
-  return NextResponse.json(result)
+  return NextResponse.json({ users })
 }

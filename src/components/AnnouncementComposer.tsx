@@ -38,7 +38,7 @@ export default function AnnouncementComposer() {
     fetch('/api/admin/users')
       .then(r => r.json())
       .then(data => {
-        if (Array.isArray(data)) setUsers(data)
+        if (data.users) setUsers(data.users)
         else setUsersError((data as { error?: string }).error ?? 'Failed to load users')
       })
       .catch(() => setUsersError('Failed to load users'))

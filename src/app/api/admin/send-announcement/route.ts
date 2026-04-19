@@ -53,7 +53,14 @@ export async function POST(request: NextRequest) {
   })
   const resend = new Resend(resendKey)
 
-  console.log('[send-announcement] Fetching all auth users...')
+  // Fetch opted-in profiles (email_updates = true)
+  const { data: optedIn } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('email_updates', true)
+
+  const optedInIds = new Set((optedIn ?? []).map((p: { id: string }) => p.id))
+  console.log(`[send-announcement] Opted-in users: ${optedInIds.size}`)
 
   // Get all auth users (paginated — Supabase returns max 1000 per page)
   const allUsers: Array<{ id: string; email: string; user_metadata: Record<string, unknown> }> = []
@@ -68,16 +75,7 @@ export async function POST(request: NextRequest) {
 
   console.log(`[send-announcement] Total auth users: ${allUsers.length}`)
 
-  // Fetch opt-out profiles (email_updates = false)
-  const { data: optedOut } = await admin
-    .from('profiles')
-    .select('id')
-    .eq('email_updates', false)
-
-  const optedOutIds = new Set((optedOut ?? []).map((p: { id: string }) => p.id))
-  console.log(`[send-announcement] Opted-out users: ${optedOutIds.size}`)
-
-  const recipients = allUsers.filter(u => u.email && !optedOutIds.has(u.id))
+  const recipients = allUsers.filter(u => u.email && optedInIds.has(u.id))
   const skipped = allUsers.length - recipients.length
 
   console.log(`[send-announcement] Sending to ${recipients.length} recipients, skipping ${skipped}`)

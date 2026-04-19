@@ -34,7 +34,11 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { title, body: announcementBody } = body as { title?: string; body?: string }
+  const { title, body: announcementBody, recipientIds } = body as {
+    title?: string
+    body?: string
+    recipientIds?: string[]
+  }
 
   if (!title?.trim() || !announcementBody?.trim()) {
     return NextResponse.json({ error: 'title and body are required' }, { status: 400 })
@@ -53,32 +57,45 @@ export async function POST(request: NextRequest) {
   })
   const resend = new Resend(resendKey)
 
-  // Fetch opted-in profiles (email_updates = true)
-  const { data: optedIn } = await admin
-    .from('profiles')
-    .select('id')
-    .eq('email_updates', true)
+  type AuthUser = { id: string; email: string; user_metadata: Record<string, unknown> }
 
-  const optedInIds = new Set((optedIn ?? []).map((p: { id: string }) => p.id))
-  console.log(`[send-announcement] Opted-in users: ${optedInIds.size}`)
+  let recipients: AuthUser[]
+  let skipped = 0
 
-  // Get all auth users (paginated — Supabase returns max 1000 per page)
-  const allUsers: Array<{ id: string; email: string; user_metadata: Record<string, unknown> }> = []
-  let page = 1
-  while (true) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 })
-    if (error || !data?.users?.length) break
-    allUsers.push(...data.users as typeof allUsers)
-    if (data.users.length < 1000) break
-    page++
+  const isTargeted = Array.isArray(recipientIds) && recipientIds.length > 0
+
+  if (isTargeted) {
+    const fetches = await Promise.all(
+      recipientIds.map(id => admin.auth.admin.getUserById(id))
+    )
+    recipients = fetches
+      .filter(r => !r.error && r.data?.user?.email)
+      .map(r => r.data.user as AuthUser)
+    console.log(`[send-announcement] Targeted send to ${recipients.length} specified users`)
+  } else {
+    const { data: optedIn } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('email_updates', true)
+
+    const optedInIds = new Set((optedIn ?? []).map((p: { id: string }) => p.id))
+    console.log(`[send-announcement] Opted-in users: ${optedInIds.size}`)
+
+    const allUsers: AuthUser[] = []
+    let page = 1
+    while (true) {
+      const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 })
+      if (error || !data?.users?.length) break
+      allUsers.push(...(data.users as AuthUser[]))
+      if (data.users.length < 1000) break
+      page++
+    }
+
+    console.log(`[send-announcement] Total auth users: ${allUsers.length}`)
+    recipients = allUsers.filter(u => u.email && optedInIds.has(u.id))
+    skipped = allUsers.length - recipients.length
+    console.log(`[send-announcement] Sending to ${recipients.length} recipients, skipping ${skipped}`)
   }
-
-  console.log(`[send-announcement] Total auth users: ${allUsers.length}`)
-
-  const recipients = allUsers.filter(u => u.email && optedInIds.has(u.id))
-  const skipped = allUsers.length - recipients.length
-
-  console.log(`[send-announcement] Sending to ${recipients.length} recipients, skipping ${skipped}`)
 
   let sent = 0
   const errors: string[] = []

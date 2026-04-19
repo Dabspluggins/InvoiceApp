@@ -33,14 +33,14 @@ export default function LineItemsTable({ items, currency, onChange }: Props) {
     ])
   }
 
-  const inputCls = 'border border-gray-200 rounded px-2 py-1 text-sm text-gray-900 placeholder:text-gray-400 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400'
+  const inputCls = 'border border-gray-200 rounded px-2 py-1 text-sm text-gray-900 placeholder:text-gray-400 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder:text-gray-500'
 
   return (
     <div className="mt-4">
       {/* Mobile: card layout */}
       <div className="md:hidden flex flex-col gap-3">
         {items.map((item) => (
-          <div key={item.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+          <div key={item.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
             <div className="flex items-start gap-2 mb-2">
               <input
                 type="text"

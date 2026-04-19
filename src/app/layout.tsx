@@ -3,10 +3,9 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import Nav from '@/components/Nav'
 import DarkModeSync from '@/components/DarkModeSync'
-import IdleTimer from '@/components/IdleTimer'
+import IdleTimerLoader from '@/components/IdleTimerLoader'
 import RememberMeGuard from '@/components/RememberMeGuard'
 import SessionHeartbeat from '@/components/SessionHeartbeat'
-import { createClient } from '@/lib/supabase/server'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -68,22 +67,7 @@ export const metadata: Metadata = {
   },
 }
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  let idleTimeoutMinutes: number | null = null
-
-  try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('idle_timeout_minutes')
-        .eq('id', user.id)
-        .maybeSingle()
-      idleTimeoutMinutes = profile?.idle_timeout_minutes ?? null
-    }
-  } catch { /* ignore — don't crash layout for unauthenticated pages */ }
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="h-full" suppressHydrationWarning>
       <head>
@@ -97,7 +81,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Nav />
         <DarkModeSync />
         <RememberMeGuard />
-        {idleTimeoutMinutes && <IdleTimer idleTimeoutMinutes={idleTimeoutMinutes} />}
+        <IdleTimerLoader />
         <SessionHeartbeat />
         {children}
       </body>

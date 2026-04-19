@@ -34,7 +34,11 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { title, body: announcementBody } = body as { title?: string; body?: string }
+  const { title, body: announcementBody, recipientIds } = body as {
+    title?: string
+    body?: string
+    recipientIds?: string[]
+  }
 
   if (!title?.trim() || !announcementBody?.trim()) {
     return NextResponse.json({ error: 'title and body are required' }, { status: 400 })
@@ -75,20 +79,29 @@ export async function POST(request: NextRequest) {
 
   console.log(`[send-announcement] Total auth users: ${allUsers.length}`)
 
-  const recipients = allUsers.filter(u => u.email && optedInIds.has(u.id))
+  const audienceType = recipientIds && recipientIds.length > 0 ? 'specific' : 'all'
+  const recipientIdSet = recipientIds ? new Set(recipientIds) : null
+
+  const recipients = allUsers.filter(u => {
+    if (!u.email) return false
+    if (!optedInIds.has(u.id)) return false
+    if (recipientIdSet && !recipientIdSet.has(u.id)) return false
+    return true
+  })
   const skipped = allUsers.length - recipients.length
 
   console.log(`[send-announcement] Sending to ${recipients.length} recipients, skipping ${skipped}`)
 
   let sent = 0
   const errors: string[] = []
+  const sentRecipients: Array<{ email: string; resendId: string }> = []
 
   for (const u of recipients) {
     try {
       const firstName = deriveFirstName(u.user_metadata?.full_name as string | undefined, u.email)
       const { html, text } = buildAnnouncementEmail({ firstName, title: title.trim(), body: announcementBody.trim(), userId: u.id })
 
-      const { error: sendError } = await resend.emails.send({
+      const { data: sendData, error: sendError } = await resend.emails.send({
         from: 'Dab from BillByDab <onboarding@billbydab.com>',
         to: u.email,
         subject: title.trim(),
@@ -107,6 +120,9 @@ export async function POST(request: NextRequest) {
       }
 
       sent++
+      if (sendData?.id) {
+        sentRecipients.push({ email: u.email, resendId: sendData.id })
+      }
       if (sent % 10 === 0) {
         console.log(`[send-announcement] Progress: ${sent}/${recipients.length} sent`)
       }
@@ -117,13 +133,38 @@ export async function POST(request: NextRequest) {
 
   console.log(`[send-announcement] Done. Sent: ${sent}, Skipped: ${skipped}, Errors: ${errors.length}`)
 
-  // Log to announcements table
+  // Legacy log
   await admin.from('announcements').insert({
     title: title.trim(),
     body: announcementBody.trim(),
     sent_by: ADMIN_EMAIL,
     recipient_count: sent,
   })
+
+  // Analytics log
+  if (sent > 0) {
+    const { data: logRow, error: logError } = await admin
+      .from('announcement_logs')
+      .insert({
+        subject: title.trim(),
+        body_preview: announcementBody.trim().slice(0, 200),
+        recipient_count: sent,
+        audience_type: audienceType,
+        sent_by: user.email,
+      })
+      .select('id')
+      .single()
+
+    if (!logError && logRow?.id && sentRecipients.length > 0) {
+      await admin.from('announcement_recipients').insert(
+        sentRecipients.map(r => ({
+          announcement_id: logRow.id,
+          resend_email_id: r.resendId,
+          recipient_email: r.email,
+        }))
+      )
+    }
+  }
 
   return NextResponse.json({ sent, skipped, errors: errors.length > 0 ? errors : undefined })
 }

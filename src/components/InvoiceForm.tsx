@@ -187,9 +187,9 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
 
   const inputCls =
     'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 transition dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder:text-gray-500'
-  const labelCls = 'block text-xs font-medium text-gray-500 mb-1'
+  const labelCls = 'block text-xs font-medium text-gray-500 mb-1 dark:text-gray-400'
   const sectionCls = 'mb-6'
-  const sectionHeadCls = 'text-sm font-semibold text-gray-700 mb-3 pb-1 border-b border-gray-100'
+  const sectionHeadCls = 'text-sm font-semibold text-gray-700 mb-3 pb-1 border-b border-gray-100 dark:text-gray-200 dark:border-gray-700'
 
   const pd = data.paymentDetails || {}
   const bt = pd.bankTransfer || {}
@@ -221,7 +221,7 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
         ) : (
           <button
             onClick={() => fileRef.current?.click()}
-            className="border-2 border-dashed border-gray-300 rounded-lg px-6 py-4 text-sm text-gray-500 hover:border-indigo-400 hover:text-indigo-600 transition w-full text-center"
+            className="border-2 border-dashed border-gray-300 rounded-lg px-6 py-4 text-sm text-gray-500 hover:border-indigo-400 hover:text-indigo-600 transition w-full text-center dark:border-gray-600 dark:text-gray-400"
           >
             Click to upload logo
           </button>
@@ -274,7 +274,7 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
                       set('brandColor', val)
                     }
                   }}
-                  className="w-28 px-2 py-1 border border-gray-300 rounded text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  className="w-28 px-2 py-1 border border-gray-300 rounded text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                   placeholder="#4F46E5"
                   maxLength={7}
                 />
@@ -450,7 +450,7 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
                 key={m.id}
                 type="button"
                 onClick={() => applyPaymentMethod(m)}
-                className="px-3 py-1 rounded-full text-xs font-medium border border-gray-300 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                className="px-3 py-1 rounded-full text-xs font-medium border border-gray-300 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 transition-colors dark:border-gray-600 dark:text-gray-300"
               >
                 {m.label}
               </button>
@@ -460,9 +460,9 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
         <button
           type="button"
           onClick={() => setPaymentOpen((v) => !v)}
-          className="w-full flex items-center justify-between py-2 border-b border-gray-100 group"
+          className="w-full flex items-center justify-between py-2 border-b border-gray-100 group dark:border-gray-700"
         >
-          <span className="text-sm font-semibold text-gray-700">Payment Details</span>
+          <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Payment Details</span>
           <svg
             className="w-4 h-4 text-gray-400 transition-transform duration-200"
             style={{ transform: paymentOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
@@ -477,7 +477,7 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
         {paymentOpen && (
           <div className="mt-3">
             {/* Tab selector */}
-            <div className="flex gap-1 bg-gray-100 p-1 rounded-lg mb-4">
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-lg mb-4 dark:bg-gray-700/50">
               {TABS.map((tab) => (
                 <button
                   key={tab.id}
@@ -485,8 +485,8 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
                   onClick={() => setActivePaymentTab(tab.id)}
                   className={`flex-1 text-xs font-medium py-1.5 px-2 rounded-md transition ${
                     activePaymentTab === tab.id
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-white'
+                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                   }`}
                 >
                   {tab.label}

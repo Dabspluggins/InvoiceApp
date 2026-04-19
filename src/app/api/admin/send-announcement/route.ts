@@ -86,13 +86,18 @@ export async function POST(request: NextRequest) {
   for (const u of recipients) {
     try {
       const firstName = deriveFirstName(u.user_metadata?.full_name as string | undefined, u.email)
-      const html = buildAnnouncementEmail({ firstName, title: title.trim(), body: announcementBody.trim(), userId: u.id })
+      const { html, text } = buildAnnouncementEmail({ firstName, title: title.trim(), body: announcementBody.trim(), userId: u.id })
 
       const { error: sendError } = await resend.emails.send({
         from: 'Dab from BillByDab <onboarding@billbydab.com>',
         to: u.email,
         subject: title.trim(),
         html,
+        text,
+        headers: {
+          'List-Unsubscribe': `<mailto:unsubscribe@billbydab.com>, <https://billbydab.com/api/unsubscribe?token=${u.id}>`,
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        },
       })
 
       if (sendError) {
@@ -137,67 +142,65 @@ function buildAnnouncementEmail(opts: {
   title: string
   body: string
   userId: string
-}): string {
-  const { firstName, title, body, userId } = opts
-  const year = new Date().getFullYear()
+}): { html: string; text: string } {
+  const { firstName, body, userId } = opts
 
-  // Convert body line breaks to paragraphs
+  // Convert body line breaks to HTML paragraphs
   const bodyParagraphs = body
     .split(/\n\n+/)
     .map(para => para.replace(/\n/g, '<br>'))
-    .map(para => `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.75;">${para}</p>`)
+    .map(para => `<p style="margin:0 0 16px;color:#222222;font-size:15px;line-height:1.75;">${para}</p>`)
     .join('')
 
-  return `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
-  <div style="max-width:580px;margin:40px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.10);">
+<body style="margin:0;padding:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:580px;margin:40px auto;padding:0 24px;">
 
-    <!-- Header -->
-    <div style="background:#111827;padding:32px 40px;">
-      <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;letter-spacing:-0.5px;">BillByDab</h1>
-      <p style="margin:6px 0 0;color:#9ca3af;font-size:14px;">Built in Lagos. Free everywhere.</p>
-    </div>
+    <p style="margin:0 0 20px;color:#222222;font-size:15px;line-height:1.75;">
+      Hey ${firstName},
+    </p>
 
-    <!-- Body -->
-    <div style="padding:40px;">
+    ${bodyParagraphs}
 
-      <p style="margin:0 0 20px;color:#111827;font-size:16px;line-height:1.6;">
-        Hey ${firstName},
-      </p>
+    <p style="margin:0 0 16px;color:#222222;font-size:15px;line-height:1.75;">
+      You can check out what&#39;s new at <a href="https://billbydab.com/dashboard" style="color:#222222;">billbydab.com/dashboard</a>.
+    </p>
 
-      ${bodyParagraphs}
+    <p style="margin:32px 0 0;color:#222222;font-size:15px;line-height:1.8;">
+      With love from Lagos,<br>
+      Dab<br>
+      Founder, BillByDab
+    </p>
 
-      <!-- CTA Button -->
-      <div style="margin:32px 0 36px;">
-        <a href="https://billbydab.com/dashboard"
-           style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;letter-spacing:0.2px;">
-          See What&#39;s New &#8594;
-        </a>
-      </div>
-
-      <!-- Signature -->
-      <p style="margin:0;color:#374151;font-size:15px;line-height:1.8;">
-        With love from Lagos,<br>
-        <strong>Dab</strong>
-      </p>
-
-    </div>
-
-    <!-- Footer -->
-    <div style="padding:24px 40px;border-top:1px solid #f3f4f6;background:#f9fafb;">
-      <p style="margin:0;color:#9ca3af;font-size:12px;line-height:1.7;text-align:center;">
-        &#169; ${year} BillByDab &#183;
-        <a href="https://www.billbydab.com/privacy" style="color:#9ca3af;text-decoration:none;">Privacy Policy</a> &#183;
-        <a href="https://billbydab.com/api/unsubscribe?token=${userId}" style="color:#9ca3af;text-decoration:none;">Unsubscribe</a>
-      </p>
-    </div>
+    <p style="margin:48px 0 0;color:#9ca3af;font-size:11px;line-height:1.6;">
+      You&#39;re receiving this because you opted in to product updates.
+      <a href="https://billbydab.com/api/unsubscribe?token=${userId}" style="color:#9ca3af;">Unsubscribe</a>
+    </p>
 
   </div>
 </body>
 </html>`
+
+  // Plain-text version
+  const textBody = body.replace(/\n/g, '\n')
+  const text = `Hey ${firstName},
+
+${textBody}
+
+You can check out what's new at https://billbydab.com/dashboard
+
+With love from Lagos,
+Dab
+Founder, BillByDab
+
+---
+You're receiving this because you opted in to product updates.
+Unsubscribe: https://billbydab.com/api/unsubscribe?token=${userId}`
+
+  return { html, text }
 }

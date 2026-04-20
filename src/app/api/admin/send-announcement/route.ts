@@ -34,7 +34,17 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { title, body: announcementBody } = body as { title?: string; body?: string }
+  const {
+    title,
+    body: announcementBody,
+    recipientIds,
+    recipientEmails,
+  } = body as {
+    title?: string
+    body?: string
+    recipientIds?: string[]
+    recipientEmails?: string[]
+  }
 
   if (!title?.trim() || !announcementBody?.trim()) {
     return NextResponse.json({ error: 'title and body are required' }, { status: 400 })
@@ -75,7 +85,19 @@ export async function POST(request: NextRequest) {
 
   console.log(`[send-announcement] Total auth users: ${allUsers.length}`)
 
-  const recipients = allUsers.filter(u => u.email && optedInIds.has(u.id))
+  // When targeting specific users, intersect with opted-in list
+  let targetRecipients = allUsers.filter(u => u.email && optedInIds.has(u.id))
+  if (Array.isArray(recipientIds) && recipientIds.length > 0) {
+    const idSet = new Set(recipientIds)
+    targetRecipients = allUsers.filter(u => u.email && idSet.has(u.id) && optedInIds.has(u.id))
+  } else if (Array.isArray(recipientEmails) && recipientEmails.length > 0) {
+    const emailSet = new Set(recipientEmails.map((e: string) => e.toLowerCase().trim()))
+    targetRecipients = allUsers.filter(
+      u => u.email && emailSet.has(u.email.toLowerCase()) && optedInIds.has(u.id)
+    )
+  }
+
+  const recipients = targetRecipients
   const skipped = allUsers.length - recipients.length
 
   console.log(`[send-announcement] Sending to ${recipients.length} recipients, skipping ${skipped}`)

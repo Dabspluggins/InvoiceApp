@@ -1,20 +1,22 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
+
+type Segment = {
+  id: string
+  name: string
+  rules: { field: string; operator: string; value: string | number | boolean }[]
+}
+
+type RecipientMode = 'all' | 'specific' | 'segment'
 
 const inputCls =
   'w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-300 transition'
 const textareaCls =
   'w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-300 transition resize-none'
+const selectCls =
+  'w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-300 transition'
 const labelCls = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'
-
-type User = {
-  id: string
-  email: string
-  full_name: string | null
-  created_at: string
-  email_updates: boolean | null
-}
 
 export default function AnnouncementComposer() {
   const [title, setTitle] = useState('')
@@ -24,76 +26,105 @@ export default function AnnouncementComposer() {
   const [error, setError] = useState<string | null>(null)
   const [preview, setPreview] = useState(false)
 
-  const [mode, setMode] = useState<'all' | 'specific'>('all')
-  const [users, setUsers] = useState<User[]>([])
-  const [usersLoading, setUsersLoading] = useState(false)
-  const [usersError, setUsersError] = useState<string | null>(null)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [search, setSearch] = useState('')
+  // Recipient mode
+  const [recipientMode, setRecipientMode] = useState<RecipientMode>('all')
+  const [specificEmails, setSpecificEmails] = useState('')
+
+  // Segment mode
+  const [segments, setSegments] = useState<Segment[]>([])
+  const [segmentsLoaded, setSegmentsLoaded] = useState(false)
+  const [loadingSegments, setLoadingSegments] = useState(false)
+  const [selectedSegmentId, setSelectedSegmentId] = useState('')
+  const [segmentPreview, setSegmentPreview] = useState<{ count: number; userIds: string[] } | null>(null)
+  const [previewingSegment, setPreviewingSegment] = useState(false)
+
+  async function fetchSegments() {
+    if (segmentsLoaded) return
+    setLoadingSegments(true)
+    try {
+      const res = await fetch('/api/admin/segments')
+      if (res.ok) {
+        const data: Segment[] = await res.json()
+        setSegments(data)
+        setSegmentsLoaded(true)
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingSegments(false)
+    }
+  }
+
+  async function previewSegment(segmentId: string) {
+    const seg = segments.find(s => s.id === segmentId)
+    if (!seg) return
+    setPreviewingSegment(true)
+    setSegmentPreview(null)
+    try {
+      const res = await fetch('/api/admin/segments/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rules: seg.rules }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setSegmentPreview(data as { count: number; userIds: string[] })
+      }
+    } catch {
+      // ignore
+    } finally {
+      setPreviewingSegment(false)
+    }
+  }
+
+  function handleModeChange(mode: RecipientMode) {
+    setRecipientMode(mode)
+    setError(null)
+    setResult(null)
+    if (mode === 'segment') fetchSegments()
+  }
 
   useEffect(() => {
-    if (mode !== 'specific' || users.length > 0) return
-    setUsersLoading(true)
-    setUsersError(null)
-    fetch('/api/admin/users')
-      .then(r => r.json())
-      .then(data => {
-        if (data.users) setUsers(data.users)
-        else setUsersError((data as { error?: string }).error ?? 'Failed to load users')
-      })
-      .catch(() => setUsersError('Failed to load users'))
-      .finally(() => setUsersLoading(false))
-  }, [mode, users.length])
-
-  const optInCount = useMemo(() => users.filter(u => u.email_updates).length, [users])
-
-  const filteredUsers = useMemo(() => {
-    if (!search.trim()) return users
-    const q = search.toLowerCase()
-    return users.filter(
-      u =>
-        u.email.toLowerCase().includes(q) ||
-        (u.full_name?.toLowerCase().includes(q) ?? false)
-    )
-  }, [users, search])
-
-  function toggleUser(id: string) {
-    setSelectedIds(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  function removeSelected(id: string) {
-    setSelectedIds(prev => {
-      const next = new Set(prev)
-      next.delete(id)
-      return next
-    })
-  }
-
-  const selectedUsers = useMemo(() => users.filter(u => selectedIds.has(u.id)), [users, selectedIds])
+    if (selectedSegmentId) previewSegment(selectedSegmentId)
+    else setSegmentPreview(null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSegmentId])
 
   async function handleSend() {
     if (!title.trim() || !body.trim()) {
       setError('Title and body are required.')
       return
     }
-    if (mode === 'specific' && selectedIds.size === 0) {
-      setError('Select at least one recipient.')
-      return
+
+    const payload: Record<string, unknown> = {
+      title: title.trim(),
+      body: body.trim(),
     }
+
+    if (recipientMode === 'specific') {
+      const emails = specificEmails.split(/[\n,]/).map(e => e.trim()).filter(Boolean)
+      if (emails.length === 0) {
+        setError('Enter at least one email address.')
+        return
+      }
+      payload.recipientEmails = emails
+    } else if (recipientMode === 'segment') {
+      if (!selectedSegmentId) {
+        setError('Select a segment.')
+        return
+      }
+      if (!segmentPreview) {
+        setError('Wait for segment preview to load.')
+        return
+      }
+      payload.recipientIds = segmentPreview.userIds
+    }
+
     setSending(true)
     setError(null)
     setResult(null)
 
     try {
-      const payload: Record<string, unknown> = { title: title.trim(), body: body.trim() }
-      if (mode === 'specific') {
-        payload.recipientIds = Array.from(selectedIds)
-      }
       const res = await fetch('/api/admin/send-announcement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -104,7 +135,9 @@ export default function AnnouncementComposer() {
       setResult({ sent: (json as { sent: number }).sent, skipped: (json as { skipped?: number }).skipped ?? 0 })
       setTitle('')
       setBody('')
-      setSelectedIds(new Set())
+      setSpecificEmails('')
+      setSelectedSegmentId('')
+      setSegmentPreview(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
@@ -112,17 +145,23 @@ export default function AnnouncementComposer() {
     }
   }
 
+  const sendLabel = sending
+    ? 'Sending…'
+    : recipientMode === 'all'
+    ? 'Send to All Users'
+    : recipientMode === 'specific'
+    ? 'Send to Specific Users'
+    : 'Send to Segment'
+
+  const canSend =
+    !sending &&
+    title.trim() !== '' &&
+    body.trim() !== '' &&
+    (recipientMode !== 'segment' || Boolean(segmentPreview))
+
   const previewParagraphs = body
     .split(/\n\n+/)
     .map(para => para.replace(/\n/g, '<br>'))
-
-  const sendLabel = sending
-    ? 'Sending...'
-    : mode === 'specific'
-    ? `Send to ${selectedIds.size} selected user${selectedIds.size === 1 ? '' : 's'}`
-    : 'Send to all opted-in users'
-
-  const canSend = !sending && !!title.trim() && !!body.trim() && (mode === 'all' || selectedIds.size > 0)
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -139,112 +178,87 @@ export default function AnnouncementComposer() {
       <div className={`${preview ? 'grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-gray-100 dark:divide-gray-700' : ''}`}>
         {/* Composer */}
         <div className="p-6 space-y-4">
-          {/* Recipient selector */}
+          {/* Recipient mode selector */}
           <div>
-            <label className={labelCls}>Recipients</label>
-            <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden w-fit mb-3">
-              <button
-                onClick={() => setMode('all')}
-                className={`px-4 py-2 text-sm font-medium transition-colors ${
-                  mode === 'all'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
-                }`}
-              >
-                All opted-in users
-              </button>
-              <button
-                onClick={() => setMode('specific')}
-                className={`px-4 py-2 text-sm font-medium transition-colors border-l border-gray-200 dark:border-gray-600 ${
-                  mode === 'specific'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
-                }`}
-              >
-                Specific users
-              </button>
+            <label className={labelCls}>Send to</label>
+            <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg w-fit">
+              {(
+                [
+                  { value: 'all', label: 'All opted-in users' },
+                  { value: 'specific', label: 'Specific users' },
+                  { value: 'segment', label: 'Segment' },
+                ] as { value: RecipientMode; label: string }[]
+              ).map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => handleModeChange(opt.value)}
+                  className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
+                    recipientMode === opt.value
+                      ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
-
-            {mode === 'all' && (
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {users.length > 0
-                  ? `${optInCount} user${optInCount === 1 ? '' : 's'} opted in to receive announcements.`
-                  : 'Sends to all users who have opted in to product updates.'}
-              </p>
-            )}
-
-            {mode === 'specific' && (
-              <div className="space-y-2">
-                {/* Selected chips */}
-                {selectedUsers.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 p-2 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
-                    {selectedUsers.map(u => (
-                      <span
-                        key={u.id}
-                        className="inline-flex items-center gap-1.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300 text-xs px-2.5 py-1 rounded-full"
-                      >
-                        {u.full_name ?? u.email.split('@')[0]}
-                        <button
-                          onClick={() => removeSelected(u.id)}
-                          className="text-indigo-500 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-200 leading-none"
-                          aria-label={`Remove ${u.email}`}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Search */}
-                <input
-                  type="text"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search by name or email…"
-                  className={inputCls}
-                />
-
-                {/* User list */}
-                <div className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
-                  {usersLoading ? (
-                    <div className="px-4 py-6 text-sm text-gray-500 dark:text-gray-400 text-center">Loading users…</div>
-                  ) : usersError ? (
-                    <div className="px-4 py-4 text-sm text-red-600 dark:text-red-400">{usersError}</div>
-                  ) : filteredUsers.length === 0 ? (
-                    <div className="px-4 py-6 text-sm text-gray-500 dark:text-gray-400 text-center">No users found.</div>
-                  ) : (
-                    <ul className="max-h-52 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
-                      {filteredUsers.map(u => (
-                        <li key={u.id}>
-                          <label className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.has(u.id)}
-                              onChange={() => toggleUser(u.id)}
-                              className="accent-indigo-600 shrink-0"
-                            />
-                            <div className="min-w-0">
-                              <div className="text-sm text-gray-900 dark:text-white truncate">
-                                {u.full_name ?? u.email}
-                              </div>
-                              {u.full_name && (
-                                <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{u.email}</div>
-                              )}
-                            </div>
-                          </label>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {selectedIds.size} user{selectedIds.size === 1 ? '' : 's'} selected
-                </p>
-              </div>
-            )}
           </div>
+
+          {/* Specific users — email list */}
+          {recipientMode === 'specific' && (
+            <div>
+              <label className={labelCls}>Email addresses</label>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1.5">
+                Comma- or line-separated. Only opted-in users will be emailed.
+              </p>
+              <textarea
+                value={specificEmails}
+                onChange={e => setSpecificEmails(e.target.value)}
+                rows={4}
+                placeholder={'user@example.com\nanother@example.com'}
+                className={textareaCls}
+              />
+            </div>
+          )}
+
+          {/* Segment selector */}
+          {recipientMode === 'segment' && (
+            <div>
+              <label className={labelCls}>Segment</label>
+              {loadingSegments ? (
+                <p className="text-sm text-gray-400 dark:text-gray-500">Loading segments…</p>
+              ) : segments.length === 0 ? (
+                <p className="text-sm text-gray-400 dark:text-gray-500">
+                  No segments yet.{' '}
+                  <a href="/admin/segments" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+                    Create one
+                  </a>
+                </p>
+              ) : (
+                <>
+                  <select
+                    value={selectedSegmentId}
+                    onChange={e => setSelectedSegmentId(e.target.value)}
+                    className={selectCls}
+                  >
+                    <option value="">Select a segment…</option>
+                    {segments.map(seg => (
+                      <option key={seg.id} value={seg.id}>{seg.name}</option>
+                    ))}
+                  </select>
+                  {selectedSegmentId && (
+                    <p className="text-xs mt-1.5 text-gray-500 dark:text-gray-400">
+                      {previewingSegment
+                        ? 'Counting users…'
+                        : segmentPreview
+                        ? `${segmentPreview.count.toLocaleString()} users in this segment (opted-in users will be emailed)`
+                        : null}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           {/* Title */}
           <div>
@@ -279,7 +293,8 @@ export default function AnnouncementComposer() {
 
           {result && (
             <div className="text-sm px-4 py-3 rounded-lg border bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400">
-              Sent to <strong>{result.sent.toLocaleString()}</strong> users.{result.skipped > 0 && ` ${result.skipped} skipped (opted out).`}
+              Sent to <strong>{result.sent.toLocaleString()}</strong> users.{' '}
+              {result.skipped > 0 && `${result.skipped} skipped (opted out).`}
             </div>
           )}
 
@@ -294,7 +309,7 @@ export default function AnnouncementComposer() {
           </div>
         </div>
 
-        {/* Preview */}
+        {/* Email preview panel */}
         {preview && (
           <div className="p-6">
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">Email Preview</p>

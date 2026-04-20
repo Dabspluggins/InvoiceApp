@@ -31,6 +31,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           >
             Users
           </Link>
+          <Link
+            href="/admin/segments"
+            className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+          >
+            Segments
+          </Link>
         </div>
       </nav>
       {children}

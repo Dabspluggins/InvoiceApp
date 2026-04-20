@@ -34,10 +34,16 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { title, body: announcementBody, recipientIds } = body as {
+  const {
+    title,
+    body: announcementBody,
+    recipientIds,
+    recipientEmails,
+  } = body as {
     title?: string
     body?: string
     recipientIds?: string[]
+    recipientEmails?: string[]
   }
 
   if (!title?.trim() || !announcementBody?.trim()) {
@@ -63,6 +69,7 @@ export async function POST(request: NextRequest) {
   let skipped = 0
 
   const isTargeted = Array.isArray(recipientIds) && recipientIds.length > 0
+  const isEmailTargeted = !isTargeted && Array.isArray(recipientEmails) && recipientEmails.length > 0
 
   if (isTargeted) {
     const fetches = await Promise.all(
@@ -92,12 +99,18 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[send-announcement] Total auth users: ${allUsers.length}`)
-    recipients = allUsers.filter(u => u.email && optedInIds.has(u.id))
+
+    if (isEmailTargeted) {
+      const emailSet = new Set(recipientEmails.map((e: string) => e.toLowerCase().trim()))
+      recipients = allUsers.filter(u => u.email && emailSet.has(u.email.toLowerCase()) && optedInIds.has(u.id))
+    } else {
+      recipients = allUsers.filter(u => u.email && optedInIds.has(u.id))
+    }
     skipped = allUsers.length - recipients.length
     console.log(`[send-announcement] Sending to ${recipients.length} recipients, skipping ${skipped}`)
   }
 
-  const audienceType = isTargeted ? 'specific' : 'all'
+  const audienceType = (isTargeted || isEmailTargeted) ? 'specific' : 'all'
 
   let sent = 0
   const errors: string[] = []

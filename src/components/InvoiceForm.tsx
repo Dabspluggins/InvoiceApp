@@ -124,7 +124,14 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
 
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+
+    if (!user) {
+      // Guest: store as data URL in memory — no Supabase session available
+      const reader = new FileReader()
+      reader.onload = () => set('logoUrl', reader.result as string)
+      reader.readAsDataURL(file)
+      return
+    }
 
     const ext = file.name.split('.').pop()
     const path = `${user.id}/${Date.now()}.${ext}`

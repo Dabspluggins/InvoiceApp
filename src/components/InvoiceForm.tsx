@@ -125,8 +125,11 @@ export default function InvoiceForm({ data, onChange, isSignedIn }: Props) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
+      // Guest: convert to base64 data URL and store in-memory
       const reader = new FileReader()
-      reader.onload = () => set('logoUrl', reader.result as string)
+      reader.onload = () => {
+        set('logoUrl', reader.result as string)
+      }
       reader.readAsDataURL(file)
       return
     }

@@ -242,7 +242,10 @@ function buildEmailHtml(payload: InvoicePayload): string {
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const identifier = user?.id ?? req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '127.0.0.1'
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  const identifier = user.id
   const { success, reset } = await sendLimiter.limit(identifier)
   if (!success) {
     const retryAfter = Math.ceil((reset - Date.now()) / 1000)

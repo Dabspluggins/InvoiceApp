@@ -121,31 +121,39 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    console.log('[BillByDab] handleLogoUpload fired, file:', file.name, file.size)
 
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
+    console.log('[BillByDab] user:', user ? user.id : 'null (guest)')
 
     if (!user) {
-      // Guest: convert to base64 data URL and store in-memory
+      console.log('[BillByDab] guest path — starting FileReader')
       const reader = new FileReader()
       reader.onload = () => {
+        console.log('[BillByDab] FileReader done, dataUrl length:', (reader.result as string)?.length)
         set('logoUrl', reader.result as string)
+        console.log('[BillByDab] set called with logoUrl')
       }
+      reader.onerror = (e) => console.error('[BillByDab] FileReader error', e)
       reader.readAsDataURL(file)
       return
     }
 
+    // signed-in path
+    console.log('[BillByDab] signed-in path — uploading to Supabase storage')
     const ext = file.name.split('.').pop()
     const path = `${user.id}/${Date.now()}.${ext}`
 
     const { error } = await supabase.storage.from('logos').upload(path, file, { upsert: true })
     if (error) {
-      console.error('Logo upload failed:', error.message)
+      console.error('[BillByDab] Logo upload failed:', error.message)
       return
     }
 
     const { data: urlData } = supabase.storage.from('logos').getPublicUrl(path)
     set('logoUrl', urlData.publicUrl)
+    console.log('[BillByDab] signed-in upload complete, url:', urlData.publicUrl)
   }
 
   function handleSelectClient(id: string) {

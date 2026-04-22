@@ -201,6 +201,9 @@ export default function SettingsClient({
   // Danger zone
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteInput, setDeleteInput] = useState('')
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteTotpCode, setDeleteTotpCode] = useState('')
+  const [deleteMfaRequired, setDeleteMfaRequired] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
@@ -309,13 +312,26 @@ export default function SettingsClient({
   }
 
   async function deleteAccount() {
-    if (deleteInput !== 'DELETE') return
+    if (deleteInput !== 'DELETE' || !deletePassword) return
     setDeleting(true)
     setDeleteError(null)
     try {
-      const res = await fetch('/api/settings/delete-account', { method: 'POST' })
+      const body: Record<string, string> = { password: deletePassword }
+      if (deleteTotpCode) body.totpCode = deleteTotpCode
+      const res = await fetch('/api/settings/delete-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
       const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Failed to delete account')
+      if (!res.ok) {
+        if (json.error === 'Two-factor authentication code required.') {
+          setDeleteMfaRequired(true)
+          setDeleting(false)
+          return
+        }
+        throw new Error(json.error || 'Failed to delete account')
+      }
       await supabase.auth.signOut()
       router.push('/')
     } catch (err) {
@@ -1038,6 +1054,25 @@ export default function SettingsClient({
                 placeholder="DELETE"
                 className="w-full border border-red-200 dark:border-red-700 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300 transition"
               />
+              <input
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                placeholder="Enter your password"
+                autoComplete="current-password"
+                className="w-full border border-red-200 dark:border-red-700 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300 transition"
+              />
+              {deleteMfaRequired && (
+                <input
+                  type="text"
+                  value={deleteTotpCode}
+                  onChange={(e) => setDeleteTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="6-digit authenticator code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  className="w-full border border-red-200 dark:border-red-700 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300 transition"
+                />
+              )}
               {deleteError && (
                 <p className="text-sm text-red-600 dark:text-red-400">{deleteError}</p>
               )}
@@ -1046,6 +1081,9 @@ export default function SettingsClient({
                   onClick={() => {
                     setShowDeleteConfirm(false)
                     setDeleteInput('')
+                    setDeletePassword('')
+                    setDeleteTotpCode('')
+                    setDeleteMfaRequired(false)
                     setDeleteError(null)
                   }}
                   className="text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 px-4 py-2 rounded-lg hover:border-gray-300 dark:hover:border-gray-500 transition-colors"
@@ -1054,7 +1092,7 @@ export default function SettingsClient({
                 </button>
                 <button
                   onClick={deleteAccount}
-                  disabled={deleteInput !== 'DELETE' || deleting}
+                  disabled={deleteInput !== 'DELETE' || !deletePassword || deleting}
                   className="text-sm bg-red-600 text-white px-5 py-2 rounded-lg hover:bg-red-700 disabled:opacity-40 transition-colors"
                 >
                   {deleting ? 'Deleting...' : 'Confirm Delete'}

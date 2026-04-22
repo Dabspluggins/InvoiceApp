@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { loginLimiter, signupLimiter } from '@/lib/ratelimit'
+import { getTrustedIp } from '@/lib/utils'
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '127.0.0.1'
+    const ip = getTrustedIp(req)
     const body = await req.json()
     const { type } = body as { type?: 'login' | 'signup' }
 

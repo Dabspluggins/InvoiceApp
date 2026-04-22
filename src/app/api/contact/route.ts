@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { contactLimiter } from '@/lib/ratelimit'
-import { escHtml } from '@/lib/utils'
+import { escHtml, getTrustedIp } from '@/lib/utils'
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '127.0.0.1'
+  const ip = getTrustedIp(req)
   const { success, reset } = await contactLimiter.limit(ip)
   if (!success) {
     const retryAfter = Math.ceil((reset - Date.now()) / 1000)

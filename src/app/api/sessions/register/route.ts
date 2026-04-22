@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { logAudit } from '@/lib/audit'
+import { getTrustedIp } from '@/lib/utils'
 
 function parseUserAgent(ua: string): { deviceType: string; browser: string } {
   const deviceType = /Mobile/i.test(ua) ? 'Mobile' : /Tablet|iPad/i.test(ua) ? 'Tablet' : 'Desktop'
@@ -136,9 +137,8 @@ export async function POST(request: NextRequest) {
   const tokenHash = await hashToken(session.access_token)
   const ua = request.headers.get('user-agent') ?? ''
   const { deviceType, browser } = parseUserAgent(ua)
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim()
-    ?? request.headers.get('x-real-ip')
-    ?? null
+  const rawIp = getTrustedIp(request)
+  const ip: string | null = (rawIp === '127.0.0.1' || rawIp === '::1') ? null : rawIp
 
   let location: string | null = null
   if (ip && ip !== '::1' && ip !== '127.0.0.1') {

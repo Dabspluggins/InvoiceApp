@@ -1,3 +1,4 @@
+import type { NextRequest } from 'next/server'
 import { LineItem, Currency } from './types'
 import { getCurrencySymbol } from './currencies'
 
@@ -43,4 +44,20 @@ export function escHtml(s: string | null | undefined): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
+}
+
+// On Vercel, request.ip is the trusted observed client IP.
+// Fallback: last value in X-Forwarded-For — Vercel appends the trusted IP at the end,
+// so reading the first value is attacker-controlled and must not be used.
+export function getTrustedIp(req: Request | NextRequest): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if ('ip' in req && typeof (req as any).ip === 'string') {
+    return (req as any).ip as string
+  }
+  const xff = req.headers.get('x-forwarded-for')
+  if (xff) {
+    const parts = xff.split(',').map(s => s.trim()).filter(Boolean)
+    if (parts.length > 0) return parts[parts.length - 1]
+  }
+  return '127.0.0.1'
 }

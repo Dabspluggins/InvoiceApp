@@ -18,32 +18,17 @@ export default function ResetPasswordPage() {
   const router = useRouter()
 
   useEffect(() => {
-    const supabase = createClient()
-    const params = new URLSearchParams(window.location.search)
-    const access_token = params.get('access_token')
-    const refresh_token = params.get('refresh_token')
-
-    if (access_token && refresh_token) {
-      supabase.auth.setSession({ access_token, refresh_token }).then(({ error }) => {
-        if (error) {
-          setStatus('error')
-        } else {
-          setStatus('ready')
-          // Remove tokens from URL so they don't linger in history
-          window.history.replaceState({}, '', '/reset-password')
-        }
-      })
-    } else {
-      // Fallback: check if there's already a valid session (cookie-based)
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          setStatus('ready')
-        } else {
-          setStatus('error')
-        }
-      })
+    const checkSession = async () => {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.replace('/auth/login?error=invalid_reset_link')
+        return
+      }
+      setStatus('ready')
     }
-  }, [])
+    checkSession()
+  }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

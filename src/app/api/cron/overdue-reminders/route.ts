@@ -6,6 +6,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import type { NextRequest } from 'next/server'
+import { escHtml } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,6 +36,10 @@ function buildReminderEmail(opts: {
   senderName: string
 }): string {
   const { clientName, invoiceNumber, total, currency, dueDate, shareToken, senderName } = opts
+  const safeClientName = escHtml(clientName)
+  const safeInvoiceNumber = escHtml(invoiceNumber)
+  const safeAmount = escHtml(formatAmount(total, currency))
+  const safeSenderName = escHtml(senderName)
   const viewButton = shareToken
     ? `<p style="margin:24px 0;text-align:center;">
         <a href="https://www.billbydab.com/i/${shareToken}"
@@ -57,10 +62,10 @@ function buildReminderEmail(opts: {
         </td></tr>
         <!-- Body -->
         <tr><td style="padding:32px;">
-          <p style="margin:0 0 16px;font-size:15px;color:#111827;">Hi ${clientName},</p>
+          <p style="margin:0 0 16px;font-size:15px;color:#111827;">Hi ${safeClientName},</p>
           <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
-            This is a friendly reminder that invoice <strong>#${invoiceNumber}</strong> for
-            <strong>${formatAmount(total, currency)}</strong> was due on
+            This is a friendly reminder that invoice <strong>#${safeInvoiceNumber}</strong> for
+            <strong>${safeAmount}</strong> was due on
             <strong>${formatDate(dueDate)}</strong> and is still outstanding.
           </p>
           ${viewButton}
@@ -69,7 +74,7 @@ function buildReminderEmail(opts: {
           </p>
           <p style="margin:0;font-size:15px;color:#111827;">
             Best regards,<br>
-            <strong>${senderName}</strong>
+            <strong>${safeSenderName}</strong>
           </p>
         </td></tr>
         <!-- Footer -->

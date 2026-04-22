@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { Resend } from 'resend'
+import { escHtml } from '@/lib/utils'
 
 export async function POST(
   req: NextRequest,
@@ -52,6 +53,11 @@ export async function POST(
     if (apiKey && estimate.client_email) {
       const resend = new Resend(apiKey)
       const businessName = user.user_metadata?.business_name || user.email || 'Your service provider'
+      const safeBusinessName = escHtml(businessName)
+      const safeClientName = escHtml(estimate.client_name) || 'there'
+      const safeEstimateNumber = escHtml(estimate.estimate_number)
+      const safeTitle = estimate.title ? escHtml(estimate.title) : null
+      const safeRejectionNote = rejectionNote ? escHtml(rejectionNote) : null
       await resend.emails.send({
         from: 'BillByDab <noreply@billbydab.com>',
         to: estimate.client_email,
@@ -59,10 +65,10 @@ export async function POST(
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
             <h2 style="color: #dc2626;">Negotiation Not Accepted</h2>
-            <p>Hi ${estimate.client_name || 'there'},</p>
-            <p><strong>${businessName}</strong> was unable to accept the revised pricing on estimate <strong>${estimate.estimate_number}</strong>${estimate.title ? ` — ${estimate.title}` : ''}.</p>
-            ${rejectionNote ? `<p style="background: #fef2f2; border: 1px solid #fecaca; padding: 12px; border-radius: 8px;"><strong>Note from ${businessName}:</strong> ${rejectionNote}</p>` : ''}
-            <p>The original prices remain in effect. Please contact ${businessName} directly to discuss further.</p>
+            <p>Hi ${safeClientName},</p>
+            <p><strong>${safeBusinessName}</strong> was unable to accept the revised pricing on estimate <strong>${safeEstimateNumber}</strong>${safeTitle ? ` — ${safeTitle}` : ''}.</p>
+            ${safeRejectionNote ? `<p style="background: #fef2f2; border: 1px solid #fecaca; padding: 12px; border-radius: 8px;"><strong>Note from ${safeBusinessName}:</strong> ${safeRejectionNote}</p>` : ''}
+            <p>The original prices remain in effect. Please contact ${safeBusinessName} directly to discuss further.</p>
             <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">Sent via BillByDab</p>
           </div>
         `,

@@ -34,3 +34,13 @@ export function getNextInvoiceNumber(): string {
 export function newLineItem(): LineItem {
   return { id: crypto.randomUUID(), description: '', quantity: 1, rate: 0, amount: 0 }
 }
+
+export function escHtml(s: string | null | undefined): string {
+  if (!s) return ''
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}

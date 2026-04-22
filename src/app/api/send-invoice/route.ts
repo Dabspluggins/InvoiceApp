@@ -5,6 +5,7 @@ import { getCurrencySymbol } from '@/lib/currencies'
 import { createClient } from '@/lib/supabase/server'
 import { sendLimiter } from '@/lib/ratelimit'
 import { logAudit } from '@/lib/audit'
+import { escHtml } from '@/lib/utils'
 
 interface LineItem {
   description: string
@@ -55,7 +56,7 @@ function row(label: string, value?: string): string {
   if (!value) return ''
   return `<tr>
     <td style="padding:4px 0;color:#6b7280;font-size:13px;width:160px;vertical-align:top;">${label}</td>
-    <td style="padding:4px 0;color:#111827;font-size:13px;vertical-align:top;word-break:break-all;">${value}</td>
+    <td style="padding:4px 0;color:#111827;font-size:13px;vertical-align:top;word-break:break-all;">${escHtml(value)}</td>
   </tr>`
 }
 
@@ -91,8 +92,8 @@ function buildPaymentDetailsHtml(pd?: PaymentDetails): string {
   }
 
   if (hasOT) {
-    sections += `<p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">${ot?.paymentMethod || 'Other'}</p>
-    ${ot?.details ? `<p style="margin:0 0 12px;color:#374151;font-size:13px;line-height:1.5;">${ot.details.replace(/\n/g, '<br>')}</p>` : ''}`
+    sections += `<p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">${escHtml(ot?.paymentMethod) || 'Other'}</p>
+    ${ot?.details ? `<p style="margin:0 0 12px;color:#374151;font-size:13px;line-height:1.5;">${escHtml(ot.details).replace(/\n/g, '<br>')}</p>` : ''}`
   }
 
   return `<div style="margin:24px 0;padding:16px;background:#F9FAFB;border-radius:8px;border:1px solid #e5e7eb;">
@@ -103,13 +104,22 @@ function buildPaymentDetailsHtml(pd?: PaymentDetails): string {
 
 function buildEmailHtml(payload: InvoicePayload): string {
   const { invoiceData, message, shareToken } = payload
-  const { brandColor = '#4F46E5' } = invoiceData
+  const { brandColor: rawBrandColor = '#4F46E5' } = invoiceData
+  const brandColor = escHtml(rawBrandColor)
+
+  const safeBusinessName = escHtml(invoiceData.businessName) || 'Your Business'
+  const safeLogoUrl = invoiceData.logoUrl ? escHtml(invoiceData.logoUrl) : null
+  const safeMessage = escHtml(message).replace(/\n/g, '<br>')
+  const safeInvoiceNumber = escHtml(invoiceData.invoiceNumber)
+  const safeCurrency = escHtml(invoiceData.currency)
+  const safeNotes = invoiceData.notes ? escHtml(invoiceData.notes) : null
+  const safeSubject = escHtml(payload.subject)
 
   const lineItemRows = invoiceData.lineItems
     .map(
       (item) => `
     <tr>
-      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;font-size:14px;">${item.description || '—'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;font-size:14px;">${escHtml(item.description) || '—'}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;font-size:14px;text-align:center;">${item.quantity}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;font-size:14px;text-align:right;">${formatCurrency(item.rate, invoiceData.currency)}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;font-size:14px;text-align:right;">${formatCurrency(item.amount, invoiceData.currency)}</td>
@@ -127,7 +137,7 @@ function buildEmailHtml(payload: InvoicePayload): string {
 
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${payload.subject}</title></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${safeSubject}</title></head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:40px 0;">
     <tr><td align="center">
@@ -136,9 +146,9 @@ function buildEmailHtml(payload: InvoicePayload): string {
         <!-- Header -->
         <tr>
           <td style="background:${brandColor};padding:32px 40px;border-radius:12px 12px 0 0;">
-            ${invoiceData.logoUrl ? `<img src="${invoiceData.logoUrl}" alt="Logo" style="display:block;max-height:64px;max-width:200px;object-fit:contain;margin-bottom:12px;background:rgba(255,255,255,0.1);border-radius:4px;padding:4px;">` : ''}
+            ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="Logo" style="display:block;max-height:64px;max-width:200px;object-fit:contain;margin-bottom:12px;background:rgba(255,255,255,0.1);border-radius:4px;padding:4px;">` : ''}
             <p style="margin:0;color:rgba(255,255,255,0.8);font-size:13px;text-transform:uppercase;letter-spacing:1px;">Invoice from</p>
-            <h1 style="margin:4px 0 0;color:#ffffff;font-size:26px;font-weight:700;">${invoiceData.businessName || 'Your Business'}</h1>
+            <h1 style="margin:4px 0 0;color:#ffffff;font-size:26px;font-weight:700;">${safeBusinessName}</h1>
           </td>
         </tr>
 
@@ -147,7 +157,7 @@ function buildEmailHtml(payload: InvoicePayload): string {
           <td style="background:#ffffff;padding:32px 40px;">
 
             <!-- Message -->
-            <p style="margin:0 0 28px;color:#374151;font-size:15px;line-height:1.6;">${message.replace(/\n/g, '<br>')}</p>
+            <p style="margin:0 0 28px;color:#374151;font-size:15px;line-height:1.6;">${safeMessage}</p>
 
             <!-- Invoice details -->
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
@@ -156,7 +166,7 @@ function buildEmailHtml(payload: InvoicePayload): string {
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td style="color:#6b7280;font-size:13px;font-weight:500;">Invoice Number</td>
-                      <td style="color:#111827;font-size:13px;font-weight:600;text-align:right;">${invoiceData.invoiceNumber}</td>
+                      <td style="color:#111827;font-size:13px;font-weight:600;text-align:right;">${safeInvoiceNumber}</td>
                     </tr>
                   </table>
                 </td>
@@ -204,14 +214,14 @@ function buildEmailHtml(payload: InvoicePayload): string {
                 ${taxRow}
                 <tr style="background:#f9fafb;">
                   <td colspan="3" style="padding:12px;text-align:right;color:#111827;font-size:16px;font-weight:700;border-top:2px solid #e5e7eb;">Total Due</td>
-                  <td style="padding:12px;text-align:right;color:${brandColor};font-size:18px;font-weight:700;border-top:2px solid #e5e7eb;">${formatCurrency(invoiceData.total, invoiceData.currency)} ${invoiceData.currency}</td>
+                  <td style="padding:12px;text-align:right;color:${brandColor};font-size:18px;font-weight:700;border-top:2px solid #e5e7eb;">${formatCurrency(invoiceData.total, invoiceData.currency)} ${safeCurrency}</td>
                 </tr>
               </tfoot>
             </table>
 
-            ${invoiceData.notes ? `<div style="background:#fafafa;border-left:3px solid ${brandColor};padding:12px 16px;border-radius:0 6px 6px 0;margin-bottom:24px;">
+            ${safeNotes ? `<div style="background:#fafafa;border-left:3px solid ${brandColor};padding:12px 16px;border-radius:0 6px 6px 0;margin-bottom:24px;">
               <p style="margin:0;color:#6b7280;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Notes</p>
-              <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">${invoiceData.notes}</p>
+              <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">${safeNotes}</p>
             </div>` : ''}
 
             ${buildPaymentDetailsHtml(invoiceData.paymentDetails)}

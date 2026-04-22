@@ -23,6 +23,7 @@ type Client = {
   company: string | null
   email: string | null
   portal_token: string
+  user_id: string
 }
 
 function getServiceClient() {
@@ -126,7 +127,7 @@ export default async function PortalPage({
   // 1. Look up client by portal_token
   const { data: client, error: clientError } = await supabase
     .from('clients')
-    .select('id, name, company, email, portal_token')
+    .select('id, name, company, email, portal_token, user_id')
     .eq('portal_token', token)
     .single<Client>()
 
@@ -141,6 +142,7 @@ export default async function PortalPage({
       'id, invoice_number, issue_date, due_date, total, currency, status, share_token, business_name'
     )
     .ilike('client_email', client.email)
+    .eq('user_id', client.user_id)
     .order('issue_date', { ascending: false })
 
   const allInvoices: Invoice[] = invoices || []

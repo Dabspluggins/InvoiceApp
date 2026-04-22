@@ -1,7 +1,29 @@
 import { createClient } from '@supabase/supabase-js'
+import { createHmac, timingSafeEqual } from 'crypto'
 import type { NextRequest } from 'next/server'
 
 export const dynamic = 'force-dynamic'
+
+function verifyUnsubToken(token: string): string | null {
+  try {
+    const decoded = Buffer.from(token, 'base64url').toString()
+    const parts = decoded.split('|')
+    if (parts.length !== 3) return null
+    const [userId, expiresAtStr, sig] = parts
+    const expiresAt = parseInt(expiresAtStr, 10)
+    if (Date.now() / 1000 > expiresAt) return null
+    const payload = `${userId}|${expiresAtStr}`
+    const secret = process.env.UNSUBSCRIBE_HMAC_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY!
+    const expected = createHmac('sha256', secret).update(payload).digest('hex')
+    const sigBuf = Buffer.from(sig, 'hex')
+    const expBuf = Buffer.from(expected, 'hex')
+    if (sigBuf.length !== expBuf.length) return null
+    if (!timingSafeEqual(sigBuf, expBuf)) return null
+    return userId
+  } catch {
+    return null
+  }
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -9,6 +31,14 @@ export async function GET(request: NextRequest) {
 
   if (!token) {
     return new Response(unsubscribeHtml('Invalid unsubscribe link.', true), {
+      status: 400,
+      headers: { 'Content-Type': 'text/html' },
+    })
+  }
+
+  const userId = verifyUnsubToken(token)
+  if (!userId) {
+    return new Response(unsubscribeHtml('Invalid or expired unsubscribe link.', true), {
       status: 400,
       headers: { 'Content-Type': 'text/html' },
     })
@@ -30,7 +60,7 @@ export async function GET(request: NextRequest) {
 
   const { error } = await supabase
     .from('profiles')
-    .upsert({ id: token, email_updates: false }, { onConflict: 'id' })
+    .upsert({ id: userId, email_updates: false }, { onConflict: 'id' })
 
   if (error) {
     console.error('Unsubscribe error:', error)

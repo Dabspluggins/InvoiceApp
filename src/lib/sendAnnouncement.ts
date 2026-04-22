@@ -1,5 +1,14 @@
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createHmac } from 'crypto'
 import { Resend } from 'resend'
+
+function generateUnsubToken(userId: string): string {
+  const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30 // 30 days
+  const payload = `${userId}|${expiresAt}`
+  const secret = process.env.UNSUBSCRIBE_HMAC_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY!
+  const sig = createHmac('sha256', secret).update(payload).digest('hex')
+  return Buffer.from(`${payload}|${sig}`).toString('base64url')
+}
 
 export async function sendAnnouncement({
   subject,
@@ -47,7 +56,8 @@ export async function sendAnnouncement({
   for (const u of recipients) {
     try {
       const firstName = deriveFirstName(u.user_metadata?.full_name as string | undefined, u.email)
-      const { html, text } = buildAnnouncementEmail({ firstName, body, userId: u.id })
+      const unsubToken = generateUnsubToken(u.id)
+      const { html, text } = buildAnnouncementEmail({ firstName, body, unsubToken })
 
       const { error: sendError } = await resend.emails.send({
         from: 'Dab from BillByDab <onboarding@billbydab.com>',
@@ -56,7 +66,7 @@ export async function sendAnnouncement({
         html,
         text,
         headers: {
-          'List-Unsubscribe': `<mailto:unsubscribe@billbydab.com>, <https://billbydab.com/api/unsubscribe?token=${u.id}>`,
+          'List-Unsubscribe': `<mailto:unsubscribe@billbydab.com>, <https://billbydab.com/api/unsubscribe?token=${unsubToken}>`,
           'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
         },
       })
@@ -87,9 +97,9 @@ function deriveFirstName(fullName: string | undefined, email: string): string {
 function buildAnnouncementEmail(opts: {
   firstName: string
   body: string
-  userId: string
+  unsubToken: string
 }): { html: string; text: string } {
-  const { firstName, body, userId } = opts
+  const { firstName, body, unsubToken } = opts
 
   const bodyParagraphs = body
     .split(/\n\n+/)
@@ -115,7 +125,7 @@ function buildAnnouncementEmail(opts: {
     </p>
     <p style="margin:48px 0 0;color:#9ca3af;font-size:11px;line-height:1.6;">
       You&#39;re receiving this because you opted in to product updates.
-      <a href="https://billbydab.com/api/unsubscribe?token=${userId}" style="color:#9ca3af;">Unsubscribe</a>
+      <a href="https://billbydab.com/api/unsubscribe?token=${unsubToken}" style="color:#9ca3af;">Unsubscribe</a>
     </p>
   </div>
 </body>
@@ -133,7 +143,7 @@ Founder, BillByDab
 
 ---
 You're receiving this because you opted in to product updates.
-Unsubscribe: https://billbydab.com/api/unsubscribe?token=${userId}`
+Unsubscribe: https://billbydab.com/api/unsubscribe?token=${unsubToken}`
 
   return { html, text }
 }

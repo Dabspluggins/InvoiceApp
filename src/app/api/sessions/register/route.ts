@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
   let location: string | null = null
   if (ip && ip !== '::1' && ip !== '127.0.0.1') {
     try {
-      const geo = await fetch(`http://ip-api.com/json/${ip}?fields=city,country`, { signal: AbortSignal.timeout(3000) })
+      const geo = await fetch(`https://ip-api.com/json/${ip}?fields=city,country`, { signal: AbortSignal.timeout(3000) })
       if (geo.ok) {
         const data = await geo.json()
         if (data.city && data.country) location = `${data.city}, ${data.country}`

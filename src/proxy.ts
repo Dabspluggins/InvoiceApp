@@ -19,6 +19,37 @@ function middlewareRateLimit(ip: string, maxRequests: number, windowMs: number):
   return true
 }
 
+// Paths that do not require authentication. Everything else is protected.
+const PUBLIC_PATHS: string[] = [
+  // Pages
+  '/auth/',
+  '/reset-password',
+  '/forgot-password',
+  '/portal/',
+  '/privacy',
+  '/terms',
+  '/contact',
+  '/support',
+  '/i/',
+  // API routes that use their own auth mechanism or are intentionally public
+  '/api/unsubscribe',
+  '/api/send-invoice',
+  '/api/contact',
+  '/api/auth/',
+  '/api/cron/',
+  '/api/webhooks/',
+  '/api/mfa/',
+  '/api/sessions/register',
+  '/api/welcome-email',
+]
+
+function isPublicPath(pathname: string): boolean {
+  if (pathname === '/') return true
+  return PUBLIC_PATHS.some(
+    p => pathname === p.replace(/\/$/, '') || pathname.startsWith(p.endsWith('/') ? p : p + '/')
+  )
+}
+
 export async function proxy(request: NextRequest) {
   // Rate-limit POST submissions to the login page (4 attempts per 15 min per IP)
   if (request.nextUrl.pathname === '/auth/login' && request.method === 'POST') {
@@ -51,8 +82,11 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Protect dashboard route
-  if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
+  if (!user && !isPublicPath(request.nextUrl.pathname)) {
+    // API routes should get a 401, not an HTML redirect
+    if (request.nextUrl.pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const url = request.nextUrl.clone()
     url.pathname = '/auth/login'
     return NextResponse.redirect(url)

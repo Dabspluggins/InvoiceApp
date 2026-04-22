@@ -20,10 +20,10 @@ function middlewareRateLimit(ip: string, maxRequests: number, windowMs: number):
 }
 
 export async function proxy(request: NextRequest) {
-  // Rate-limit POST submissions to the login page (10 attempts per 15 min per IP)
+  // Rate-limit POST submissions to the login page (4 attempts per 15 min per IP)
   if (request.nextUrl.pathname === '/auth/login' && request.method === 'POST') {
     const ip = getTrustedIp(request)
-    if (!middlewareRateLimit(ip, 10, 15 * 60 * 1000)) {
+    if (!middlewareRateLimit(ip, 4, 15 * 60 * 1000)) {
       return new NextResponse('Too many login attempts. Please try again later.', { status: 429 })
     }
   }

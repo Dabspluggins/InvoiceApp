@@ -53,15 +53,6 @@ function nextRecurringDate(fromDate: string, frequency: string): string {
   return d.toISOString().split('T')[0]
 }
 
-function parseNextInvoiceNumber(last: string): string {
-  const match = last.match(/^(.*?)(\d+)$/)
-  if (!match) return 'INV-001'
-  const prefix = match[1]
-  const numStr = match[2]
-  const next = parseInt(numStr, 10) + 1
-  return prefix + String(next).padStart(numStr.length, '0')
-}
-
 // To add the currency column to Supabase, run:
 // ALTER TABLE invoices ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'NGN';
 
@@ -247,16 +238,10 @@ function InvoicePageInner() {
           .eq('invoice_id', duplicateId)
           .order('sort_order')
 
-        const { data: latestForDup } = await supabase
-          .from('invoices')
-          .select('invoice_number')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-        const nextInvoiceNumber = latestForDup?.invoice_number
-          ? parseNextInvoiceNumber(latestForDup.invoice_number)
-          : 'INV-001'
+        const nextNumRes = await fetch('/api/invoices/next-number').then((r) =>
+          r.ok ? r.json() : null
+        )
+        const nextInvoiceNumber: string = nextNumRes?.invoiceNumber ?? 'INV-0001'
 
         setData({
           invoiceNumber: nextInvoiceNumber,
@@ -302,29 +287,23 @@ function InvoicePageInner() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
 
-      let nextNumber = 'INV-001'
+      let nextNumber = 'INV-0001'
       let defaultTaxRate = 0
       let defaultNotes = ''
       let profileBrandColor: string | null = null
       let profileLogoUrl: string | null = null
 
       if (user) {
-        const [{ data: latest }, { data: profile }] = await Promise.all([
-          supabase
-            .from('invoices')
-            .select('invoice_number')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle(),
+        const [nextNumRes, { data: profile }] = await Promise.all([
+          fetch('/api/invoices/next-number').then((r) => (r.ok ? r.json() : null)),
           supabase
             .from('profiles')
             .select('default_tax_rate, default_notes, default_terms, brand_color, logo_url')
             .eq('id', user.id)
             .maybeSingle(),
         ])
-        if (latest?.invoice_number) {
-          nextNumber = parseNextInvoiceNumber(latest.invoice_number)
+        if (nextNumRes?.invoiceNumber) {
+          nextNumber = nextNumRes.invoiceNumber
         }
         if (profile?.default_tax_rate != null) {
           defaultTaxRate = Number(profile.default_tax_rate)

@@ -61,47 +61,20 @@ export default function AuthCallbackPage() {
             router.replace(next)
           }
         } else {
-          router.replace('/auth/login?error=link_expired')
+          router.replace('/auth/login?error=auth_failed')
         }
       })
       return
-    }
-
-    // Tertiary: implicit hash fragment flow
-    const hash = window.location.hash
-    if (hash) {
-      const hashParams = new URLSearchParams(hash.slice(1))
-      const access_token = hashParams.get('access_token')
-      const refresh_token = hashParams.get('refresh_token')
-      const hashType = hashParams.get('type')
-
-      if (access_token && refresh_token) {
-        supabase.auth.setSession({ access_token, refresh_token }).then(({ error }) => {
-          if (!error) {
-            maybeSendWelcomeEmail(next === '/reset-password' ? 'recovery' : hashType, access_token)
-            if (hashType === 'recovery' || next === '/reset-password') {
-              router.replace(
-                `/reset-password?access_token=${access_token}&refresh_token=${refresh_token}`
-              )
-            } else {
-              router.replace(next)
-            }
-          } else {
-            router.replace('/auth/login?error=link_expired')
-          }
-        })
-        return
-      }
     }
 
     router.replace('/auth/login')
   }, [router])
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
       <div className="text-center">
         <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-gray-500 text-sm">Signing you in...</p>
+        <p className="text-gray-500 dark:text-gray-300 text-sm">Signing you in...</p>
       </div>
     </div>
   )

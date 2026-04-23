@@ -269,9 +269,10 @@ async function detectAndAlertSuspiciousLogin({
     .eq('id', userId)
 
   const label = `${browser} on ${deviceType}`
-  const hmacMessage = `${deviceFingerprint}|${label}|${userId}`
+  const trustExpiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 90
+  const hmacMessage = `${deviceFingerprint}|${label}|${userId}|${trustExpiresAt}`
   const sig = await computeHmac(hmacMessage)
-  const trustLink = `https://billbydab.com/api/sessions/trust-device-token?fingerprint=${deviceFingerprint}&label=${encodeURIComponent(label)}&uid=${userId}&sig=${sig}`
+  const trustLink = `https://billbydab.com/api/sessions/trust-device-token?fingerprint=${deviceFingerprint}&label=${encodeURIComponent(label)}&uid=${userId}&expires=${trustExpiresAt}&sig=${sig}`
 
   const secureLink = `https://billbydab.com/api/auth/secure-account?token=${rawToken}`
   const resend = new Resend(apiKey)

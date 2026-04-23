@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { timingSafeEqual } from 'crypto'
 import { computeHmac } from '@/app/api/sessions/register/route'
 import { logAudit } from '@/lib/audit'
 
@@ -50,8 +51,9 @@ export async function GET(request: NextRequest) {
   const label = searchParams.get('label')
   const uid = searchParams.get('uid')
   const sig = searchParams.get('sig')
+  const expiresStr = searchParams.get('expires')
 
-  if (!fingerprint || !label || !uid || !sig) {
+  if (!fingerprint || !label || !uid || !sig || !expiresStr) {
     return htmlPage(
       'Invalid link',
       false,
@@ -59,9 +61,24 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // Verify HMAC — reconstruct message exactly as it was signed
-  const expectedSig = await computeHmac(`${fingerprint}|${label}|${uid}`)
-  if (expectedSig !== sig) {
+  const expiresAt = parseInt(expiresStr, 10)
+  if (isNaN(expiresAt) || Math.floor(Date.now() / 1000) > expiresAt) {
+    return htmlPage(
+      'Link expired',
+      false,
+      `<p>This trust link has expired. Please sign in again to receive a new one.</p><a class="btn" href="${BASE_URL}/dashboard">Go to Dashboard</a>`,
+    )
+  }
+
+  // Verify HMAC with timing-safe comparison
+  const expectedSig = await computeHmac(`${fingerprint}|${label}|${uid}|${expiresAt}`)
+  let sigMatch = false
+  try {
+    sigMatch = timingSafeEqual(Buffer.from(expectedSig, 'hex'), Buffer.from(sig, 'hex'))
+  } catch {
+    sigMatch = false
+  }
+  if (!sigMatch) {
     return htmlPage(
       'Invalid link',
       false,

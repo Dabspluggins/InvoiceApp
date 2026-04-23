@@ -239,7 +239,7 @@ async function detectAndAlertSuspiciousLogin({
       .eq('user_id', userId)
       .eq('location', location)
 
-    if ((count ?? 0) > 1) return // location seen before
+    if ((count ?? 0) > 0) return // location seen before
   } else {
     // No location info — treat IP as location proxy
     if (ip) {
@@ -249,7 +249,7 @@ async function detectAndAlertSuspiciousLogin({
         .eq('user_id', userId)
         .eq('ip_address', ip)
 
-      if ((count ?? 0) > 1) return
+      if ((count ?? 0) > 0) return
     } else {
       return // no location or IP — can't determine novelty, skip
     }

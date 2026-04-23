@@ -582,7 +582,9 @@ function InvoicePageInner() {
         if (error) throw error
         await supabase.from('line_items').delete().eq('invoice_id', currentId)
       } else {
-        const shareToken = crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+        const tokenRes = await fetch('/api/invoices/share-token', { method: 'POST' })
+        if (!tokenRes.ok) throw new Error('Failed to generate share token')
+        const { token: shareToken } = await tokenRes.json()
         const { data: inserted, error } = await supabase
           .from('invoices')
           .insert({ ...invoicePayload, share_token: shareToken })

@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
@@ -88,7 +89,7 @@ export async function POST(
     const total = taxable + taxAmount
 
     // Create invoice
-    const shareToken = crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+    const shareToken = randomBytes(32).toString('hex')
 
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')

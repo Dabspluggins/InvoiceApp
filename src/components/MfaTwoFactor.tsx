@@ -21,7 +21,11 @@ function generateBackupCodes(): string[] {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   return Array.from({ length: 8 }, () => {
     const seg = (n: number) =>
-      Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+      Array.from({ length: n }, () => {
+        const buf = new Uint32Array(1)
+        crypto.getRandomValues(buf)
+        return chars[buf[0] % chars.length]
+      }).join('')
     return `${seg(4)}-${seg(4)}`
   })
 }

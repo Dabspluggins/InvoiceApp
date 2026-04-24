@@ -38,7 +38,7 @@ export async function POST(
     const { data: estItems } = await supabase
       .from('estimate_line_items')
       .select('*')
-      .eq('estimate_id', id)
+      .eq('estimate_id', estimate.id)
       .eq('deleted_by_client', false)
       .order('sort_order')
 

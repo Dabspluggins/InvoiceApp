@@ -136,17 +136,21 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
 
   const loadEstimate = useCallback(async (id: string) => {
     const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
     const { data: est } = await supabase
       .from('estimates')
       .select('*')
       .eq('id', id)
+      .eq('user_id', user.id)
       .single()
     if (!est) return
 
     const { data: items } = await supabase
       .from('estimate_line_items')
       .select('*')
-      .eq('estimate_id', id)
+      .eq('estimate_id', est.id)
       .eq('deleted_by_client', false)
       .order('sort_order')
 

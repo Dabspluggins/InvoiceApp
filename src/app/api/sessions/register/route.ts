@@ -22,7 +22,7 @@ async function hashToken(token: string): Promise<string> {
 }
 
 export async function computeHmac(message: string): Promise<string> {
-  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  const secret = process.env.TRUST_DEVICE_HMAC_SECRET!
   const key = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(secret),

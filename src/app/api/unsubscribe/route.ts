@@ -58,9 +58,23 @@ export async function GET(request: NextRequest) {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
+  const { data: profile, error: lookupError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
+    .single()
+
+  if (lookupError || !profile) {
+    return new Response(unsubscribeHtml('Invalid unsubscribe link.', true), {
+      status: 400,
+      headers: { 'Content-Type': 'text/html' },
+    })
+  }
+
   const { error } = await supabase
     .from('profiles')
-    .upsert({ id: userId, email_updates: false }, { onConflict: 'id' })
+    .update({ email_updates: false })
+    .eq('id', userId)
 
   if (error) {
     console.error('Unsubscribe error:', error)

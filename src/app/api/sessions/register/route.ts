@@ -4,6 +4,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { logAudit } from '@/lib/audit'
 import { getTrustedIp } from '@/lib/utils'
+import { sessionRegisterLimiter } from '@/lib/ratelimit'
 
 function parseUserAgent(ua: string): { deviceType: string; browser: string } {
   const deviceType = /Mobile/i.test(ua) ? 'Mobile' : /Tablet|iPad/i.test(ua) ? 'Tablet' : 'Desktop'
@@ -127,6 +128,9 @@ function buildSuspiciousLoginEmail({
 }
 
 export async function POST(request: NextRequest) {
+  const { success } = await sessionRegisterLimiter.limit(getTrustedIp(request))
+  if (!success) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

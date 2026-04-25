@@ -41,3 +41,10 @@ export const announcementLimiter = new Ratelimit({
   limiter: Ratelimit.slidingWindow(10, '24 h'),
   prefix: 'rl:announcement',
 })
+
+// Session registration: 4 requests per IP per 15 minutes
+export const sessionRegisterLimiter = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(4, '15 m'),
+  prefix: 'rl:session-register',
+})

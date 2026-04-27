@@ -4,7 +4,8 @@
 'use client'
 
 import { useRef, useEffect, useState } from 'react'
-import { InvoiceData, Currency, RecurringFrequency, PaymentDetails, SavedPaymentMethod } from '@/lib/types'
+import { InvoiceData, Currency, RecurringFrequency, PaymentDetails, SavedPaymentMethod, InvoiceLanguage } from '@/lib/types'
+import { LANGUAGE_OPTIONS } from '@/lib/invoice-i18n'
 import { calcTotals } from '@/lib/utils'
 import { CURRENCIES } from '@/lib/currencies'
 import LineItemsTable from './LineItemsTable'
@@ -305,6 +306,18 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
             <select className={inputCls} value={data.currency} onChange={(e) => set('currency', e.target.value as Currency)}>
               {CURRENCIES.map((c) => (
                 <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>Invoice Language</label>
+            <select
+              className={inputCls}
+              value={data.language ?? 'en'}
+              onChange={(e) => set('language', e.target.value as InvoiceLanguage)}
+            >
+              {LANGUAGE_OPTIONS.map((l) => (
+                <option key={l.value} value={l.value}>{l.flag} {l.label}</option>
               ))}
             </select>
           </div>

@@ -81,6 +81,7 @@ const defaultData: InvoiceData = {
   recurringFrequency: null,
   paymentDetails: undefined,
   template: 'classic',
+  language: 'en',
 }
 
 function InvoicePageInner() {
@@ -210,6 +211,7 @@ function InvoicePageInner() {
           recurringFrequency: inv.recurring_frequency || null,
           paymentDetails: inv.payment_details || undefined,
           template: (inv.template as InvoiceData['template']) || 'classic',
+          language: (inv.language as InvoiceData['language']) || 'en',
         })
       }
 
@@ -545,6 +547,7 @@ function InvoicePageInner() {
         recurring_frequency: data.isRecurring ? data.recurringFrequency : null,
         payment_details: data.paymentDetails ?? null,
         template: data.template || 'classic',
+        language: data.language || 'en',
         recurring_next_date:
           data.isRecurring && data.recurringFrequency && data.dueDate
             ? nextRecurringDate(data.dueDate, data.recurringFrequency)

@@ -3,7 +3,8 @@ import { Metadata } from 'next'
 import { Resend } from 'resend'
 import PrintButton from './PrintButton'
 import InvoiceWatermark from '@/components/InvoiceWatermark'
-import { PaymentDetails } from '@/lib/types'
+import { PaymentDetails, InvoiceLanguage } from '@/lib/types'
+import { getInvoiceTranslations } from '@/lib/invoice-i18n'
 
 interface LineItem {
   description: string
@@ -40,6 +41,7 @@ interface InvoiceRow {
   view_count: number | null
   viewed_at: string | null
   template: string | null
+  language: string | null
 }
 
 function getServiceClient() {
@@ -166,6 +168,8 @@ export default async function PublicInvoicePage({
   const result = await getInvoice(token)
   const brandColor = result?.invoice.brand_color || '#4F46E5'
   const template = result?.invoice.template || 'classic'
+  const language = (result?.invoice.language ?? 'en') as InvoiceLanguage
+  const t = getInvoiceTranslations(language)
 
   if (result) {
     await recordView(token, result.invoice)
@@ -261,15 +265,15 @@ export default async function PublicInvoicePage({
                   {invoice.business_phone && <p className="text-xs text-gray-400 mt-0.5">{invoice.business_phone}</p>}
                 </div>
                 <div className="sm:text-right">
-                  <div className="text-3xl font-light text-gray-200 uppercase tracking-widest">Invoice</div>
+                  <div className="text-3xl font-light text-gray-200 uppercase tracking-widest">{t.invoice}</div>
                   <div className="text-base font-semibold text-gray-700 mt-1">{invoice.invoice_number}</div>
                   <div className="text-xs text-gray-400 mt-2">
-                    <span className="font-medium text-gray-500">Issued: </span>
+                    <span className="font-medium text-gray-500">{t.issued}: </span>
                     {new Date(invoice.issue_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </div>
                   {invoice.due_date && (
                     <div className="text-xs text-gray-400 mt-0.5">
-                      <span className="font-medium text-gray-500">Due: </span>
+                      <span className="font-medium text-gray-500">{t.due}: </span>
                       {new Date(invoice.due_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                     </div>
                   )}
@@ -280,7 +284,7 @@ export default async function PublicInvoicePage({
 
               {/* Bill To */}
               <div className="px-8 sm:px-10 py-6">
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Bill To</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">{t.billTo}</p>
                 <p className="font-semibold text-gray-800">{invoice.client_name || '—'}</p>
                 {invoice.client_company && <p className="text-sm text-gray-500">{invoice.client_company}</p>}
                 {invoice.client_address && <p className="text-sm text-gray-400 whitespace-pre-line mt-0.5">{invoice.client_address}</p>}
@@ -294,10 +298,10 @@ export default async function PublicInvoicePage({
                   <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
-                        <th className="text-left pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Description</th>
-                        <th className="text-center pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Qty</th>
-                        <th className="text-right pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Rate</th>
-                        <th className="text-right pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Amount</th>
+                        <th className="text-left pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">{t.description}</th>
+                        <th className="text-center pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">{t.qty}</th>
+                        <th className="text-right pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">{t.rate}</th>
+                        <th className="text-right pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">{t.amount}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -317,23 +321,23 @@ export default async function PublicInvoicePage({
                 <div className="mt-4 flex justify-end">
                   <div className="w-full sm:w-64 text-sm space-y-1">
                     <div className="flex justify-between text-gray-500">
-                      <span>Subtotal</span>
+                      <span>{t.subtotal}</span>
                       <span>{fmt(invoice.subtotal, invoice.currency)}</span>
                     </div>
                     {(invoice.discount ?? 0) > 0 && (
                       <div className="flex justify-between text-gray-500">
-                        <span>Discount{invoice.discount_type === 'percent' ? ` (${invoice.discount}%)` : ''}</span>
+                        <span>{t.discount}{invoice.discount_type === 'percent' ? ` (${invoice.discount}%)` : ''}</span>
                         <span className="text-red-500">-{fmt(invoice.discount_amount ?? 0, invoice.currency)}</span>
                       </div>
                     )}
                     {invoice.tax_rate > 0 && (
                       <div className="flex justify-between text-gray-500">
-                        <span>Tax ({invoice.tax_rate}%)</span>
+                        <span>{t.tax} ({invoice.tax_rate}%)</span>
                         <span>{fmt(invoice.tax_amount, invoice.currency)}</span>
                       </div>
                     )}
                     <div className="flex justify-between font-bold text-gray-900 pt-2 border-t border-gray-300">
-                      <span>Total</span>
+                      <span>{t.total}</span>
                       <span>{fmt(invoice.total, invoice.currency)}</span>
                     </div>
                   </div>
@@ -341,12 +345,12 @@ export default async function PublicInvoicePage({
               </div>
 
               {/* Payment Details */}
-              {hasPayment && <SharePaymentBlock invoice={invoice} accentColor="#6b7280" />}
+              {hasPayment && <SharePaymentBlock invoice={invoice} accentColor="#6b7280" t={t} />}
 
               {/* Notes */}
               {invoice.notes && (
                 <div className="px-8 sm:px-10 pb-6">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Notes</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">{t.notes}</p>
                   <p className="text-sm text-gray-500 whitespace-pre-line">{invoice.notes}</p>
                 </div>
               )}
@@ -367,16 +371,16 @@ export default async function PublicInvoicePage({
                     {invoice.business_phone && <p className="text-sm text-white/70 mt-0.5">{invoice.business_phone}</p>}
                   </div>
                   <div className="sm:text-right">
-                    <div className="text-5xl font-black text-white/20 uppercase tracking-widest leading-none">INV</div>
+                    <div className="text-5xl font-black text-white/20 uppercase tracking-widest leading-none">{t.invoice.substring(0, 3).toUpperCase()}</div>
                     <div className="text-xl font-bold text-white mt-1">{invoice.invoice_number}</div>
                     <div className="mt-3 space-y-1 text-sm text-white/75">
                       <div>
-                        <span className="font-semibold text-white/90">Issued: </span>
+                        <span className="font-semibold text-white/90">{t.issued}: </span>
                         {new Date(invoice.issue_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </div>
                       {invoice.due_date && (
                         <div>
-                          <span className="font-semibold text-white/90">Due: </span>
+                          <span className="font-semibold text-white/90">{t.due}: </span>
                           {new Date(invoice.due_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </div>
                       )}
@@ -387,7 +391,7 @@ export default async function PublicInvoicePage({
 
               {/* Bill To */}
               <div className="px-8 sm:px-10 py-6 border-b border-gray-100">
-                <p className="text-xs font-black uppercase tracking-widest mb-2" style={{ color: brandColor }}>Bill To</p>
+                <p className="text-xs font-black uppercase tracking-widest mb-2" style={{ color: brandColor }}>{t.billTo}</p>
                 <p className="text-lg font-bold text-gray-900">{invoice.client_name || '—'}</p>
                 {invoice.client_company && <p className="text-sm font-semibold text-gray-500">{invoice.client_company}</p>}
                 {invoice.client_address && <p className="text-sm text-gray-400 whitespace-pre-line mt-0.5">{invoice.client_address}</p>}
@@ -399,10 +403,10 @@ export default async function PublicInvoicePage({
                   <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ backgroundColor: brandColor }}>
-                        <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-white">Description</th>
-                        <th className="text-center px-4 py-3 text-xs font-black uppercase tracking-wider text-white">Qty</th>
-                        <th className="text-right px-4 py-3 text-xs font-black uppercase tracking-wider text-white">Rate</th>
-                        <th className="text-right px-4 py-3 text-xs font-black uppercase tracking-wider text-white">Amount</th>
+                        <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-white">{t.description}</th>
+                        <th className="text-center px-4 py-3 text-xs font-black uppercase tracking-wider text-white">{t.qty}</th>
+                        <th className="text-right px-4 py-3 text-xs font-black uppercase tracking-wider text-white">{t.rate}</th>
+                        <th className="text-right px-4 py-3 text-xs font-black uppercase tracking-wider text-white">{t.amount}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -422,25 +426,25 @@ export default async function PublicInvoicePage({
                 <div className="mt-4 flex justify-end">
                   <div className="w-full sm:w-72 text-sm space-y-1.5">
                     <div className="flex justify-between text-gray-500 border-b border-gray-100 pb-1.5">
-                      <span>Subtotal</span>
+                      <span>{t.subtotal}</span>
                       <span>{fmt(invoice.subtotal, invoice.currency)}</span>
                     </div>
                     {(invoice.discount ?? 0) > 0 && (
                       <div className="flex justify-between text-gray-500 border-b border-gray-100 pb-1.5">
-                        <span>Discount{invoice.discount_type === 'percent' ? ` (${invoice.discount}%)` : ''}</span>
+                        <span>{t.discount}{invoice.discount_type === 'percent' ? ` (${invoice.discount}%)` : ''}</span>
                         <span className="text-red-500">-{fmt(invoice.discount_amount ?? 0, invoice.currency)}</span>
                       </div>
                     )}
                     {invoice.tax_rate > 0 && (
                       <div className="flex justify-between text-gray-500 border-b border-gray-100 pb-1.5">
-                        <span>Tax ({invoice.tax_rate}%)</span>
+                        <span>{t.tax} ({invoice.tax_rate}%)</span>
                         <span>{fmt(invoice.tax_amount, invoice.currency)}</span>
                       </div>
                     )}
                     <div className="flex items-center mt-2 rounded overflow-hidden">
                       <div className="w-1.5 self-stretch rounded-l" style={{ backgroundColor: brandColor }} />
                       <div className="flex justify-between flex-1 px-3 py-2.5 bg-gray-900">
-                        <span className="font-black text-white text-sm uppercase tracking-wide">Total Due</span>
+                        <span className="font-black text-white text-sm uppercase tracking-wide">{t.totalDue}</span>
                         <span className="font-black text-white text-sm">{fmt(invoice.total, invoice.currency)}</span>
                       </div>
                     </div>
@@ -449,13 +453,13 @@ export default async function PublicInvoicePage({
               </div>
 
               {/* Payment Details */}
-              {hasPayment && <SharePaymentBlock invoice={invoice} accentColor={brandColor} />}
+              {hasPayment && <SharePaymentBlock invoice={invoice} accentColor={brandColor} t={t} />}
 
               {/* Notes */}
               {invoice.notes && (
                 <div className="px-8 sm:px-10 pb-6">
                   <div className="rounded-lg p-4" style={{ borderLeft: `4px solid ${brandColor}`, background: '#f9fafb' }}>
-                    <p className="text-xs font-black uppercase tracking-widest mb-1" style={{ color: brandColor }}>Notes</p>
+                    <p className="text-xs font-black uppercase tracking-widest mb-1" style={{ color: brandColor }}>{t.notes}</p>
                     <p className="text-sm text-gray-600 whitespace-pre-line">{invoice.notes}</p>
                   </div>
                 </div>
@@ -479,23 +483,23 @@ export default async function PublicInvoicePage({
               {/* Invoice meta */}
               <div className="px-8 sm:px-10 py-6 border-b border-gray-100 flex flex-col sm:flex-row sm:justify-between gap-6">
                 <div>
-                  <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-1">Bill To</p>
+                  <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-1">{t.billTo}</p>
                   <p className="text-base font-semibold text-gray-900">{invoice.client_name || '—'}</p>
                   {invoice.client_company && <p className="text-sm text-gray-500">{invoice.client_company}</p>}
                   {invoice.client_address && <p className="text-sm text-gray-500 whitespace-pre-line mt-0.5">{invoice.client_address}</p>}
                 </div>
                 <div className="sm:text-right">
                   <div className="mb-3">
-                    <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-0.5">Invoice #</p>
+                    <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-0.5">{t.invoiceNumber}</p>
                     <p className="text-base font-bold text-gray-900">{invoice.invoice_number}</p>
                   </div>
                   <div className="mb-3">
-                    <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-0.5">Issue Date</p>
+                    <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-0.5">{t.issued}</p>
                     <p className="text-sm text-gray-700">{new Date(invoice.issue_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                   </div>
                   {invoice.due_date && (
                     <div>
-                      <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-0.5">Due Date</p>
+                      <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-0.5">{t.due}</p>
                       <p className="text-sm font-semibold text-gray-900">{new Date(invoice.due_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                     </div>
                   )}
@@ -508,10 +512,10 @@ export default async function PublicInvoicePage({
                   <table className="w-full text-sm">
                     <thead>
                       <tr style={{ backgroundColor: brandColor }}>
-                        <th className="text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-white rounded-tl-lg">Description</th>
-                        <th className="text-center px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">Qty</th>
-                        <th className="text-right px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">Rate</th>
-                        <th className="text-right px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-white rounded-tr-lg">Amount</th>
+                        <th className="text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-white rounded-tl-lg">{t.description}</th>
+                        <th className="text-center px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">{t.qty}</th>
+                        <th className="text-right px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">{t.rate}</th>
+                        <th className="text-right px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-white rounded-tr-lg">{t.amount}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -531,23 +535,23 @@ export default async function PublicInvoicePage({
                 <div className="mt-4 flex justify-end">
                   <div className="w-full sm:w-72 space-y-2">
                     <div className="flex justify-between text-sm text-gray-500">
-                      <span>Subtotal</span>
+                      <span>{t.subtotal}</span>
                       <span>{fmt(invoice.subtotal, invoice.currency)}</span>
                     </div>
                     {(invoice.discount ?? 0) > 0 && (
                       <div className="flex justify-between text-sm text-gray-500">
-                        <span>Discount{invoice.discount_type === 'percent' ? ` (${invoice.discount}%)` : ''}</span>
+                        <span>{t.discount}{invoice.discount_type === 'percent' ? ` (${invoice.discount}%)` : ''}</span>
                         <span className="text-red-500">-{fmt(invoice.discount_amount ?? 0, invoice.currency)}</span>
                       </div>
                     )}
                     {invoice.tax_rate > 0 && (
                       <div className="flex justify-between text-sm text-gray-500">
-                        <span>Tax ({invoice.tax_rate}%)</span>
+                        <span>{t.tax} ({invoice.tax_rate}%)</span>
                         <span>{fmt(invoice.tax_amount, invoice.currency)}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-base font-bold pt-2 border-t-2" style={{ borderColor: brandColor, color: brandColor }}>
-                      <span>Total Due</span>
+                      <span>{t.totalDue}</span>
                       <span>{fmt(invoice.total, invoice.currency)}</span>
                     </div>
                   </div>
@@ -555,13 +559,13 @@ export default async function PublicInvoicePage({
               </div>
 
               {/* Payment Details */}
-              {hasPayment && <SharePaymentBlock invoice={invoice} accentColor={brandColor} />}
+              {hasPayment && <SharePaymentBlock invoice={invoice} accentColor={brandColor} t={t} />}
 
               {/* Notes */}
               {invoice.notes && (
                 <div className="px-8 sm:px-10 pb-6">
                   <div className="rounded-lg p-4" style={{ borderLeft: `3px solid ${brandColor}`, background: '#F9FAFB' }}>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Notes</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">{t.notes}</p>
                     <p className="text-sm text-gray-600 whitespace-pre-line">{invoice.notes}</p>
                   </div>
                 </div>
@@ -585,7 +589,7 @@ export default async function PublicInvoicePage({
   )
 }
 
-function SharePaymentBlock({ invoice, accentColor }: { invoice: InvoiceRow; accentColor: string }) {
+function SharePaymentBlock({ invoice, accentColor, t }: { invoice: InvoiceRow; accentColor: string; t: ReturnType<typeof getInvoiceTranslations> }) {
   const pd = invoice.payment_details
   if (!pd) return null
   const bt = pd.bankTransfer
@@ -600,33 +604,33 @@ function SharePaymentBlock({ invoice, accentColor }: { invoice: InvoiceRow; acce
     <div className="px-8 sm:px-10 pb-6">
       <div className="rounded-lg border border-gray-200 overflow-hidden" style={{ background: '#F9FAFB' }}>
         <div className="px-4 py-2.5 border-b border-gray-200">
-          <p className="text-xs font-bold uppercase tracking-wider" style={{ color: accentColor }}>Payment Details</p>
+          <p className="text-xs font-bold uppercase tracking-wider" style={{ color: accentColor }}>{t.paymentDetails}</p>
         </div>
         <div className="px-4 py-3 text-xs space-y-3">
           {hasBT && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 mb-1">Bank Transfer</p>
+              <p className="text-xs font-semibold text-gray-500 mb-1">{t.bankTransfer}</p>
               <div className="space-y-0.5">
-                {bt?.accountName && <PayRow label="Account Name" value={bt.accountName} />}
-                {bt?.bankName && <PayRow label="Bank Name" value={bt.bankName} />}
-                {bt?.accountNumber && <PayRow label="Account Number" value={bt.accountNumber} />}
-                {bt?.routingNumber && <PayRow label="Sort Code / Routing" value={bt.routingNumber} />}
-                {bt?.swiftIban && <PayRow label="SWIFT / IBAN" value={bt.swiftIban} />}
+                {bt?.accountName && <PayRow label={t.accountName} value={bt.accountName} />}
+                {bt?.bankName && <PayRow label={t.bankName} value={bt.bankName} />}
+                {bt?.accountNumber && <PayRow label={t.accountNumber} value={bt.accountNumber} />}
+                {bt?.routingNumber && <PayRow label={t.sortCodeRouting} value={bt.routingNumber} />}
+                {bt?.swiftIban && <PayRow label={t.swiftIban} value={bt.swiftIban} />}
               </div>
             </div>
           )}
           {hasMM && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 mb-1">Mobile Money</p>
+              <p className="text-xs font-semibold text-gray-500 mb-1">{t.mobileMoney}</p>
               <div className="space-y-0.5">
-                {mm?.provider && <PayRow label="Provider" value={mm.provider} />}
-                {mm?.phoneNumber && <PayRow label="Phone / Account" value={mm.phoneNumber} />}
+                {mm?.provider && <PayRow label={t.provider} value={mm.provider} />}
+                {mm?.phoneNumber && <PayRow label={t.phoneAccount} value={mm.phoneNumber} />}
               </div>
             </div>
           )}
           {hasOT && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 mb-1">{ot?.paymentMethod || 'Other'}</p>
+              <p className="text-xs font-semibold text-gray-500 mb-1">{ot?.paymentMethod || t.paymentDetails}</p>
               {ot?.details && <p className="text-gray-700 whitespace-pre-line">{ot.details}</p>}
             </div>
           )}

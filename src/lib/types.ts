@@ -96,6 +96,7 @@ export interface EstimateTemplateItem {
 export type RecurringFrequency = 'weekly' | 'monthly' | 'quarterly'
 
 export type InvoiceTemplate = 'minimal' | 'classic' | 'bold'
+export type InvoiceLanguage = 'en' | 'fr' | 'es'
 
 export interface InvoiceData {
   invoiceNumber: string
@@ -122,4 +123,5 @@ export interface InvoiceData {
   recurringFrequency: RecurringFrequency | null
   paymentDetails?: PaymentDetails
   template?: InvoiceTemplate
+  language?: InvoiceLanguage
 }

@@ -63,9 +63,9 @@ export async function POST(
       .maybeSingle()
 
     function nextInvoiceNumber(last: string | undefined): string {
-      if (!last) return 'INV-001'
+      if (!last) return 'INV-0001'
       const match = last.match(/^(.*?)(\d+)$/)
-      if (!match) return 'INV-001'
+      if (!match) return 'INV-0001'
       const prefix = match[1]
       const numStr = match[2]
       return prefix + String(parseInt(numStr, 10) + 1).padStart(numStr.length, '0')
@@ -76,6 +76,10 @@ export async function POST(
 
     // Recalculate totals from non-deleted items, using client_proposed_price when available
     const activeItems = estItems || []
+    if (activeItems.length === 0) {
+      return NextResponse.json({ error: 'Estimate has no active line items to convert' }, { status: 400 })
+    }
+
     const subtotal = activeItems.reduce(
       (sum, i) => sum + (i.client_proposed_price ?? i.unit_price) * i.quantity,
       0
@@ -87,6 +91,20 @@ export async function POST(
     const taxable = Math.max(0, subtotal - discountAmount)
     const taxAmount = taxable * (estimate.tax_rate / 100)
     const total = taxable + taxAmount
+    const invoiceDiscountType = estimate.discount_type === 'percentage' ? 'percent' : 'fixed'
+
+    let clientCompany: string | null = null
+    let clientAddress: string | null = null
+    if (estimate.client_id) {
+      const { data: client } = await supabase
+        .from('clients')
+        .select('company, address')
+        .eq('id', estimate.client_id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      clientCompany = client?.company || null
+      clientAddress = client?.address || null
+    }
 
     // Create invoice
     const shareToken = randomBytes(32).toString('hex')
@@ -107,11 +125,11 @@ export async function POST(
         logo_url: latestInvoice?.logo_url || null,
         brand_color: latestInvoice?.brand_color || '#4F46E5',
         client_name: estimate.client_name,
-        client_company: null,
-        client_address: null,
+        client_company: clientCompany,
+        client_address: clientAddress,
         client_email: estimate.client_email,
         subtotal,
-        discount_type: estimate.discount_type || 'percentage',
+        discount_type: invoiceDiscountType,
         discount: estimate.discount_value || 0,
         discount_amount: discountAmount,
         tax_rate: estimate.tax_rate,
@@ -152,6 +170,7 @@ export async function POST(
       .from('estimates')
       .update({ status: 'converted', updated_at: new Date().toISOString() })
       .eq('id', id)
+      .eq('user_id', user.id)
 
     // Log event
     await supabase.from('estimate_events').insert({

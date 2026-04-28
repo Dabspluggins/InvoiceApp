@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomBytes } from 'crypto'
 import { Resend } from 'resend'
 import { PaymentDetails } from '@/lib/types'
 import { getCurrencySymbol } from '@/lib/currencies'
@@ -273,17 +274,73 @@ export async function POST(req: NextRequest) {
     const resend = new Resend(apiKey)
 
     const body: InvoicePayload = await req.json()
-    const { toEmail, toName, subject, invoiceData } = body
+    const { toEmail, subject } = body
 
     if (!toEmail) {
       return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 })
     }
+    if (!body.invoiceId) {
+      return NextResponse.json({ error: 'Save the invoice before sending it' }, { status: 400 })
+    }
 
-    // Compute totals if not provided
-    const subtotal = invoiceData.subtotal ?? invoiceData.lineItems.reduce((s, i) => s + i.amount, 0)
-    const taxAmount = invoiceData.taxAmount ?? subtotal * ((invoiceData.taxRate ?? 0) / 100)
-    const total = invoiceData.total ?? subtotal + taxAmount
-    const enrichedPayload = { ...body, invoiceData: { ...invoiceData, subtotal, taxAmount, total } }
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('id', body.invoiceId)
+      .eq('user_id', user.id)
+      .single()
+
+    if (invoiceError || !invoice) {
+      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+    }
+
+    const { data: lineItems } = await supabase
+      .from('line_items')
+      .select('description, quantity, rate, amount')
+      .eq('invoice_id', invoice.id)
+      .order('sort_order')
+
+    let shareToken = invoice.share_token as string | null
+    if (!shareToken) {
+      shareToken = randomBytes(32).toString('hex')
+      const { error: tokenError } = await supabase
+        .from('invoices')
+        .update({ share_token: shareToken, updated_at: new Date().toISOString() })
+        .eq('id', invoice.id)
+        .eq('user_id', user.id)
+      if (tokenError) {
+        return NextResponse.json({ error: tokenError.message }, { status: 500 })
+      }
+    }
+
+    const enrichedPayload: InvoicePayload = {
+      ...body,
+      shareToken,
+      invoiceData: {
+        invoiceNumber: invoice.invoice_number,
+        issueDate: invoice.issue_date,
+        dueDate: invoice.due_date || '',
+        currency: invoice.currency,
+        businessName: invoice.business_name || '',
+        businessEmail: invoice.business_email || '',
+        logoUrl: invoice.logo_url || null,
+        clientName: invoice.client_name || '',
+        clientCompany: invoice.client_company || '',
+        lineItems: (lineItems || []).map((item) => ({
+          description: item.description || '',
+          quantity: Number(item.quantity || 0),
+          rate: Number(item.rate || 0),
+          amount: Number(item.amount || 0),
+        })),
+        taxRate: Number(invoice.tax_rate || 0),
+        subtotal: Number(invoice.subtotal || 0),
+        taxAmount: Number(invoice.tax_amount || 0),
+        total: Number(invoice.total || 0),
+        notes: invoice.notes || '',
+        brandColor: invoice.brand_color || '#4F46E5',
+        paymentDetails: invoice.payment_details || undefined,
+      },
+    }
 
     const html = buildEmailHtml(enrichedPayload)
 
@@ -292,7 +349,7 @@ export async function POST(req: NextRequest) {
       to: [toEmail],
       subject,
       html,
-      replyTo: invoiceData.businessEmail || undefined,
+      replyTo: enrichedPayload.invoiceData.businessEmail || undefined,
     })
 
     if (error) {
@@ -300,17 +357,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    await supabase
+      .from('invoices')
+      .update({ status: 'sent', updated_at: new Date().toISOString() })
+      .eq('id', invoice.id)
+      .eq('user_id', user.id)
+
     if (user) {
       logAudit({
         userId: user.id,
         action: 'invoice.sent',
         entityType: 'invoice',
-        entityId: body.invoiceId,
+        entityId: invoice.id,
         metadata: { to: toEmail },
       }).catch(console.error)
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, shareToken })
   } catch (err) {
     console.error('send-invoice error:', err)
     return NextResponse.json({ error: 'Failed to send invoice' }, { status: 500 })

@@ -119,6 +119,7 @@ export async function POST(
           .from('estimate_line_items')
           .select('unit_price, min_price')
           .eq('id', itemId)
+          .eq('estimate_id', id)
           .single()
         if (!itemData) continue
 

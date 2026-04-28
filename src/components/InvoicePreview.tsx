@@ -100,12 +100,12 @@ function MinimalPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
           <div className="text-sm font-semibold text-gray-700 mt-1">{data.invoiceNumber}</div>
           <div className="text-xs text-gray-400 mt-3">
             <span className="font-medium text-gray-500">{t.issued}: </span>
-            {new Date(data.issueDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+            {new Date(data.issueDate + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}
           </div>
           {data.dueDate && (
             <div className="text-xs text-gray-400 mt-0.5">
               <span className="font-medium text-gray-500">{t.due}: </span>
-              {new Date(data.dueDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+              {new Date(data.dueDate + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}
             </div>
           )}
           <div className="mt-2">
@@ -246,12 +246,12 @@ function ClassicPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
             </div>
             <div>
               <span className="font-semibold text-white">{t.issued}: </span>
-              {new Date(data.issueDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+              {new Date(data.issueDate + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}
             </div>
             {data.dueDate && (
               <div>
                 <span className="font-semibold text-white">{t.due}: </span>
-                {new Date(data.dueDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                {new Date(data.dueDate + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}
               </div>
             )}
             <div className="mt-2">
@@ -383,12 +383,12 @@ function BoldPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLogoUr
             <div className="mt-3 space-y-1 text-sm text-white/75">
               <div>
                 <span className="font-semibold text-white/90">{t.issued}: </span>
-                {new Date(data.issueDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                {new Date(data.issueDate + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'short', year: 'numeric' })}
               </div>
               {data.dueDate && (
                 <div>
                   <span className="font-semibold text-white/90">{t.due}: </span>
-                  {new Date(data.dueDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {new Date(data.dueDate + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'short', year: 'numeric' })}
                 </div>
               )}
             </div>

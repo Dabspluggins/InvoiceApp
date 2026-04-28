@@ -272,6 +272,7 @@ function InvoicePageInner() {
           discountType: (inv.discount_type as InvoiceData['discountType']) || 'percent',
           notes: inv.notes || '',
           brandColor: inv.brand_color || '#4F46E5',
+          language: (inv.language as InvoiceData['language']) || 'en',
           isRecurring: inv.is_recurring || false,
           recurringFrequency: inv.recurring_frequency || null,
         })
@@ -341,6 +342,7 @@ function InvoicePageInner() {
           taxRate: d.taxRate ?? prev.taxRate,
           notes: d.notes ?? prev.notes,
           brandColor: d.brandColor ?? profileBrandColor ?? prev.brandColor,
+          language: (d.language as InvoiceData['language']) ?? prev.language,
         }))
         return
       }
@@ -479,6 +481,7 @@ function InvoicePageInner() {
             notes: data.notes,
             brandColor: data.brandColor,
             paymentDetails: data.paymentDetails,
+            language: data.language || 'en',
           },
         }),
       })
@@ -640,6 +643,7 @@ function InvoicePageInner() {
         taxRate: data.taxRate,
         notes: data.notes,
         brandColor: data.brandColor,
+        language: data.language || 'en',
       }
 
       const { error } = await supabase.from('templates').insert({

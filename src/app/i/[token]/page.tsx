@@ -269,12 +269,12 @@ export default async function PublicInvoicePage({
                   <div className="text-base font-semibold text-gray-700 mt-1">{invoice.invoice_number}</div>
                   <div className="text-xs text-gray-400 mt-2">
                     <span className="font-medium text-gray-500">{t.issued}: </span>
-                    {new Date(invoice.issue_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    {new Date(invoice.issue_date + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}
                   </div>
                   {invoice.due_date && (
                     <div className="text-xs text-gray-400 mt-0.5">
                       <span className="font-medium text-gray-500">{t.due}: </span>
-                      {new Date(invoice.due_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      {new Date(invoice.due_date + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}
                     </div>
                   )}
                 </div>
@@ -376,12 +376,12 @@ export default async function PublicInvoicePage({
                     <div className="mt-3 space-y-1 text-sm text-white/75">
                       <div>
                         <span className="font-semibold text-white/90">{t.issued}: </span>
-                        {new Date(invoice.issue_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {new Date(invoice.issue_date + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'short', year: 'numeric' })}
                       </div>
                       {invoice.due_date && (
                         <div>
                           <span className="font-semibold text-white/90">{t.due}: </span>
-                          {new Date(invoice.due_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {new Date(invoice.due_date + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'short', year: 'numeric' })}
                         </div>
                       )}
                     </div>
@@ -495,12 +495,12 @@ export default async function PublicInvoicePage({
                   </div>
                   <div className="mb-3">
                     <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-0.5">{t.issued}</p>
-                    <p className="text-sm text-gray-700">{new Date(invoice.issue_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                    <p className="text-sm text-gray-700">{new Date(invoice.issue_date + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                   </div>
                   {invoice.due_date && (
                     <div>
                       <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-0.5">{t.due}</p>
-                      <p className="text-sm font-semibold text-gray-900">{new Date(invoice.due_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                      <p className="text-sm font-semibold text-gray-900">{new Date(invoice.due_date + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                     </div>
                   )}
                 </div>

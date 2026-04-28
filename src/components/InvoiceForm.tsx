@@ -305,7 +305,7 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
             <label className={labelCls}>Currency</label>
             <select className={inputCls} value={data.currency} onChange={(e) => set('currency', e.target.value as Currency)}>
               {CURRENCIES.map((c) => (
-                <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.label}</option>
+                <option key={c.code} value={c.code}>{c.symbol} {c.code} - {c.label}</option>
               ))}
             </select>
           </div>
@@ -353,7 +353,7 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
                 value={data.recurringFrequency || ''}
                 onChange={(e) => set('recurringFrequency', e.target.value as RecurringFrequency)}
               >
-                <option value="" disabled>Select frequency…</option>
+                <option value="" disabled>Select frequency...</option>
                 <option value="weekly">Weekly</option>
                 <option value="monthly">Monthly</option>
                 <option value="quarterly">Quarterly</option>
@@ -376,7 +376,7 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
               defaultValue=""
               onChange={(e) => handleSelectClient(e.target.value)}
             >
-              <option value="">— Select a saved client —</option>
+              <option value="">-- Select a saved client --</option>
               {savedClients.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}{c.company ? ` (${c.company})` : ''}
@@ -503,7 +503,16 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => setActivePaymentTab(tab.id)}
+                  onClick={() => {
+                    setActivePaymentTab(tab.id)
+                    // Clear the other tabs' data so stale payment details don't bleed into the invoice
+                    const cleared: typeof data.paymentDetails = {
+                      bankTransfer: tab.id === 'bankTransfer' ? data.paymentDetails?.bankTransfer : undefined,
+                      mobileMoney: tab.id === 'mobileMoney' ? data.paymentDetails?.mobileMoney : undefined,
+                      other: tab.id === 'other' ? data.paymentDetails?.other : undefined,
+                    }
+                    set('paymentDetails', cleared)
+                  }}
                   className={`flex-1 text-xs font-medium py-1.5 px-2 rounded-md transition ${
                     activePaymentTab === tab.id
                       ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-white'
@@ -579,7 +588,7 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
                     value={mm.provider || ''}
                     onChange={(e) => setMobileMoney({ provider: e.target.value })}
                   >
-                    <option value="">— Select provider —</option>
+                    <option value="">-- Select provider --</option>
                     {MOBILE_MONEY_PROVIDERS.map((p) => (
                       <option key={p} value={p}>{p}</option>
                     ))}
@@ -606,7 +615,7 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
                     className={inputCls}
                     value={ot.paymentMethod || ''}
                     onChange={(e) => setOther({ paymentMethod: e.target.value })}
-                    placeholder="PayPal, Wise, Cash…"
+                    placeholder="PayPal, Wise, Cash..."
                   />
                 </div>
                 <div className="col-span-2">

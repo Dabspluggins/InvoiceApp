@@ -449,9 +449,13 @@ function InvoicePageInner() {
   }
 
   async function handleSend() {
+    if (!savedInvoiceId) {
+      showToast('Save your invoice before sending it to a client.', 'error')
+      return
+    }
     setSendModal((s) => ({ ...s, sending: true }))
     try {
-      const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
+      const { subtotal, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
 
       const res = await fetch('/api/send-invoice', {
         method: 'POST',
@@ -488,6 +492,7 @@ function InvoicePageInner() {
 
       const result = await res.json()
       if (!res.ok) throw new Error(result.error || 'Failed to send')
+      if (result.shareToken) setSavedShareToken(result.shareToken)
 
       // Update status to 'sent' in Supabase if invoice is saved
       if (savedInvoiceId) {
@@ -673,30 +678,22 @@ function InvoicePageInner() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: inserted, error } = await supabase
-        .from('payments')
-        .insert({
-          invoice_id: savedInvoiceId,
-          user_id: user.id,
+      const res = await fetch(`/api/invoices/${savedInvoiceId}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           amount: amt,
           paid_at: paymentForm.paid_at,
           note: paymentForm.note.trim() || null,
-        })
-        .select('*')
-        .single()
+        }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Failed to record payment')
 
-      if (error) throw error
-
-      const newPayments = [...payments, inserted]
+      const newPayments = [...payments, result.payment]
       setPayments(newPayments)
 
-      const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
-      const totalPaid = newPayments.reduce((sum, p) => sum + p.amount, 0)
-      const newStatus = totalPaid >= total ? 'paid' : totalPaid > 0 ? 'partial' : data.status
-      if (newStatus !== data.status) {
-        await supabase.from('invoices').update({ status: newStatus }).eq('id', savedInvoiceId)
-        setData((prev) => ({ ...prev, status: newStatus as typeof prev.status }))
-      }
+      setData((prev) => ({ ...prev, status: result.status as typeof prev.status }))
 
       setPaymentForm({ amount: '', paid_at: todayStr(), note: '' })
       setShowPaymentForm(false)
@@ -712,19 +709,17 @@ function InvoicePageInner() {
   async function handleDeletePayment(paymentId: string) {
     if (!savedInvoiceId) return
     try {
-      const supabase = createClient()
-      await supabase.from('payments').delete().eq('id', paymentId)
+      const res = await fetch(`/api/invoices/${savedInvoiceId}/payments`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Failed to delete payment')
 
       const newPayments = payments.filter((p) => p.id !== paymentId)
       setPayments(newPayments)
-
-      const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
-      const totalPaid = newPayments.reduce((sum, p) => sum + p.amount, 0)
-      const newStatus = totalPaid >= total ? 'paid' : totalPaid > 0 ? 'partial' : 'sent'
-      if (newStatus !== data.status) {
-        await supabase.from('invoices').update({ status: newStatus }).eq('id', savedInvoiceId)
-        setData((prev) => ({ ...prev, status: newStatus as typeof prev.status }))
-      }
+      setData((prev) => ({ ...prev, status: result.status as typeof prev.status }))
     } catch (err) {
       console.error(err)
       showToast('Failed to delete payment.', 'error')

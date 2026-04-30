@@ -1020,7 +1020,7 @@ export default function SettingsClient({
 
       {/* Support link */}
       <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
-        Need help?{' '}
+        Need help? Contact us at{' '}
         <a href="mailto:support@billbydab.com" className="text-indigo-600 hover:text-indigo-700 font-medium transition-colors">
           support@billbydab.com
         </a>

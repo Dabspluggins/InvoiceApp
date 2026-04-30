@@ -160,7 +160,7 @@ export default function Home() {
       <section className="bg-gray-50 border-y border-gray-100 py-16">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <p className="text-xs font-semibold uppercase tracking-widest text-indigo-500 mb-2">Live Preview</p>
-          <h2 className="text-2xl font-bold text-gray-800 mb-8">Here's what your invoice looks like</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-8">Here&apos;s what your invoice looks like</h2>
           {/* Mockup card — scaled down so it fits without being too tall */}
           <div className="flex justify-center">
             <div className="origin-top transform scale-90 w-full max-w-[600px] bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200 text-left">
@@ -386,9 +386,19 @@ export default function Home() {
           <div className="border-t border-gray-100 dark:border-gray-700 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-sm text-gray-400 dark:text-gray-500">&copy; {new Date().getFullYear()} BillByDab. All rights reserved.</p>
             <nav className="flex items-center gap-5">
-              <Link href="/invoice" className="text-sm text-gray-400 dark:text-gray-500 hover:text-indigo-600 transition-colors">Invoice</Link>
-              <Link href="/dashboard" className="text-sm text-gray-400 dark:text-gray-500 hover:text-indigo-600 transition-colors">Dashboard</Link>
-              <Link href="/auth/signup" className="text-sm text-gray-400 dark:text-gray-500 hover:text-indigo-600 transition-colors">Sign Up</Link>
+              <Link href="/contact" className="text-sm text-gray-400 dark:text-gray-500 hover:text-indigo-600 transition-colors">Contact</Link>
+              <Link href="/support" className="text-sm text-gray-400 dark:text-gray-500 hover:text-indigo-600 transition-colors">Support</Link>
+              <a
+                href="https://x.com/billbydab"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-gray-400 dark:text-gray-500 hover:text-indigo-600 transition-colors inline-flex items-center gap-1"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.258 5.63 5.907-5.63Zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+                Twitter
+              </a>
             </nav>
           </div>
         </div>

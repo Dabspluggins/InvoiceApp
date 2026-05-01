@@ -48,3 +48,10 @@ export const sessionRegisterLimiter = new Ratelimit({
   limiter: Ratelimit.slidingWindow(4, '15 m'),
   prefix: 'rl:session-register',
 })
+
+// Backup code verification: 5 attempts per user per 15 minutes
+export const backupCodeLimiter = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(5, '15 m'),
+  prefix: 'rl:backup-code',
+})

@@ -60,14 +60,14 @@ export async function POST(req: NextRequest) {
     .select('id')
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Delete old codes now that the new set is safely stored; if this fails the
-  // user briefly has both sets in the DB — harmless, old plaintext is discarded
+  // Delete old codes now that the new set is safely stored
   const newIds = (inserted as { id: string }[]).map(r => r.id)
-  await admin
+  const { error: deleteError } = await admin
     .from('mfa_backup_codes')
     .delete()
     .eq('user_id', user.id)
     .not('id', 'in', `(${newIds.join(',')})`)
+  if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
 
   logAudit({ userId: user.id, action: 'mfa.enabled' }).catch(() => {})
 

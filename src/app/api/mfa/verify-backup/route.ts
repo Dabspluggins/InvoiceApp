@@ -6,7 +6,7 @@ import { logAudit } from '@/lib/audit'
 import { backupCodeLimiter } from '@/lib/ratelimit'
 
 function hashCode(code: string) {
-  return createHmac('sha256', process.env.BACKUP_CODE_PEPPER ?? '')
+  return createHmac('sha256', process.env.BACKUP_CODE_PEPPER!)
     .update(code.toUpperCase().replace(/-/g, '').trim())
     .digest('hex')
 }
@@ -24,6 +24,15 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  if (!process.env.BACKUP_CODE_PEPPER) {
+    return NextResponse.json({ error: 'Server misconfiguration.' }, { status: 500 })
+  }
+
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+  if (aal?.currentLevel !== 'aal2') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const { success } = await backupCodeLimiter.limit(`backup_code_attempt:${user.id}`)
   if (!success) {

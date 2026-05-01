@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { createHash } from 'crypto'
+import { createHmac } from 'crypto'
 import { logAudit } from '@/lib/audit'
 
+const CODE_PATTERN = /^[A-Z2-9]{4}-[A-Z2-9]{4}$/
+
 function hashCode(code: string) {
-  return createHash('sha256').update(code.toUpperCase().replace(/-/g, '').trim()).digest('hex')
+  return createHmac('sha256', process.env.BACKUP_CODE_PEPPER!)
+    .update(code.toUpperCase().replace(/-/g, '').trim())
+    .digest('hex')
 }
 
 function adminClient() {
@@ -22,22 +26,48 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  if (!process.env.BACKUP_CODE_PEPPER) {
+    return NextResponse.json({ error: 'Server misconfiguration.' }, { status: 500 })
+  }
+
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+  if (aal?.currentLevel !== 'aal2') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const { codes } = await req.json()
-  if (!Array.isArray(codes) || codes.length === 0) {
+  if (
+    !Array.isArray(codes) ||
+    codes.length !== 8 ||
+    codes.some((c: unknown) => typeof c !== 'string' || !CODE_PATTERN.test(c)) ||
+    new Set(codes).size !== codes.length
+  ) {
     return NextResponse.json({ error: 'Invalid codes' }, { status: 400 })
   }
 
   const admin = adminClient()
-  await admin.from('mfa_backup_codes').delete().eq('user_id', user.id)
 
-  const rows = codes.map((code: string) => ({
+  const rows = (codes as string[]).map(code => ({
     user_id: user.id,
     code_hash: hashCode(code),
     used: false,
   }))
 
-  const { error } = await admin.from('mfa_backup_codes').insert(rows)
+  // Insert new codes first — if this fails the old codes are still intact
+  const { data: inserted, error } = await admin
+    .from('mfa_backup_codes')
+    .insert(rows)
+    .select('id')
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Delete old codes now that the new set is safely stored
+  const newIds = (inserted as { id: string }[]).map(r => r.id)
+  const { error: deleteError } = await admin
+    .from('mfa_backup_codes')
+    .delete()
+    .eq('user_id', user.id)
+    .not('id', 'in', `(${newIds.join(',')})`)
+  if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
 
   logAudit({ userId: user.id, action: 'mfa.enabled' }).catch(() => {})
 
@@ -49,6 +79,15 @@ export async function DELETE() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  if (!process.env.BACKUP_CODE_PEPPER) {
+    return NextResponse.json({ error: 'Server misconfiguration.' }, { status: 500 })
+  }
+
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+  if (aal?.currentLevel !== 'aal2') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   await adminClient().from('mfa_backup_codes').delete().eq('user_id', user.id)
 

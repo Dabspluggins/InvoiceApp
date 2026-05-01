@@ -20,8 +20,10 @@ const labelCls = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-
 function generateBackupCodes(): string[] {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   return Array.from({ length: 8 }, () => {
-    const seg = (n: number) =>
-      Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+    const seg = (n: number) => {
+      const bytes = crypto.getRandomValues(new Uint8Array(n))
+      return Array.from(bytes, b => chars[b & 31]).join('')
+    }
     return `${seg(4)}-${seg(4)}`
   })
 }
@@ -102,12 +104,16 @@ export default function MfaTwoFactor({ user }: { user: User }) {
       return
     }
     const codes = generateBackupCodes()
-    setBackupCodes(codes)
-    await fetch('/api/mfa/backup-codes', {
+    const res = await fetch('/api/mfa/backup-codes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ codes }),
     })
+    if (!res.ok) {
+      setMsg({ type: 'error', text: 'Failed to save backup codes — please try again.' })
+      return
+    }
+    setBackupCodes(codes)
     setStep('backup-codes')
     setVerifyCode('')
     setMsg(null)

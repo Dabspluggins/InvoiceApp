@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { createHash } from 'crypto'
+import { createHmac } from 'crypto'
 import { logAudit } from '@/lib/audit'
 
 function hashCode(code: string) {
-  return createHash('sha256').update(code.toUpperCase().replace(/-/g, '').trim()).digest('hex')
+  return createHmac('sha256', process.env.BACKUP_CODE_PEPPER ?? '')
+    .update(code.toUpperCase().replace(/-/g, '').trim())
+    .digest('hex')
 }
 
 function adminClient() {

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { createHash } from 'crypto'
+import { createHmac } from 'crypto'
 import { logAudit } from '@/lib/audit'
 import { backupCodeLimiter } from '@/lib/ratelimit'
 
 function hashCode(code: string) {
-  return createHash('sha256').update(code.toUpperCase().replace(/-/g, '').trim()).digest('hex')
+  return createHmac('sha256', process.env.BACKUP_CODE_PEPPER ?? '')
+    .update(code.toUpperCase().replace(/-/g, '').trim())
+    .digest('hex')
 }
 
 function adminClient() {
@@ -38,17 +40,28 @@ export async function POST(req: NextRequest) {
 
   const { data: row } = await admin
     .from('mfa_backup_codes')
-    .select('id, used')
+    .select('id')
     .eq('user_id', user.id)
     .eq('code_hash', codeHash)
+    .eq('used', false)
     .maybeSingle()
 
-  if (!row || row.used) {
+  if (!row) {
     return NextResponse.json({ valid: false })
   }
 
-  // Mark used
-  await admin.from('mfa_backup_codes').update({ used: true }).eq('id', row.id)
+  // Atomically mark used — conditional .eq('used', false) prevents double-consumption
+  const { data: consumed } = await admin
+    .from('mfa_backup_codes')
+    .update({ used: true })
+    .eq('id', row.id)
+    .eq('used', false)
+    .select('id')
+    .single()
+
+  if (!consumed) {
+    return NextResponse.json({ valid: false })
+  }
 
   // Find and delete the verified TOTP factor via admin REST API
   // (user is at AAL1 so client-side unenroll would be blocked)
@@ -56,7 +69,7 @@ export async function POST(req: NextRequest) {
   const totpFactor = factors?.totp?.find(f => f.status === 'verified')
 
   if (totpFactor) {
-    await fetch(
+    const deleteRes = await fetch(
       `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users/${user.id}/factors/${totpFactor.id}`,
       {
         method: 'DELETE',
@@ -66,6 +79,9 @@ export async function POST(req: NextRequest) {
         },
       }
     )
+    if (!deleteRes.ok) {
+      return NextResponse.json({ error: 'Failed to remove authenticator factor.' }, { status: 500 })
+    }
     // Clean up backup codes since 2FA is now gone
     await admin.from('mfa_backup_codes').delete().eq('user_id', user.id)
   }

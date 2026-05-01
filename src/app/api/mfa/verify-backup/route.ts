@@ -29,11 +29,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Server misconfiguration.' }, { status: 500 })
   }
 
-  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
-  if (aal?.currentLevel !== 'aal2') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
   const { success } = await backupCodeLimiter.limit(`backup_code_attempt:${user.id}`)
   if (!success) {
     return NextResponse.json({ error: 'Too many attempts. Try again later.' }, { status: 429 })
@@ -89,6 +84,8 @@ export async function POST(req: NextRequest) {
       }
     )
     if (!deleteRes.ok) {
+      // Revert the consumed code so the user can retry with it
+      await admin.from('mfa_backup_codes').update({ used: false }).eq('id', consumed.id)
       return NextResponse.json({ error: 'Failed to remove authenticator factor.' }, { status: 500 })
     }
     // Clean up backup codes since 2FA is now gone

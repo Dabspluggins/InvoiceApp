@@ -46,7 +46,6 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = adminClient()
-  await admin.from('mfa_backup_codes').delete().eq('user_id', user.id)
 
   const rows = (codes as string[]).map(code => ({
     user_id: user.id,
@@ -54,8 +53,21 @@ export async function POST(req: NextRequest) {
     used: false,
   }))
 
-  const { error } = await admin.from('mfa_backup_codes').insert(rows)
+  // Insert new codes first — if this fails the old codes are still intact
+  const { data: inserted, error } = await admin
+    .from('mfa_backup_codes')
+    .insert(rows)
+    .select('id')
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Delete old codes now that the new set is safely stored; if this fails the
+  // user briefly has both sets in the DB — harmless, old plaintext is discarded
+  const newIds = (inserted as { id: string }[]).map(r => r.id)
+  await admin
+    .from('mfa_backup_codes')
+    .delete()
+    .eq('user_id', user.id)
+    .not('id', 'in', `(${newIds.join(',')})`)
 
   logAudit({ userId: user.id, action: 'mfa.enabled' }).catch(() => {})
 

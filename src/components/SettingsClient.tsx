@@ -98,8 +98,10 @@ export default function SettingsClient({
   const [emailMsg, setEmailMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // Password section
+  const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [totpCode, setTotpCode] = useState('')
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -249,19 +251,35 @@ export default function SettingsClient({
       setPasswordMsg({ type: 'error', text: 'Passwords do not match.' })
       return
     }
-    if (newPassword.length < 6) {
-      setPasswordMsg({ type: 'error', text: 'Password must be at least 6 characters.' })
+    if (newPassword.length < 12) {
+      setPasswordMsg({ type: 'error', text: 'Password must be at least 12 characters.' })
       return
     }
     setPasswordSaving(true)
-    const { error } = await supabase.auth.updateUser({ password: newPassword })
-    setPasswordSaving(false)
-    if (error) {
-      setPasswordMsg({ type: 'error', text: error.message })
-    } else {
-      setPasswordMsg({ type: 'success', text: 'Password changed successfully.' })
-      setNewPassword('')
-      setConfirmPassword('')
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+          ...(totpCode ? { totpCode } : {}),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setPasswordMsg({ type: 'error', text: data.error ?? 'Failed to change password.' })
+      } else {
+        setPasswordMsg({ type: 'success', text: 'Password changed successfully.' })
+        setCurrentPassword('')
+        setNewPassword('')
+        setConfirmPassword('')
+        setTotpCode('')
+      }
+    } catch {
+      setPasswordMsg({ type: 'error', text: 'Failed to change password. Please try again.' })
+    } finally {
+      setPasswordSaving(false)
     }
   }
 
@@ -507,6 +525,16 @@ export default function SettingsClient({
         </div>
         <form onSubmit={changePassword} className="p-6 space-y-4">
           <div>
+            <label className={labelCls}>Current password</label>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="••••••••"
+              className={inputCls}
+            />
+          </div>
+          <div>
             <label className={labelCls}>New password</label>
             <input
               type="password"
@@ -523,6 +551,21 @@ export default function SettingsClient({
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="••••••••"
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>
+              Authenticator code{' '}
+              <span className="text-gray-400 dark:text-gray-500 font-normal">(required if 2FA is enabled)</span>
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={totpCode}
+              onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}
+              placeholder="000000"
               className={inputCls}
             />
           </div>

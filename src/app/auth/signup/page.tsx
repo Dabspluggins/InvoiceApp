@@ -42,21 +42,32 @@ export default function SignupPage() {
       return
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
+    if (password.length < 12) {
+      setError('Password must be at least 12 characters')
       setLoading(false)
       return
     }
 
-    const rlRes = await fetch('/api/auth/check-rate-limit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'signup' }),
-    })
-    const rlData = await rlRes.json()
-    if (!rlData.allowed) {
-      const minutes = Math.ceil(rlData.retryAfter / 60)
-      setError(`Too many attempts. Please try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`)
+    try {
+      const rlRes = await fetch('/api/auth/check-rate-limit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'signup' }),
+      })
+      if (!rlRes.ok) throw new Error('rate-limit check failed')
+      const rlData = await rlRes.json()
+      if (!rlData.allowed) {
+        const minutes = Math.ceil((rlData.retryAfter as number) / 60)
+        setError(
+          Number.isFinite(minutes)
+            ? `Too many attempts. Please try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`
+            : 'Too many attempts. Please try again later.'
+        )
+        setLoading(false)
+        return
+      }
+    } catch {
+      setError('Too many attempts. Please try again later.')
       setLoading(false)
       return
     }
@@ -149,7 +160,7 @@ export default function SignupPage() {
                 required
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="Min. 6 characters"
+                placeholder="Min. 12 characters"
                 className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-3 pr-10 text-sm bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button

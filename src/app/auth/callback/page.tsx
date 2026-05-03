@@ -11,7 +11,8 @@ export default function AuthCallbackPage() {
     const params = new URLSearchParams(window.location.search)
     const token_hash = params.get('token_hash')
     const type = params.get('type') as 'recovery' | 'signup' | 'invite' | 'magiclink' | 'email' | null
-    const next = params.get('next') ?? '/dashboard'
+    const rawNext = params.get('next') ?? '/dashboard'
+    const safeNext = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/dashboard'
     const code = params.get('code')
 
     // Fire-and-forget welcome email for new signups (not password resets or email changes)
@@ -33,12 +34,12 @@ export default function AuthCallbackPage() {
       supabase.auth.verifyOtp({ token_hash, type }).then(({ data: { session }, error }) => {
         if (!error && session) {
           maybeSendWelcomeEmail(type, session.access_token)
-          if (type === 'recovery' || next === '/reset-password') {
+          if (type === 'recovery' || safeNext === '/reset-password') {
             router.replace(
-              `/reset-password?access_token=${session.access_token}&refresh_token=${session.refresh_token}`
+              `/reset-password#access_token=${session.access_token}&refresh_token=${session.refresh_token}`
             )
           } else {
-            router.replace(next)
+            router.replace(safeNext)
           }
         } else {
           router.replace('/auth/login?error=link_expired')
@@ -52,13 +53,13 @@ export default function AuthCallbackPage() {
       supabase.auth.exchangeCodeForSession(code).then(({ data: { session }, error }) => {
         if (!error && session) {
           // code flow: recovery is indicated by next=/reset-password
-          maybeSendWelcomeEmail(next === '/reset-password' ? 'recovery' : null, session.access_token)
-          if (next === '/reset-password') {
+          maybeSendWelcomeEmail(safeNext === '/reset-password' ? 'recovery' : null, session.access_token)
+          if (safeNext === '/reset-password') {
             router.replace(
-              `/reset-password?access_token=${session.access_token}&refresh_token=${session.refresh_token}`
+              `/reset-password#access_token=${session.access_token}&refresh_token=${session.refresh_token}`
             )
           } else {
-            router.replace(next)
+            router.replace(safeNext)
           }
         } else {
           router.replace('/auth/login?error=auth_failed')

@@ -19,29 +19,20 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     const supabase = createClient()
-    const params = new URLSearchParams(window.location.search)
+    // Tokens arrive in the URL fragment — never sent to servers or stored in logs
+    const params = new URLSearchParams(window.location.hash.slice(1))
     const access_token = params.get('access_token')
     const refresh_token = params.get('refresh_token')
 
     if (access_token && refresh_token) {
+      // Strip tokens from the fragment immediately so they don't linger in history
+      window.history.replaceState({}, '', '/reset-password')
       supabase.auth.setSession({ access_token, refresh_token }).then(({ error }) => {
-        if (error) {
-          setStatus('error')
-        } else {
-          setStatus('ready')
-          // Remove tokens from URL so they don't linger in history
-          window.history.replaceState({}, '', '/reset-password')
-        }
+        setStatus(error ? 'error' : 'ready')
       })
     } else {
-      // Fallback: check if there's already a valid session (cookie-based)
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          setStatus('ready')
-        } else {
-          setStatus('error')
-        }
-      })
+      // No recovery tokens present — reject; do not fall back to any existing session
+      Promise.resolve().then(() => setStatus('error'))
     }
   }, [])
 
@@ -54,8 +45,8 @@ export default function ResetPasswordPage() {
       return
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
+    if (password.length < 12) {
+      setError('Password must be at least 12 characters')
       return
     }
 
@@ -131,7 +122,7 @@ export default function ResetPasswordPage() {
                 required
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="Min. 6 characters"
+                placeholder="Min. 12 characters"
                 className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-3 pr-10 text-sm bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button

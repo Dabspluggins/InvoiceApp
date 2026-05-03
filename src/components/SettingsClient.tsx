@@ -249,8 +249,8 @@ export default function SettingsClient({
       setPasswordMsg({ type: 'error', text: 'Passwords do not match.' })
       return
     }
-    if (newPassword.length < 6) {
-      setPasswordMsg({ type: 'error', text: 'Password must be at least 6 characters.' })
+    if (newPassword.length < 12) {
+      setPasswordMsg({ type: 'error', text: 'Password must be at least 12 characters.' })
       return
     }
     setPasswordSaving(true)

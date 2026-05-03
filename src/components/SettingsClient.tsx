@@ -98,6 +98,7 @@ export default function SettingsClient({
   const [emailMsg, setEmailMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // Password section
+  const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordSaving, setPasswordSaving] = useState(false)
@@ -254,12 +255,22 @@ export default function SettingsClient({
       return
     }
     setPasswordSaving(true)
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: user.email ?? '',
+      password: currentPassword,
+    })
+    if (signInError) {
+      setPasswordSaving(false)
+      setPasswordMsg({ type: 'error', text: 'Current password is incorrect.' })
+      return
+    }
     const { error } = await supabase.auth.updateUser({ password: newPassword })
     setPasswordSaving(false)
     if (error) {
       setPasswordMsg({ type: 'error', text: error.message })
     } else {
       setPasswordMsg({ type: 'success', text: 'Password changed successfully.' })
+      setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
     }
@@ -506,6 +517,16 @@ export default function SettingsClient({
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">Change Password</h2>
         </div>
         <form onSubmit={changePassword} className="p-6 space-y-4">
+          <div>
+            <label className={labelCls}>Current password</label>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="••••••••"
+              className={inputCls}
+            />
+          </div>
           <div>
             <label className={labelCls}>New password</label>
             <input

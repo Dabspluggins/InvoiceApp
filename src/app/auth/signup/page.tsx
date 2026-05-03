@@ -48,15 +48,26 @@ export default function SignupPage() {
       return
     }
 
-    const rlRes = await fetch('/api/auth/check-rate-limit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'signup' }),
-    })
-    const rlData = await rlRes.json()
-    if (!rlData.allowed) {
-      const minutes = Math.ceil(rlData.retryAfter / 60)
-      setError(`Too many attempts. Please try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`)
+    try {
+      const rlRes = await fetch('/api/auth/check-rate-limit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'signup' }),
+      })
+      if (!rlRes.ok) throw new Error('rate-limit check failed')
+      const rlData = await rlRes.json()
+      if (!rlData.allowed) {
+        const minutes = Math.ceil((rlData.retryAfter as number) / 60)
+        setError(
+          Number.isFinite(minutes)
+            ? `Too many attempts. Please try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`
+            : 'Too many attempts. Please try again later.'
+        )
+        setLoading(false)
+        return
+      }
+    } catch {
+      setError('Too many attempts. Please try again later.')
       setLoading(false)
       return
     }

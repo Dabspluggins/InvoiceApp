@@ -35,7 +35,7 @@ export default function AuthCallbackPage() {
           maybeSendWelcomeEmail(type, session.access_token)
           if (type === 'recovery' || next === '/reset-password') {
             router.replace(
-              `/reset-password?access_token=${session.access_token}&refresh_token=${session.refresh_token}`
+              `/reset-password#access_token=${session.access_token}&refresh_token=${session.refresh_token}`
             )
           } else {
             router.replace(next)
@@ -55,7 +55,7 @@ export default function AuthCallbackPage() {
           maybeSendWelcomeEmail(next === '/reset-password' ? 'recovery' : null, session.access_token)
           if (next === '/reset-password') {
             router.replace(
-              `/reset-password?access_token=${session.access_token}&refresh_token=${session.refresh_token}`
+              `/reset-password#access_token=${session.access_token}&refresh_token=${session.refresh_token}`
             )
           } else {
             router.replace(next)

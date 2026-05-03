@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { logAudit } from '@/lib/audit'
+import { changePasswordLimiter } from '@/lib/ratelimit'
 
 function adminClient() {
   return createAdminClient(
@@ -15,6 +16,11 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { success } = await changePasswordLimiter.limit(user.id)
+  if (!success) {
+    return NextResponse.json({ error: 'Too many attempts. Try again later.' }, { status: 429 })
+  }
 
   const { currentPassword, newPassword, totpCode } = await req.json()
 

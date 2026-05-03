@@ -55,3 +55,10 @@ export const backupCodeLimiter = new Ratelimit({
   limiter: Ratelimit.slidingWindow(5, '15 m'),
   prefix: 'rl:backup-code',
 })
+
+// Password change: 5 attempts per user per 15 minutes
+export const changePasswordLimiter = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(5, '15 m'),
+  prefix: 'rl:change-password',
+})

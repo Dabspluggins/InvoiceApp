@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrencySymbol } from '@/lib/currencies'
 import ClientCreditsTab from '@/components/ClientCreditsTab'
 
 interface Client {
@@ -70,6 +71,7 @@ export default function ClientsClient() {
       .select('client_id, amount, type')
       .in('client_id', clientIds)
       .eq('user_id', userId)
+      .eq('currency', 'NGN')
 
     if (!data) return
     const balances: Record<string, number> = {}
@@ -78,6 +80,7 @@ export default function ClientsClient() {
       if (row.type === 'credit_added') balances[row.client_id] += Number(row.amount)
       else if (row.type === 'credit_applied') balances[row.client_id] -= Number(row.amount)
       else if (row.type === 'credit_refunded') balances[row.client_id] -= Number(row.amount)
+      else if (row.type === 'credit_adjusted') balances[row.client_id] += Number(row.amount)
     }
     setCreditBalances(balances)
   }
@@ -215,7 +218,7 @@ export default function ClientsClient() {
                       )}
                       {balance > 0 && (
                         <span className="inline-flex items-center mt-1 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300 px-2 py-0.5 rounded-full">
-                          ₦{balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit
+                          {getCurrencySymbol('NGN')}{balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit
                         </span>
                       )}
                     </div>
@@ -264,7 +267,7 @@ export default function ClientsClient() {
                     </button>
                     {expandedCreditsId === client.id && (
                       <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-                        <ClientCreditsTab clientId={client.id} clientName={client.name} />
+                        <ClientCreditsTab clientId={client.id} clientName={client.name} currency="NGN" />
                       </div>
                     )}
                   </div>
@@ -319,7 +322,7 @@ export default function ClientsClient() {
                             }`}
                           >
                             {balance > 0
-                              ? `₦${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit`
+                              ? `${getCurrencySymbol('NGN')}${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit`
                               : 'Credits'}
                           </button>
                         </td>
@@ -351,7 +354,7 @@ export default function ClientsClient() {
                       {expandedCreditsId === client.id && (
                         <tr key={`${client.id}-credits`} className="bg-gray-50 dark:bg-gray-900/30">
                           <td colSpan={7} className="px-6 py-5">
-                            <ClientCreditsTab clientId={client.id} clientName={client.name} />
+                            <ClientCreditsTab clientId={client.id} clientName={client.name} currency="NGN" />
                           </td>
                         </tr>
                       )}

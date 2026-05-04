@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { getCurrencySymbol } from '@/lib/currencies'
 
 type CreditType = 'credit_added' | 'credit_applied' | 'credit_refunded' | 'credit_adjusted'
 
@@ -17,6 +18,7 @@ interface CreditRow {
 interface Props {
   clientId: string
   clientName: string
+  currency?: string
 }
 
 const TYPE_LABELS: Record<CreditType, string> = {
@@ -38,12 +40,25 @@ function formatDate(iso: string) {
 }
 
 function formatAmount(amount: number) {
-  return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function getAmountSign(row: CreditRow): '+' | '−' {
+  if (row.type === 'credit_added') return '+'
+  if (row.type === 'credit_adjusted') return row.amount >= 0 ? '+' : '−'
+  return '−'
+}
+
+function getAmountColor(row: CreditRow): string {
+  if (row.type === 'credit_added') return 'text-green-600 dark:text-green-400'
+  if (row.type === 'credit_applied') return 'text-blue-600 dark:text-blue-400'
+  if (row.type === 'credit_adjusted' && row.amount >= 0) return 'text-green-600 dark:text-green-400'
+  return 'text-orange-500 dark:text-orange-400'
 }
 
 const emptyForm = { amount: '', description: '', referenceNumber: '' }
 
-export default function ClientCreditsTab({ clientId, clientName }: Props) {
+export default function ClientCreditsTab({ clientId, clientName, currency = 'NGN' }: Props) {
   const [rows, setRows] = useState<CreditRow[]>([])
   const [balance, setBalance] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -54,16 +69,18 @@ export default function ClientCreditsTab({ clientId, clientName }: Props) {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
+  const symbol = getCurrencySymbol(currency)
+
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch(`/api/credits?clientId=${clientId}`)
+    const res = await fetch(`/api/credits?clientId=${clientId}&currency=${encodeURIComponent(currency)}`)
     if (res.ok) {
       const json = await res.json()
       setRows(json.rows || [])
       setBalance(json.balance ?? 0)
     }
     setLoading(false)
-  }, [clientId])
+  }, [clientId, currency])
 
   useEffect(() => { load() }, [load])
 
@@ -89,6 +106,7 @@ export default function ClientCreditsTab({ clientId, clientName }: Props) {
         amount,
         description: form.description.trim() || null,
         referenceNumber: form.referenceNumber.trim() || null,
+        currency,
       }),
     })
     setSaving(false)
@@ -104,16 +122,16 @@ export default function ClientCreditsTab({ clientId, clientName }: Props) {
   }
 
   async function handleDelete(row: CreditRow) {
-    if (!confirm(`Remove this ₦${formatAmount(row.amount)} deposit? This cannot be undone.`)) return
+    if (!confirm(`Reverse this ${symbol}${formatAmount(row.amount)} deposit? This cannot be undone.`)) return
     setDeletingId(row.id)
     const res = await fetch(`/api/credits/${row.id}`, { method: 'DELETE' })
     setDeletingId(null)
     if (!res.ok) {
       const json = await res.json()
-      showToast(json.error || 'Failed to delete credit')
+      showToast(json.error || 'Failed to reverse credit')
       return
     }
-    showToast('Credit removed')
+    showToast('Credit reversed')
     load()
   }
 
@@ -135,7 +153,7 @@ export default function ClientCreditsTab({ clientId, clientName }: Props) {
             Available credit — {clientName}
           </p>
           <p className={`text-2xl font-bold mt-0.5 ${balance > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>
-            ₦{formatAmount(balance)}
+            {symbol}{formatAmount(balance)}
           </p>
         </div>
         <button
@@ -152,7 +170,7 @@ export default function ClientCreditsTab({ clientId, clientName }: Props) {
           <p className="text-sm font-semibold text-gray-800 dark:text-white">Record advance payment / deposit</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Amount (₦) <span className="text-red-500">*</span></label>
+              <label className={labelCls}>Amount ({currency}) <span className="text-red-500">*</span></label>
               <input
                 type="number"
                 step="0.01"
@@ -239,21 +257,15 @@ export default function ClientCreditsTab({ clientId, clientName }: Props) {
                     </td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{row.description || '—'}</td>
                     <td className="px-4 py-3 text-gray-400 dark:text-gray-500 text-xs">{row.reference_number || '—'}</td>
-                    <td className={`px-4 py-3 text-right font-semibold whitespace-nowrap ${
-                      row.type === 'credit_added'
-                        ? 'text-green-600 dark:text-green-400'
-                        : row.type === 'credit_applied'
-                        ? 'text-blue-600 dark:text-blue-400'
-                        : 'text-orange-500 dark:text-orange-400'
-                    }`}>
-                      {row.type === 'credit_added' ? '+' : '−'}₦{formatAmount(row.amount)}
+                    <td className={`px-4 py-3 text-right font-semibold whitespace-nowrap ${getAmountColor(row)}`}>
+                      {getAmountSign(row)}{symbol}{formatAmount(row.amount)}
                     </td>
                     <td className="px-4 py-3 text-right">
                       {row.type === 'credit_added' && (
                         <button
                           onClick={() => handleDelete(row)}
                           disabled={deletingId === row.id}
-                          title="Remove this credit"
+                          title="Reverse this credit"
                           className="text-gray-300 dark:text-gray-600 hover:text-red-500 transition text-base leading-none disabled:opacity-40"
                         >
                           ×
@@ -267,7 +279,7 @@ export default function ClientCreditsTab({ clientId, clientName }: Props) {
                 <tr>
                   <td colSpan={4} className="px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-300">Balance</td>
                   <td className={`px-4 py-3 text-right font-bold ${balance > 0 ? 'text-green-700 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                    ₦{formatAmount(balance)}
+                    {symbol}{formatAmount(balance)}
                   </td>
                   <td />
                 </tr>
@@ -291,10 +303,8 @@ export default function ClientCreditsTab({ clientId, clientName }: Props) {
                     {row.reference_number && <p className="text-xs text-gray-400 dark:text-gray-500">Ref: {row.reference_number}</p>}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className={`text-sm font-semibold ${
-                      row.type === 'credit_added' ? 'text-green-600' : row.type === 'credit_applied' ? 'text-blue-600' : 'text-orange-500'
-                    }`}>
-                      {row.type === 'credit_added' ? '+' : '−'}₦{formatAmount(row.amount)}
+                    <span className={`text-sm font-semibold ${getAmountColor(row)}`}>
+                      {getAmountSign(row)}{symbol}{formatAmount(row.amount)}
                     </span>
                     {row.type === 'credit_added' && (
                       <button
@@ -311,7 +321,7 @@ export default function ClientCreditsTab({ clientId, clientName }: Props) {
             ))}
             <div className="text-right pt-2 border-t border-gray-200 dark:border-gray-700">
               <span className="text-sm text-gray-500 dark:text-gray-400">Balance: </span>
-              <span className={`text-sm font-bold ${balance > 0 ? 'text-green-600' : 'text-gray-500'}`}>₦{formatAmount(balance)}</span>
+              <span className={`text-sm font-bold ${balance > 0 ? 'text-green-600' : 'text-gray-500'}`}>{symbol}{formatAmount(balance)}</span>
             </div>
           </div>
         </>

@@ -21,13 +21,18 @@ export async function POST(request: NextRequest) {
   // Verify invoice belongs to user
   const { data: invoice, error: invError } = await supabase
     .from('invoices')
-    .select('id, user_id, total, credit_applied, status, invoice_number')
+    .select('id, user_id, total, credit_applied, status, invoice_number, client_id, currency')
     .eq('id', invoiceId)
     .eq('user_id', user.id)
     .single()
 
   if (invError || !invoice) {
     return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+  }
+
+  // Verify the invoice belongs to the specified client (when client_id is set on the invoice)
+  if (invoice.client_id !== null && invoice.client_id !== clientId) {
+    return NextResponse.json({ error: 'Invoice does not belong to this client' }, { status: 400 })
   }
 
   if (invoice.status === 'paid') {
@@ -51,53 +56,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Client not found' }, { status: 404 })
   }
 
-  // Compute current client credit balance
-  const { data: allRows } = await supabase
-    .from('client_credits')
-    .select('amount, type')
-    .eq('client_id', clientId)
-    .eq('user_id', user.id)
+  const currency = invoice.currency || 'NGN'
 
-  let balance = 0
-  for (const row of (allRows || [])) {
-    if (row.type === 'credit_added') balance += Number(row.amount)
-    else if (row.type === 'credit_applied') balance -= Number(row.amount)
-    else if (row.type === 'credit_refunded') balance -= Number(row.amount)
-  }
+  // Atomically check balance, insert ledger entry, and update invoice via RPC.
+  // The RPC uses SELECT FOR UPDATE to prevent concurrent overdraw.
+  const { data: newBalance, error: rpcError } = await supabase.rpc('apply_client_credit', {
+    p_client_id:  clientId,
+    p_invoice_id: invoiceId,
+    p_amount:     parsedAmount,
+    p_user_id:    user.id,
+    p_currency:   currency,
+  })
 
-  if (parsedAmount > balance) {
+  if (rpcError) {
+    const isInsufficient = rpcError.message?.includes('Insufficient credit balance')
     return NextResponse.json(
-      { error: `Insufficient credit balance (available: ${balance})` },
-      { status: 422 }
+      { error: isInsufficient ? rpcError.message : 'Failed to apply credit' },
+      { status: isInsufficient ? 422 : 500 }
     )
   }
-
-  // Insert credit_applied row
-  const { error: insertError } = await supabase
-    .from('client_credits')
-    .insert({
-      user_id: user.id,
-      client_id: clientId,
-      amount: parsedAmount,
-      type: 'credit_applied',
-      invoice_id: invoiceId,
-      description: `Credit applied to invoice ${invoice.invoice_number}`,
-    })
-
-  if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
-
-  // Update invoice.credit_applied
-  const { error: updateError } = await supabase
-    .from('invoices')
-    .update({
-      credit_applied: Number(invoice.credit_applied || 0) + parsedAmount,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', invoiceId)
-
-  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
-
-  const newBalance = balance - parsedAmount
 
   return NextResponse.json({ success: true, newBalance, creditApplied: parsedAmount })
 }

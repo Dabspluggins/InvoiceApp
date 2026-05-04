@@ -9,6 +9,8 @@ export async function GET(request: NextRequest) {
   const clientId = request.nextUrl.searchParams.get('clientId')
   if (!clientId) return NextResponse.json({ error: 'clientId is required' }, { status: 400 })
 
+  const currency = request.nextUrl.searchParams.get('currency') || 'NGN'
+
   // Verify user owns the client
   const { data: client, error: clientError } = await supabase
     .from('clients')
@@ -26,6 +28,7 @@ export async function GET(request: NextRequest) {
     .select('amount, type')
     .eq('client_id', clientId)
     .eq('user_id', user.id)
+    .eq('currency', currency)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
@@ -34,7 +37,8 @@ export async function GET(request: NextRequest) {
     if (row.type === 'credit_added') balance += Number(row.amount)
     else if (row.type === 'credit_applied') balance -= Number(row.amount)
     else if (row.type === 'credit_refunded') balance -= Number(row.amount)
+    else if (row.type === 'credit_adjusted') balance += Number(row.amount)
   }
 
-  return NextResponse.json({ clientId, balance })
+  return NextResponse.json({ clientId, currency, balance })
 }

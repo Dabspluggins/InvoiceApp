@@ -13,7 +13,7 @@ export async function DELETE(
   // Fetch the credit row, scoped to this user
   const { data: credit, error: fetchError } = await supabase
     .from('client_credits')
-    .select('id, client_id, amount, type')
+    .select('id, client_id, amount, type, currency')
     .eq('id', id)
     .eq('user_id', user.id)
     .single()
@@ -23,38 +23,48 @@ export async function DELETE(
   }
 
   if (credit.type !== 'credit_added') {
-    return NextResponse.json({ error: 'Only credit_added entries can be deleted' }, { status: 400 })
+    return NextResponse.json({ error: 'Only credit_added entries can be reversed' }, { status: 400 })
   }
 
-  // Guard: deleting this entry must not push the client balance negative.
+  const creditCurrency = credit.currency || 'NGN'
+
+  // Guard: reversing this entry must not push the client balance negative.
   const { data: allRows } = await supabase
     .from('client_credits')
     .select('amount, type')
     .eq('client_id', credit.client_id)
     .eq('user_id', user.id)
+    .eq('currency', creditCurrency)
 
   let balance = 0
   for (const row of (allRows || [])) {
     if (row.type === 'credit_added') balance += Number(row.amount)
     else if (row.type === 'credit_applied') balance -= Number(row.amount)
     else if (row.type === 'credit_refunded') balance -= Number(row.amount)
+    else if (row.type === 'credit_adjusted') balance += Number(row.amount)
   }
 
-  const balanceAfterDelete = balance - Number(credit.amount)
-  if (balanceAfterDelete < 0) {
+  const balanceAfterReversal = balance - Number(credit.amount)
+  if (balanceAfterReversal < 0) {
     return NextResponse.json(
-      { error: 'Cannot delete this credit — it would make the client balance negative' },
+      { error: 'Cannot reverse this credit — it would make the client balance negative' },
       { status: 422 }
     )
   }
 
-  const { error: deleteError } = await supabase
+  // Insert a reversal entry instead of hard-deleting to preserve the audit trail.
+  const { error: insertError } = await supabase
     .from('client_credits')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', user.id)
+    .insert({
+      user_id: user.id,
+      client_id: credit.client_id,
+      amount: -Number(credit.amount),
+      type: 'credit_adjusted',
+      description: `Reversal of deposit #${id}`,
+      currency: creditCurrency,
+    })
 
-  if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
+  if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
 
-  return NextResponse.json({ success: true, newBalance: balanceAfterDelete })
+  return NextResponse.json({ success: true, newBalance: balanceAfterReversal })
 }

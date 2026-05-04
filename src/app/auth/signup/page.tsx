@@ -1,9 +1,8 @@
 'use client'
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
-import Script from 'next/script'
 import { createClient } from '@/lib/supabase/client'
 
 export default function SignupPage() {
@@ -16,31 +15,7 @@ export default function SignupPage() {
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
-  const [scriptReady, setScriptReady] = useState(false)
-  const turnstileRef = useRef<HTMLDivElement>(null)
-  const turnstileWidgetIdRef = useRef<string | null>(null)
   const router = useRouter()
-
-  useEffect(() => {
-    if (!scriptReady || !turnstileRef.current) return
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ts = (window as any).turnstile
-    if (!ts) return
-    turnstileWidgetIdRef.current = ts.render(turnstileRef.current, {
-      sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!,
-      callback: (token: string) => setCaptchaToken(token),
-      'expired-callback': () => setCaptchaToken(null),
-      'error-callback': () => setCaptchaToken(null),
-    })
-  }, [scriptReady])
-
-  const resetCaptcha = () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ts = (window as any).turnstile
-    if (ts && turnstileWidgetIdRef.current) ts.reset(turnstileWidgetIdRef.current)
-    setCaptchaToken(null)
-  }
 
   const handleGoogleSignup = async () => {
     setOauthLoading(true)
@@ -103,13 +78,11 @@ export default function SignupPage() {
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
-        captchaToken: captchaToken!,
       },
     })
 
     if (error) {
       setError(error.message)
-      resetCaptcha()
       setLoading(false)
     } else {
       setSuccess(true)
@@ -133,12 +106,6 @@ export default function SignupPage() {
   }
 
   return (
-    <>
-    <Script
-      src="https://challenges.cloudflare.com/turnstile/v0/api.js"
-      strategy="lazyOnload"
-      onLoad={() => setScriptReady(true)}
-    />
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 w-full max-w-md">
         {/* Logo */}
@@ -227,7 +194,6 @@ export default function SignupPage() {
             </div>
           </div>
 
-          <div ref={turnstileRef} />
           {error && (
             <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 text-sm px-4 py-3 rounded-lg">
               {error}
@@ -236,7 +202,7 @@ export default function SignupPage() {
 
           <button
             type="submit"
-            disabled={loading || !captchaToken}
+            disabled={loading}
             className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60"
           >
             {loading ? 'Creating account...' : 'Create Free Account'}
@@ -254,6 +220,5 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
-    </>
   )
 }

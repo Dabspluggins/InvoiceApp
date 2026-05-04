@@ -3,7 +3,6 @@ import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
-import Script from 'next/script'
 import { createClient } from '@/lib/supabase/client'
 
 type Screen = 'credentials' | 'totp' | 'backup'
@@ -19,33 +18,9 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false)
   const [totpCode, setTotpCode] = useState('')
   const [backupCode, setBackupCode] = useState('')
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
-  const [scriptReady, setScriptReady] = useState(false)
   const totpRef = useRef<HTMLInputElement>(null)
   const backupRef = useRef<HTMLInputElement>(null)
-  const turnstileRef = useRef<HTMLDivElement>(null)
-  const turnstileWidgetIdRef = useRef<string | null>(null)
   const router = useRouter()
-
-  useEffect(() => {
-    if (!scriptReady || !turnstileRef.current) return
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ts = (window as any).turnstile
-    if (!ts) return
-    turnstileWidgetIdRef.current = ts.render(turnstileRef.current, {
-      sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!,
-      callback: (token: string) => setCaptchaToken(token),
-      'expired-callback': () => setCaptchaToken(null),
-      'error-callback': () => setCaptchaToken(null),
-    })
-  }, [scriptReady])
-
-  const resetCaptcha = () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ts = (window as any).turnstile
-    if (ts && turnstileWidgetIdRef.current) ts.reset(turnstileWidgetIdRef.current)
-    setCaptchaToken(null)
-  }
 
   const handleGoogleLogin = async () => {
     setOauthLoading(true)
@@ -85,15 +60,10 @@ export default function LoginPage() {
     }
 
     const supabase = createClient()
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-      options: { captchaToken: captchaToken! },
-    })
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
 
     if (signInError) {
       setError(signInError.message)
-      resetCaptcha()
       setLoading(false)
       return
     }
@@ -175,12 +145,6 @@ export default function LoginPage() {
     'w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-3 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500'
 
   return (
-    <>
-    <Script
-      src="https://challenges.cloudflare.com/turnstile/v0/api.js"
-      strategy="lazyOnload"
-      onLoad={() => setScriptReady(true)}
-    />
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 w-full max-w-md">
         {/* Logo */}
@@ -268,7 +232,6 @@ export default function LoginPage() {
               />
               <span className="text-sm text-gray-600 dark:text-gray-400">Remember me on this device</span>
             </label>
-            <div ref={turnstileRef} />
             {error && (
               <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 text-sm px-4 py-3 rounded-lg">
                 {error}
@@ -276,7 +239,7 @@ export default function LoginPage() {
             )}
             <button
               type="submit"
-              disabled={loading || !captchaToken}
+              disabled={loading}
               className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60"
             >
               {loading ? 'Signing in...' : 'Sign In'}
@@ -381,6 +344,5 @@ export default function LoginPage() {
         )}
       </div>
     </div>
-    </>
   )
 }

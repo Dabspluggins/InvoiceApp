@@ -20,25 +20,11 @@ export default function LoginPage() {
   const [totpCode, setTotpCode] = useState('')
   const [backupCode, setBackupCode] = useState('')
   const [captchaToken, setCaptchaToken] = useState<string | null>(null)
-  const [scriptReady, setScriptReady] = useState(false)
   const totpRef = useRef<HTMLInputElement>(null)
   const backupRef = useRef<HTMLInputElement>(null)
   const turnstileRef = useRef<HTMLDivElement>(null)
   const turnstileWidgetIdRef = useRef<string | null>(null)
   const router = useRouter()
-
-  useEffect(() => {
-    if (!scriptReady || !turnstileRef.current) return
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ts = (window as any).turnstile
-    if (!ts) return
-    turnstileWidgetIdRef.current = ts.render(turnstileRef.current, {
-      sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!,
-      callback: (token: string) => setCaptchaToken(token),
-      'expired-callback': () => setCaptchaToken(null),
-      'error-callback': () => setCaptchaToken(null),
-    })
-  }, [scriptReady])
 
   const resetCaptcha = () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -188,9 +174,21 @@ export default function LoginPage() {
   return (
     <>
     <Script
+      id="cf-turnstile"
       src="https://challenges.cloudflare.com/turnstile/v0/api.js"
       strategy="lazyOnload"
-      onLoad={() => setScriptReady(true)}
+      onReady={() => {
+        if (!turnstileRef.current) return
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ts = (window as any).turnstile
+        if (!ts) return
+        turnstileWidgetIdRef.current = ts.render(turnstileRef.current, {
+          sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!,
+          callback: (token: string) => setCaptchaToken(token),
+          'expired-callback': () => setCaptchaToken(null),
+          'error-callback': () => setCaptchaToken(null),
+        })
+      }}
     />
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 w-full max-w-md">

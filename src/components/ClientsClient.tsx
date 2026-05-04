@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { getCurrencySymbol } from '@/lib/currencies'
+import { getCurrencySymbol, CURRENCIES } from '@/lib/currencies'
 import ClientCreditsTab from '@/components/ClientCreditsTab'
 
 interface Client {
@@ -12,11 +12,12 @@ interface Client {
   email: string | null
   phone: string | null
   address: string | null
+  currency: string
   created_at: string
   portal_token: string | null
 }
 
-const emptyForm = { name: '', company: '', email: '', phone: '', address: '' }
+const emptyForm = { name: '', company: '', email: '', phone: '', address: '', currency: 'NGN' }
 
 export default function ClientsClient() {
   const [clients, setClients] = useState<Client[]>([])
@@ -40,7 +41,7 @@ export default function ClientsClient() {
     const { data: { user } } = await supabase.auth.getUser()
     const { data } = await supabase
       .from('clients')
-      .select('id, name, company, email, phone, address, created_at, portal_token')
+      .select('id, name, company, email, phone, address, currency, created_at, portal_token')
       .order('created_at', { ascending: false })
     setClients(data || [])
 
@@ -60,22 +61,26 @@ export default function ClientsClient() {
     setLoading(false)
 
     if (data && data.length > 0 && user) {
-      loadCreditBalances(data.map((c) => c.id), user.id)
+      loadCreditBalances(data, user.id)
     }
   }
 
-  async function loadCreditBalances(clientIds: string[], userId: string) {
+  async function loadCreditBalances(clients: Client[], userId: string) {
     const supabase = createClient()
+    const clientIds = clients.map((c) => c.id)
+    const clientCurrencyMap = Object.fromEntries(clients.map((c) => [c.id, c.currency || 'NGN']))
+
     const { data } = await supabase
       .from('client_credits')
-      .select('client_id, amount, type')
+      .select('client_id, amount, type, currency')
       .in('client_id', clientIds)
       .eq('user_id', userId)
-      .eq('currency', 'NGN')
 
     if (!data) return
     const balances: Record<string, number> = {}
     for (const row of data) {
+      // Only count rows that match this client's configured currency
+      if (row.currency !== clientCurrencyMap[row.client_id]) continue
       if (!balances[row.client_id]) balances[row.client_id] = 0
       if (row.type === 'credit_added') balances[row.client_id] += Number(row.amount)
       else if (row.type === 'credit_applied') balances[row.client_id] -= Number(row.amount)
@@ -108,6 +113,7 @@ export default function ClientsClient() {
       email: client.email || '',
       phone: client.phone || '',
       address: client.address || '',
+      currency: client.currency || 'NGN',
     })
     setError(null)
     setShowModal(true)
@@ -135,7 +141,7 @@ export default function ClientsClient() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, currency: form.currency || 'NGN' }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Failed to save client')
@@ -218,7 +224,7 @@ export default function ClientsClient() {
                       )}
                       {balance > 0 && (
                         <span className="inline-flex items-center mt-1 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300 px-2 py-0.5 rounded-full">
-                          {getCurrencySymbol('NGN')}{balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit
+                          {getCurrencySymbol(client.currency)}{balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit
                         </span>
                       )}
                     </div>
@@ -267,7 +273,7 @@ export default function ClientsClient() {
                     </button>
                     {expandedCreditsId === client.id && (
                       <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-                        <ClientCreditsTab clientId={client.id} clientName={client.name} currency="NGN" />
+                        <ClientCreditsTab clientId={client.id} clientName={client.name} currency={client.currency} />
                       </div>
                     )}
                   </div>
@@ -322,7 +328,7 @@ export default function ClientsClient() {
                             }`}
                           >
                             {balance > 0
-                              ? `${getCurrencySymbol('NGN')}${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit`
+                              ? `${getCurrencySymbol(client.currency)}${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit`
                               : 'Credits'}
                           </button>
                         </td>
@@ -354,7 +360,7 @@ export default function ClientsClient() {
                       {expandedCreditsId === client.id && (
                         <tr key={`${client.id}-credits`} className="bg-gray-50 dark:bg-gray-900/30">
                           <td colSpan={7} className="px-6 py-5">
-                            <ClientCreditsTab clientId={client.id} clientName={client.name} currency="NGN" />
+                            <ClientCreditsTab clientId={client.id} clientName={client.name} currency={client.currency} />
                           </td>
                         </tr>
                       )}
@@ -430,6 +436,18 @@ export default function ClientsClient() {
                   onChange={(e) => setForm({ ...form, address: e.target.value })}
                   placeholder="456 Client Ave, City, State"
                 />
+              </div>
+              <div>
+                <label className={labelCls}>Currency</label>
+                <select
+                  className={inputCls}
+                  value={form.currency}
+                  onChange={(e) => setForm({ ...form, currency: e.target.value })}
+                >
+                  {CURRENCIES.map((c) => (
+                    <option key={c.code} value={c.code}>{c.symbol} {c.code} - {c.label}</option>
+                  ))}
+                </select>
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <div className="flex justify-end gap-3 pt-2">

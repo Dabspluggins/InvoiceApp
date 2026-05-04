@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { name, company, email, phone, address } = body
+  const { name, company, email, phone, address, currency } = body
 
   if (!name?.trim()) {
     return NextResponse.json({ error: 'Name is required' }, { status: 400 })
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await supabase
     .from('clients')
-    .insert({ user_id: user.id, name: name.trim(), company, email, phone, address, portal_token })
+    .insert({ user_id: user.id, name: name.trim(), company, email, phone, address, portal_token, currency: currency || 'NGN' })
     .select()
     .single()
 

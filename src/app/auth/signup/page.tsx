@@ -1,7 +1,6 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
 import Script from 'next/script'
 import { createClient } from '@/lib/supabase/client'
@@ -20,7 +19,6 @@ export default function SignupPage() {
   const [scriptReady, setScriptReady] = useState(false)
   const turnstileRef = useRef<HTMLDivElement>(null)
   const turnstileWidgetIdRef = useRef<string | null>(null)
-  const router = useRouter()
 
   useEffect(() => {
     if (!scriptReady || !turnstileRef.current) return

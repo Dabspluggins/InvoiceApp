@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
+import Script from 'next/script'
 import { createClient } from '@/lib/supabase/client'
 
 type Screen = 'credentials' | 'totp' | 'backup'
@@ -18,9 +19,43 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false)
   const [totpCode, setTotpCode] = useState('')
   const [backupCode, setBackupCode] = useState('')
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const [captchaError, setCaptchaError] = useState(false)
   const totpRef = useRef<HTMLInputElement>(null)
   const backupRef = useRef<HTMLInputElement>(null)
+  const turnstileRef = useRef<HTMLDivElement>(null)
+  const turnstileWidgetIdRef = useRef<string | number | null>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    (window as any).onloadTurnstileCallback = () => {
+      if (!turnstileRef.current) return
+      turnstileWidgetIdRef.current = (window as any).turnstile.render(
+        turnstileRef.current,
+        {
+          sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!,
+          callback:           (token: string) => { setCaptchaToken(token); setCaptchaError(false) },
+          'expired-callback': () => setCaptchaToken(null),
+          'error-callback':   () => { setCaptchaToken(null); setCaptchaError(true) },
+        }
+      )
+    }
+    return () => {
+      delete (window as any).onloadTurnstileCallback
+      if (turnstileWidgetIdRef.current != null) {
+        (window as any).turnstile?.remove(turnstileWidgetIdRef.current)
+        turnstileWidgetIdRef.current = null
+      }
+    }
+  }, [])
+
+  const resetCaptcha = () => {
+    if (turnstileWidgetIdRef.current != null) {
+      (window as any).turnstile?.reset(turnstileWidgetIdRef.current)
+    }
+    setCaptchaToken(null)
+    setCaptchaError(false)
+  }
 
   const handleGoogleLogin = async () => {
     setOauthLoading(true)
@@ -46,24 +81,40 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    const rlRes = await fetch('/api/auth/check-rate-limit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'login' }),
-    })
-    const rlData = await rlRes.json()
-    if (!rlData.allowed) {
-      const minutes = Math.ceil(rlData.retryAfter / 60)
-      setError(`Too many attempts. Please try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`)
+    try {
+      const rlRes = await fetch('/api/auth/check-rate-limit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'login' }),
+      })
+      if (!rlRes.ok) throw new Error('rate-limit check failed')
+      const rlData = await rlRes.json()
+      if (!rlData.allowed) {
+        const minutes = Math.ceil(rlData.retryAfter / 60)
+        setError(
+          Number.isFinite(minutes)
+            ? `Too many attempts. Please try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`
+            : 'Too many attempts. Please try again later.'
+        )
+        setLoading(false)
+        return
+      }
+    } catch {
+      setError('Too many attempts. Please try again later.')
       setLoading(false)
       return
     }
 
     const supabase = createClient()
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: { captchaToken: captchaToken! },
+    })
 
     if (signInError) {
       setError(signInError.message)
+      resetCaptcha()
       setLoading(false)
       return
     }
@@ -232,6 +283,12 @@ export default function LoginPage() {
               />
               <span className="text-sm text-gray-600 dark:text-gray-400">Remember me on this device</span>
             </label>
+            <div ref={turnstileRef} />
+            {captchaError && (
+              <p className="text-sm text-red-500 text-center">
+                Security check failed. Please refresh and try again.
+              </p>
+            )}
             {error && (
               <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 text-sm px-4 py-3 rounded-lg">
                 {error}
@@ -239,7 +296,7 @@ export default function LoginPage() {
             )}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !captchaToken}
               className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60"
             >
               {loading ? 'Signing in...' : 'Sign In'}
@@ -343,6 +400,12 @@ export default function LoginPage() {
           </div>
         )}
       </div>
+
+      <Script
+        id="cf-turnstile-script"
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onloadTurnstileCallback"
+        strategy="lazyOnload"
+      />
     </div>
   )
 }

@@ -82,6 +82,7 @@ const defaultData: InvoiceData = {
   paymentDetails: undefined,
   template: 'classic',
   language: 'en',
+  creditApplied: 0,
 }
 
 function InvoicePageInner() {
@@ -180,6 +181,12 @@ function InvoicePageInner() {
 
         setPayments(pmts || [])
 
+        const loadedCreditApplied = Number(inv.credit_applied || 0)
+        if (loadedCreditApplied > 0) {
+          setCreditApplied(loadedCreditApplied)
+          setCreditDismissed(true)
+        }
+
         setData({
           invoiceNumber: inv.invoice_number,
           status: inv.status,
@@ -212,6 +219,7 @@ function InvoicePageInner() {
           paymentDetails: inv.payment_details || undefined,
           template: (inv.template as InvoiceData['template']) || 'classic',
           language: (inv.language as InvoiceData['language']) || 'en',
+          creditApplied: loadedCreditApplied,
         })
       }
 
@@ -419,21 +427,20 @@ function InvoicePageInner() {
     setCreditDismissed(false)
     setCreditApplied(0)
 
-    const supabase = createClient()
-    const { data: rows } = await supabase
-      .from('client_credits')
-      .select('amount, type')
-      .eq('client_id', clientId)
-
-    const credited = rows?.filter((r) => r.type === 'credited').reduce((s, r) => s + Number(r.amount), 0) ?? 0
-    const applied = rows?.filter((r) => r.type === 'applied').reduce((s, r) => s + Number(r.amount), 0) ?? 0
-    setClientCreditBalance(credited - applied)
+    const res = await fetch(`/api/credits/balance?clientId=${clientId}`)
+    if (res.ok) {
+      const json = await res.json()
+      setClientCreditBalance(json.balance ?? 0)
+    }
   }
 
-  function handleApplyCredit() {
+  function handleApplyCredit(customAmount?: number) {
     const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
-    const toApply = Math.min(clientCreditBalance, total)
+    const toApply = customAmount !== undefined
+      ? Math.min(customAmount, clientCreditBalance, total)
+      : Math.min(clientCreditBalance, total)
     setCreditApplied(toApply)
+    setData((prev) => ({ ...prev, creditApplied: toApply }))
     setCreditDismissed(true)
   }
 
@@ -601,20 +608,21 @@ function InvoicePageInner() {
         if (error) throw error
       }
 
-      // Record applied credit if any
+      // Apply credit to this invoice if requested
       if (creditApplied > 0 && selectedClientId && currentId) {
-        await fetch('/api/credits', {
+        const applyRes = await fetch('/api/credits/apply', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            client_id: selectedClientId,
-            amount: creditApplied,
-            type: 'applied',
-            reference_invoice_id: currentId,
-            description: `Credit applied to ${data.invoiceNumber}`,
+            invoiceId: currentId,
+            clientId: selectedClientId,
+            creditAmount: creditApplied,
           }),
         })
-        setClientCreditBalance((prev) => prev - creditApplied)
+        if (applyRes.ok) {
+          const applyJson = await applyRes.json()
+          setClientCreditBalance(applyJson.newBalance ?? 0)
+        }
         setCreditApplied(0)
       }
 
@@ -1074,36 +1082,60 @@ function InvoicePageInner() {
             </button>
           </LockedFeature>
         </div>
-        {clientCreditBalance > 0 && !creditDismissed && (
-          <div className="mx-4 mt-4 px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <span>
-              This client has <strong>₦{clientCreditBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> in credit. Apply credit to this invoice?
-            </span>
-            <div className="flex gap-2 shrink-0">
-              <button
-                onClick={handleApplyCredit}
-                className="text-xs font-semibold bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition"
-              >
-                Apply ₦{Math.min(clientCreditBalance, calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType).total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit
-              </button>
-              <button
-                onClick={() => setCreditDismissed(true)}
-                className="text-xs font-medium text-green-700 hover:text-green-900 px-2 py-1.5"
-              >
-                Dismiss
-              </button>
+        {clientCreditBalance > 0 && !creditDismissed && (() => {
+          const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
+          const maxCredit = Math.min(clientCreditBalance, total)
+          return (
+            <div className="mx-4 mt-4 px-4 py-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-sm text-green-800 dark:text-green-300">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="font-medium">Available credit: ₦{clientCreditBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <button
+                  onClick={() => setCreditDismissed(true)}
+                  className="text-xs text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200"
+                >
+                  Dismiss
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-green-700 dark:text-green-400 shrink-0">Apply credit:</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={maxCredit}
+                  defaultValue={maxCredit.toFixed(2)}
+                  id="credit-amount-input"
+                  className="flex-1 border border-green-300 dark:border-green-700 bg-white dark:bg-gray-700 text-green-900 dark:text-green-100 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
+                />
+                <button
+                  onClick={() => {
+                    const inp = document.getElementById('credit-amount-input') as HTMLInputElement
+                    const val = parseFloat(inp?.value || '0')
+                    if (val > 0) handleApplyCredit(val)
+                  }}
+                  className="text-xs font-semibold bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition shrink-0"
+                >
+                  Apply
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
         {creditApplied > 0 && (
-          <div className="mx-4 mt-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700 flex items-center justify-between gap-3">
+          <div className="mx-4 mt-2 px-4 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-xs text-green-700 dark:text-green-300 flex items-center justify-between gap-3">
             <span>Credit applied: −₦{creditApplied.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-            <button
-              onClick={() => { setCreditApplied(0); setCreditDismissed(false) }}
-              className="text-green-500 hover:text-green-700"
-            >
-              ✕
-            </button>
+            {!savedInvoiceId && (
+              <button
+                onClick={() => {
+                  setCreditApplied(0)
+                  setCreditDismissed(false)
+                  setData((prev) => ({ ...prev, creditApplied: 0 }))
+                }}
+                className="text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-200"
+              >
+                ✕
+              </button>
+            )}
           </div>
         )}
         <InvoiceForm data={data} onChange={setData} isSignedIn={isSignedIn} onClientSelect={handleClientSelect} />

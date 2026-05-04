@@ -72,6 +72,7 @@ function PaymentBlock({ data, accentColor }: { data: InvoiceData; accentColor: s
 
 function MinimalPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLogoUrl }: Props) {
   const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
+  const creditApplied = Number(data.creditApplied || 0)
   const t = getInvoiceTranslations(data.language)
 
   return (
@@ -179,9 +180,15 @@ function MinimalPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
               <span>{formatCurrency(taxAmount, data.currency)}</span>
             </div>
           )}
+          {creditApplied > 0 && (
+            <div className="flex justify-between py-1 text-green-600">
+              <span>{t.creditApplied}</span>
+              <span>-{formatCurrency(creditApplied, data.currency)}</span>
+            </div>
+          )}
           <div className="flex justify-between py-2 mt-1 font-bold text-gray-900 border-t border-gray-300">
             <span>{t.total}</span>
-            <span>{formatCurrency(total, data.currency)}</span>
+            <span>{formatCurrency(Math.max(0, total - creditApplied), data.currency)}</span>
           </div>
         </div>
       </div>
@@ -210,6 +217,7 @@ function MinimalPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
 
 function ClassicPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLogoUrl }: Props) {
   const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
+  const creditApplied = Number(data.creditApplied || 0)
   const brand = data.brandColor || '#4F46E5'
   const t = getInvoiceTranslations(data.language)
 
@@ -318,12 +326,18 @@ function ClassicPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
               <span>{t.tax} ({data.taxRate}%)</span>
               <span>{formatCurrency(taxAmount, data.currency)}</span>
             </div>
+            {creditApplied > 0 && (
+              <div className="flex justify-between py-1 text-green-600">
+                <span>{t.creditApplied}</span>
+                <span>-{formatCurrency(creditApplied, data.currency)}</span>
+              </div>
+            )}
             <div
               className="flex justify-between px-3 py-2 mt-1 font-bold text-white text-base rounded"
               style={{ backgroundColor: brand, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', colorAdjust: 'exact' }}
             >
               <span>{t.total}</span>
-              <span>{formatCurrency(total, data.currency)}</span>
+              <span>{formatCurrency(Math.max(0, total - creditApplied), data.currency)}</span>
             </div>
           </div>
         </div>
@@ -349,6 +363,7 @@ function ClassicPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
 
 function BoldPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLogoUrl }: Props) {
   const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
+  const creditApplied = Number(data.creditApplied || 0)
   const brand = data.brandColor || '#4F46E5'
   const t = getInvoiceTranslations(data.language)
 
@@ -458,6 +473,12 @@ function BoldPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLogoUr
                 <span>{formatCurrency(taxAmount, data.currency)}</span>
               </div>
             )}
+            {creditApplied > 0 && (
+              <div className="flex justify-between py-1.5 text-green-600 border-b border-gray-100">
+                <span>{t.creditApplied}</span>
+                <span>-{formatCurrency(creditApplied, data.currency)}</span>
+              </div>
+            )}
             <div
               className="flex justify-between items-center mt-2 rounded overflow-hidden"
               style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', colorAdjust: 'exact' }}
@@ -465,7 +486,7 @@ function BoldPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLogoUr
               <div className="w-1.5 self-stretch rounded-l" style={{ backgroundColor: brand }} />
               <div className="flex justify-between flex-1 px-3 py-2.5 bg-gray-900">
                 <span className="font-black text-white text-sm uppercase tracking-wide">{t.totalDue}</span>
-                <span className="font-black text-white text-sm">{formatCurrency(total, data.currency)}</span>
+                <span className="font-black text-white text-sm">{formatCurrency(Math.max(0, total - creditApplied), data.currency)}</span>
               </div>
             </div>
           </div>

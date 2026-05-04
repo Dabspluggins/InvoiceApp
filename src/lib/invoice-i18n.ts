@@ -1,4 +1,4 @@
-// Invoice i18n -- all labels used in invoice PDF rendering
+﻿// Invoice i18n -- all labels used in invoice PDF rendering
 // Special characters are encoded as \uXXXX escape sequences so this file
 // stays pure ASCII and survives the Windows OneDrive filesystem mount.
 
@@ -20,6 +20,7 @@ export interface InvoiceTranslations {
   subtotal: string
   discount: string
   tax: string
+  creditApplied: string
   total: string
   totalDue: string
   noItems: string
@@ -68,6 +69,7 @@ const translations: Record<InvoiceLanguage, InvoiceTranslations> = {
     subtotal: 'Subtotal',
     discount: 'Discount',
     tax: 'Tax',
+    creditApplied: 'Credit applied',
     total: 'Total',
     totalDue: 'Total Due',
     noItems: 'No line items added',
@@ -114,6 +116,7 @@ const translations: Record<InvoiceLanguage, InvoiceTranslations> = {
     subtotal: 'Sous-total',
     discount: 'Remise',
     tax: 'Taxe',
+    creditApplied: 'Cr\u00e9dit appliqu\u00e9',
     total: 'Total',
     totalDue: 'Total \u00e0 payer',
     noItems: 'Aucun article ajout\u00e9',
@@ -160,6 +163,7 @@ const translations: Record<InvoiceLanguage, InvoiceTranslations> = {
     subtotal: 'Subtotal',
     discount: 'Descuento',
     tax: 'Impuesto',
+    creditApplied: 'Cr\u00e9dito aplicado',
     total: 'Total',
     totalDue: 'Total a pagar',
     noItems: 'Sin art\u00edculos',

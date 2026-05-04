@@ -124,4 +124,5 @@ export interface InvoiceData {
   paymentDetails?: PaymentDetails
   template?: InvoiceTemplate
   language?: InvoiceLanguage
+  creditApplied?: number
 }

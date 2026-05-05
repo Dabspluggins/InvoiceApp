@@ -283,8 +283,8 @@ export default function ClientsClient() {
           </div>
 
           {/* Desktop: table */}
-          <div className="hidden md:block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <table className="w-full">
+          <div className="hidden md:block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-x-auto">
+            <table className="w-full min-w-[780px]">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide bg-gray-50 dark:bg-gray-700">
                   <th className="text-left px-6 py-3">Name</th>
@@ -292,8 +292,8 @@ export default function ClientsClient() {
                   <th className="text-left px-6 py-3">Email</th>
                   <th className="text-left px-6 py-3">Phone</th>
                   <th className="text-center px-6 py-3">Estimates</th>
-                  <th className="text-left px-6 py-3">Credit</th>
-                  <th className="text-right px-6 py-3">Actions</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Credit</th>
+                  <th className="text-right px-4 py-3 whitespace-nowrap w-px">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -318,7 +318,7 @@ export default function ClientsClient() {
                             <span className="text-xs text-gray-300 dark:text-gray-600">—</span>
                           )}
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-4 whitespace-nowrap">
                           <button
                             onClick={() => toggleCredits(client.id)}
                             className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full transition ${
@@ -332,8 +332,8 @@ export default function ClientsClient() {
                               : 'Credits'}
                           </button>
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-1">
+                        <td className="px-4 py-4 text-right whitespace-nowrap w-px">
+                          <div className="flex justify-end gap-1 flex-nowrap">
                             {client.portal_token && (
                               <button
                                 onClick={() => handleCopyPortalLink(client)}

@@ -543,6 +543,14 @@ function InvoicePageInner() {
 
       const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
 
+      if (savedCreditApplied > 0 && total < savedCreditApplied) {
+        showToast(
+          `Cannot reduce invoice total below the credit already applied (${getCurrencySymbol(data.currency)}${savedCreditApplied.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}). Remove the credit first.`,
+          'error'
+        )
+        return
+      }
+
       const invoicePayload = {
         user_id: user.id,
         invoice_number: data.invoiceNumber,
@@ -1152,7 +1160,7 @@ function InvoicePageInner() {
             )}
           </div>
         )}
-        <InvoiceForm data={data} onChange={setData} isSignedIn={isSignedIn} onClientSelect={handleClientSelect} />
+        <InvoiceForm data={data} onChange={setData} isSignedIn={isSignedIn} onClientSelect={handleClientSelect} hasCreditApplied={savedCreditApplied > 0} />
 
         {savedInvoiceId && (() => {
           const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)

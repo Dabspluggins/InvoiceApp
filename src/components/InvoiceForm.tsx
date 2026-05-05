@@ -18,6 +18,7 @@ interface Props {
   onChange: (data: InvoiceData) => void
   isSignedIn: boolean
   onClientSelect?: (clientId: string, clientCurrency: string) => void
+  hasCreditApplied?: boolean
 }
 
 interface SavedClient {
@@ -38,7 +39,7 @@ const MOBILE_MONEY_PROVIDERS = [
 
 type PaymentTab = 'bankTransfer' | 'mobileMoney' | 'other'
 
-export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect }: Props) {
+export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect, hasCreditApplied }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [savedClients, setSavedClients] = useState<SavedClient[]>([])
   const [savingClient, setSavingClient] = useState(false)
@@ -306,7 +307,13 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
           </div>
           <div>
             <label className={labelCls}>Currency</label>
-            <select className={inputCls} value={data.currency} onChange={(e) => set('currency', e.target.value as Currency)}>
+            <select
+              className={inputCls + (hasCreditApplied ? ' opacity-60 cursor-not-allowed' : '')}
+              value={data.currency}
+              onChange={(e) => set('currency', e.target.value as Currency)}
+              disabled={hasCreditApplied}
+              title={hasCreditApplied ? 'Clear the applied credit before changing currency.' : undefined}
+            >
               {CURRENCIES.map((c) => (
                 <option key={c.code} value={c.code}>{c.symbol} {c.code} - {c.label}</option>
               ))}

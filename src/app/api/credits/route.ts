@@ -12,6 +12,10 @@ export async function GET(request: NextRequest) {
 
   const currency = request.nextUrl.searchParams.get('currency')
 
+  if (currency && !CURRENCIES.some((c) => c.code === currency)) {
+    return NextResponse.json({ error: 'Invalid currency code' }, { status: 400 })
+  }
+
   // Verify user owns the client
   const { data: client, error: clientError } = await supabase
     .from('clients')

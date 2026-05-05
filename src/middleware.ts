@@ -22,6 +22,7 @@ function middlewareRateLimit(ip: string, maxRequests: number, windowMs: number):
 // Paths that do not require authentication. Everything else is protected.
 const PUBLIC_PATHS: string[] = [
   // Pages
+  '/invoice',
   '/auth/',
   '/reset-password',
   '/forgot-password',
@@ -50,7 +51,7 @@ function isPublicPath(pathname: string): boolean {
   )
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   // Rate-limit POST submissions to the login page (4 attempts per 15 min per IP)
   if (request.nextUrl.pathname === '/auth/login' && request.method === 'POST') {
     const ip = getTrustedIp(request)
@@ -80,6 +81,9 @@ export async function proxy(request: NextRequest) {
     }
   )
 
+  // IMPORTANT: supabase.auth.getUser() refreshes the session cookie when the
+  // access token is about to expire. Do not remove this call — it is required
+  // by @supabase/ssr for correct session management in Next.js App Router.
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user && !isPublicPath(request.nextUrl.pathname)) {

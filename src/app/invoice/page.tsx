@@ -430,6 +430,10 @@ function InvoicePageInner() {
   }
 
   async function handleClientSelect(clientId: string, clientCurrency: string) {
+    if (savedCreditApplied > 0) {
+      showToast('Clear the applied credit before changing client.', 'error')
+      return
+    }
     setSelectedClientId(clientId)
     setCreditDismissed(false)
     setCreditApplied(0)

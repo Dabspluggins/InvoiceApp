@@ -382,9 +382,11 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
           <div className="mb-3">
             <label className={labelCls}>Saved Clients</label>
             <select
-              className={inputCls}
+              className={inputCls + (hasCreditApplied ? ' opacity-60 cursor-not-allowed' : '')}
               defaultValue=""
               onChange={(e) => handleSelectClient(e.target.value)}
+              disabled={hasCreditApplied}
+              title={hasCreditApplied ? 'Clear the applied credit before changing client.' : undefined}
             >
               <option value="">-- Select a saved client --</option>
               {savedClients.map((c) => (

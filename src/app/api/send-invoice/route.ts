@@ -36,6 +36,7 @@ interface InvoicePayload {
     taxRate: number
     subtotal: number
     taxAmount: number
+    creditApplied?: number
     total: number
     notes: string
     brandColor: string
@@ -136,6 +137,14 @@ function buildEmailHtml(payload: InvoicePayload): string {
     </tr>`
       : ''
 
+  const creditRow =
+    invoiceData.creditApplied && invoiceData.creditApplied > 0
+      ? `<tr>
+      <td colspan="3" style="padding:8px 12px;text-align:right;color:#16a34a;font-size:14px;">Credit applied</td>
+      <td style="padding:8px 12px;text-align:right;color:#16a34a;font-size:14px;">-${formatCurrency(invoiceData.creditApplied, invoiceData.currency)}</td>
+    </tr>`
+      : ''
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${safeSubject}</title></head>
@@ -213,6 +222,7 @@ function buildEmailHtml(payload: InvoicePayload): string {
                   <td style="padding:10px 12px;text-align:right;color:#374151;font-size:14px;border-top:1px solid #e5e7eb;">${formatCurrency(invoiceData.subtotal, invoiceData.currency)}</td>
                 </tr>
                 ${taxRow}
+                ${creditRow}
                 <tr style="background:#f9fafb;">
                   <td colspan="3" style="padding:12px;text-align:right;color:#111827;font-size:16px;font-weight:700;border-top:2px solid #e5e7eb;">Total Due</td>
                   <td style="padding:12px;text-align:right;color:${brandColor};font-size:18px;font-weight:700;border-top:2px solid #e5e7eb;">${formatCurrency(invoiceData.total, invoiceData.currency)} ${safeCurrency}</td>
@@ -313,6 +323,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const grossTotal = Number(invoice.total || 0)
+    const creditApplied = Number(invoice.credit_applied || 0)
+    const netTotal = Math.max(0, grossTotal - creditApplied)
+
     const enrichedPayload: InvoicePayload = {
       ...body,
       shareToken,
@@ -335,7 +349,8 @@ export async function POST(req: NextRequest) {
         taxRate: Number(invoice.tax_rate || 0),
         subtotal: Number(invoice.subtotal || 0),
         taxAmount: Number(invoice.tax_amount || 0),
-        total: Number(invoice.total || 0),
+        creditApplied: creditApplied > 0 ? creditApplied : undefined,
+        total: netTotal,
         notes: invoice.notes || '',
         brandColor: invoice.brand_color || '#4F46E5',
         paymentDetails: invoice.payment_details || undefined,

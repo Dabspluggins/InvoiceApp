@@ -741,8 +741,8 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
           </div>
 
           {/* Desktop: table */}
-          <div className={`hidden md:block rounded-xl border overflow-hidden ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <table className="w-full">
+          <div className={`hidden md:block rounded-xl border overflow-x-auto ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <table className="min-w-full">
               <thead>
                 <tr className={`border-b text-xs uppercase tracking-wide ${dk ? 'border-gray-700 text-gray-400 bg-gray-900' : 'border-gray-100 text-gray-500 bg-gray-50'}`}>
                   <th className="px-4 py-3 w-8">
@@ -759,7 +759,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                   <th className="text-left px-6 py-3">Date</th>
                   <th className="text-right px-6 py-3">Amount</th>
                   <th className="text-center px-6 py-3">Status</th>
-                  <th className="text-right px-6 py-3">Actions</th>
+                  <th className="text-right px-6 py-3 whitespace-nowrap w-px">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -844,7 +844,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                       )}
                     </td>
                     <td
-                      className="px-6 py-4 text-right"
+                      className="px-6 py-4 text-right whitespace-nowrap w-px"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="flex items-center justify-end gap-3">
@@ -957,13 +957,13 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
             </div>
 
             {/* Desktop: table */}
-            <div className={`hidden md:block rounded-xl border overflow-hidden ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-              <table className="w-full">
+            <div className={`hidden md:block rounded-xl border overflow-x-auto ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+              <table className="min-w-full">
                 <thead>
                   <tr className={`border-b text-xs uppercase tracking-wide ${dk ? 'border-gray-700 text-gray-400 bg-gray-900' : 'border-gray-100 text-gray-500 bg-gray-50'}`}>
                     <th className="text-left px-6 py-3">Name</th>
                     <th className="text-left px-6 py-3">Saved</th>
-                    <th className="text-right px-6 py-3">Actions</th>
+                    <th className="text-right px-6 py-3 whitespace-nowrap w-px">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -976,7 +976,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                       <td className={`px-6 py-4 text-sm ${dk ? 'text-gray-400' : 'text-gray-500'}`}>
                         {new Date(tmpl.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </td>
-                      <td className="px-6 py-4 text-right flex items-center justify-end gap-4">
+                      <td className="px-6 py-4 text-right flex items-center justify-end gap-4 whitespace-nowrap w-px">
                         <button
                           onClick={() => router.push(`/invoice?template=${tmpl.id}`)}
                           className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-indigo-700 transition"

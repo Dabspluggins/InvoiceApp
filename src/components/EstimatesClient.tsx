@@ -389,8 +389,8 @@ export default function EstimatesClient() {
           </div>
 
           {/* Desktop: table */}
-          <div className="hidden md:block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <table className="w-full">
+          <div className="hidden md:block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-x-auto">
+            <table className="min-w-full">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide bg-gray-50 dark:bg-gray-700/50">
                   <th className="text-left px-6 py-3">Estimate #</th>
@@ -399,7 +399,7 @@ export default function EstimatesClient() {
                   <th className="text-center px-6 py-3">Status</th>
                   <th className="text-left px-6 py-3">Valid Until</th>
                   <th className="text-right px-6 py-3">Total</th>
-                  <th className="text-right px-6 py-3">Actions</th>
+                  <th className="text-right px-6 py-3 whitespace-nowrap w-px">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -430,7 +430,7 @@ export default function EstimatesClient() {
                           {formatCurrency(est.total, est.currency)}
                         </td>
                         <td
-                          className="px-6 py-4 text-right"
+                          className="px-6 py-4 text-right whitespace-nowrap w-px"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <div className="flex items-center justify-end gap-3">

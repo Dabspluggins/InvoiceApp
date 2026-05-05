@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse, type NextRequest } from 'next/server'
+import { CURRENCIES } from '@/lib/currencies'
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
@@ -62,16 +63,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Amount must be greater than zero' }, { status: 400 })
   }
 
-  // Verify user owns the client
+  const currencyToUse = currency || 'NGN'
+  if (!CURRENCIES.some((c) => c.code === currencyToUse)) {
+    return NextResponse.json({ error: 'Invalid currency code' }, { status: 400 })
+  }
+
+  // Verify user owns the client and get configured currency
   const { data: client, error: clientError } = await supabase
     .from('clients')
-    .select('id')
+    .select('id, currency')
     .eq('id', clientId)
     .eq('user_id', user.id)
     .single()
 
   if (clientError || !client) {
     return NextResponse.json({ error: 'Client not found' }, { status: 404 })
+  }
+
+  if (currencyToUse !== (client.currency || 'NGN')) {
+    return NextResponse.json({ error: 'Currency does not match the client\'s configured currency' }, { status: 422 })
   }
 
   const { data, error } = await supabase
@@ -83,7 +93,7 @@ export async function POST(request: NextRequest) {
       type: 'credit_added',
       description: description || null,
       reference_number: referenceNumber || null,
-      currency: currency || 'NGN',
+      currency: currencyToUse,
     })
     .select()
     .single()

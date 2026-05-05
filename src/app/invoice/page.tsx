@@ -106,6 +106,7 @@ function InvoicePageInner() {
   const [clientCreditBalance, setClientCreditBalance] = useState<number>(0)
   const [creditDismissed, setCreditDismissed] = useState(false)
   const [creditApplied, setCreditApplied] = useState<number>(0)
+  const [savedCreditApplied, setSavedCreditApplied] = useState<number>(0)
   const [sendModal, setSendModal] = useState<SendModalState>({
     open: false,
     toEmail: '',
@@ -185,6 +186,7 @@ function InvoicePageInner() {
         const loadedCreditApplied = Number(inv.credit_applied || 0)
         if (loadedCreditApplied > 0) {
           setCreditApplied(loadedCreditApplied)
+          setSavedCreditApplied(loadedCreditApplied)
           setCreditDismissed(true)
         }
         if (inv.client_id) {
@@ -427,12 +429,13 @@ function InvoicePageInner() {
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
   }
 
-  async function handleClientSelect(clientId: string) {
+  async function handleClientSelect(clientId: string, clientCurrency: string) {
     setSelectedClientId(clientId)
     setCreditDismissed(false)
     setCreditApplied(0)
+    setSavedCreditApplied(0)
 
-    const res = await fetch(`/api/credits/balance?clientId=${clientId}&currency=${encodeURIComponent(data.currency || 'NGN')}`)
+    const res = await fetch(`/api/credits/balance?clientId=${clientId}&currency=${encodeURIComponent(clientCurrency || 'NGN')}`)
     if (res.ok) {
       const json = await res.json()
       setClientCreditBalance(json.balance ?? 0)
@@ -441,11 +444,12 @@ function InvoicePageInner() {
 
   function handleApplyCredit(customAmount?: number) {
     const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
+    const remaining = total - savedCreditApplied
     const toApply = customAmount !== undefined
-      ? Math.min(customAmount, clientCreditBalance, total)
-      : Math.min(clientCreditBalance, total)
-    setCreditApplied(toApply)
-    setData((prev) => ({ ...prev, creditApplied: toApply }))
+      ? Math.min(customAmount, clientCreditBalance, remaining)
+      : Math.min(clientCreditBalance, remaining)
+    setCreditApplied(savedCreditApplied + toApply)
+    setData((prev) => ({ ...prev, creditApplied: savedCreditApplied + toApply }))
     setCreditDismissed(true)
   }
 
@@ -615,15 +619,16 @@ function InvoicePageInner() {
         if (error) throw error
       }
 
-      // Apply credit to this invoice if requested
-      if (creditApplied > 0 && selectedClientId && currentId) {
+      // Apply only the incremental credit delta to avoid double-debit on re-save
+      const delta = creditApplied - savedCreditApplied
+      if (delta > 0 && selectedClientId && currentId) {
         const applyRes = await fetch('/api/credits/apply', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             invoiceId: currentId,
             clientId: selectedClientId,
-            creditAmount: creditApplied,
+            creditAmount: delta,
           }),
         })
         if (!applyRes.ok) {
@@ -632,7 +637,7 @@ function InvoicePageInner() {
         }
         const applyJson = await applyRes.json()
         setClientCreditBalance(applyJson.newBalance ?? 0)
-        setCreditApplied(0)
+        setSavedCreditApplied(creditApplied)
       }
 
       showToast('Invoice saved!', 'success')
@@ -1093,7 +1098,7 @@ function InvoicePageInner() {
         </div>
         {clientCreditBalance > 0 && !creditDismissed && (() => {
           const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
-          const maxCredit = Math.min(clientCreditBalance, total)
+          const maxCredit = Math.min(clientCreditBalance, total - savedCreditApplied)
           return (
             <div className="mx-4 mt-4 px-4 py-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-sm text-green-800 dark:text-green-300">
               <div className="flex items-center justify-between gap-2 mb-2">

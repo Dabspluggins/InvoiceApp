@@ -40,8 +40,9 @@ export async function POST(request: NextRequest) {
   }
 
   const invoiceTotal = Number(invoice.total || 0)
-  if (parsedAmount > invoiceTotal) {
-    return NextResponse.json({ error: 'Credit amount cannot exceed the invoice total' }, { status: 422 })
+  const alreadyApplied = Number(invoice.credit_applied || 0)
+  if (parsedAmount > (invoiceTotal - alreadyApplied)) {
+    return NextResponse.json({ error: 'Credit amount cannot exceed the remaining invoice balance' }, { status: 422 })
   }
 
   // Verify client belongs to user

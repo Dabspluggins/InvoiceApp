@@ -17,7 +17,7 @@ interface Props {
   data: InvoiceData
   onChange: (data: InvoiceData) => void
   isSignedIn: boolean
-  onClientSelect?: (clientId: string) => void
+  onClientSelect?: (clientId: string, clientCurrency: string) => void
 }
 
 interface SavedClient {
@@ -27,6 +27,7 @@ interface SavedClient {
   email: string | null
   phone: string | null
   address: string | null
+  currency: string | null
 }
 
 
@@ -52,7 +53,7 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
       if (!user) return
       supabase
         .from('clients')
-        .select('id, name, company, email, phone, address')
+        .select('id, name, company, email, phone, address, currency')
         .order('name')
         .then(({ data }) => {
           if (data) setSavedClients(data)
@@ -152,14 +153,16 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
     if (!id) return
     const client = savedClients.find((c) => c.id === id)
     if (!client) return
+    const clientCurrency = client.currency || 'NGN'
     onChange({
       ...data,
       clientName: client.name,
       clientCompany: client.company || '',
       clientEmail: client.email || '',
       clientAddress: client.address || '',
+      currency: clientCurrency as Currency,
     })
-    onClientSelect?.(id)
+    onClientSelect?.(id, clientCurrency)
   }
 
   async function handleSaveAsClient() {

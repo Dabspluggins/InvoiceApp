@@ -284,7 +284,7 @@ export default function ClientsClient() {
 
           {/* Desktop: table */}
           <div className="hidden md:block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-x-auto">
-            <table className="w-full min-w-[780px]">
+            <table className="min-w-full">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide bg-gray-50 dark:bg-gray-700">
                   <th className="text-left px-6 py-3">Name</th>

@@ -224,7 +224,7 @@ export default function ClientsClient() {
                       )}
                       {balance > 0 && (
                         <span className="inline-flex items-center mt-1 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300 px-2 py-0.5 rounded-full">
-                          {getCurrencySymbol(client.currency)}{balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit
+                          {getCurrencySymbol(client.currency)}{balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} deposit
                         </span>
                       )}
                     </div>
@@ -269,7 +269,7 @@ export default function ClientsClient() {
                       onClick={() => toggleCredits(client.id)}
                       className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
                     >
-                      {expandedCreditsId === client.id ? '▲ Hide credits' : '▼ Manage credits'}
+                      {expandedCreditsId === client.id ? '▲ Hide deposits' : '▼ Manage deposits'}
                     </button>
                     {expandedCreditsId === client.id && (
                       <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
@@ -292,7 +292,7 @@ export default function ClientsClient() {
                   <th className="text-left px-6 py-3">Email</th>
                   <th className="text-left px-6 py-3">Phone</th>
                   <th className="text-center px-6 py-3">Estimates</th>
-                  <th className="text-left px-4 py-3 whitespace-nowrap">Credit</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Deposit</th>
                   <th className="text-right px-4 py-3 whitespace-nowrap w-px">Actions</th>
                 </tr>
               </thead>
@@ -328,8 +328,8 @@ export default function ClientsClient() {
                             }`}
                           >
                             {balance > 0
-                              ? `${getCurrencySymbol(client.currency)}${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit`
-                              : 'Credits'}
+                              ? `${getCurrencySymbol(client.currency)}${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} deposit`
+                              : 'Deposits'}
                           </button>
                         </td>
                         <td className="px-4 py-4 text-right whitespace-nowrap w-px">

@@ -112,12 +112,12 @@ export default function ClientCreditsTab({ clientId, clientName, currency = 'NGN
     setSaving(false)
     if (!res.ok) {
       const json = await res.json()
-      setFormError(json.error || 'Failed to add credit')
+      setFormError(json.error || 'Failed to add deposit')
       return
     }
     setForm(emptyForm)
     setShowForm(false)
-    showToast('Credit added')
+    showToast('Deposit added')
     load()
   }
 
@@ -128,10 +128,10 @@ export default function ClientCreditsTab({ clientId, clientName, currency = 'NGN
     setDeletingId(null)
     if (!res.ok) {
       const json = await res.json()
-      showToast(json.error || 'Failed to reverse credit')
+      showToast(json.error || 'Failed to reverse deposit')
       return
     }
-    showToast('Credit reversed')
+    showToast('Deposit reversed')
     load()
   }
 
@@ -150,7 +150,7 @@ export default function ClientCreditsTab({ clientId, clientName, currency = 'NGN
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wide">
-            Available credit — {clientName}
+            Available deposit — {clientName}
           </p>
           <p className={`text-2xl font-bold mt-0.5 ${balance > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>
             {symbol}{formatAmount(balance)}
@@ -160,7 +160,7 @@ export default function ClientCreditsTab({ clientId, clientName, currency = 'NGN
           onClick={() => { setShowForm((v) => !v); setFormError(null); setForm(emptyForm) }}
           className="text-sm bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition"
         >
-          {showForm ? 'Cancel' : '+ Add Credit'}
+          {showForm ? 'Cancel' : '+ Add Deposit'}
         </button>
       </div>
 
@@ -217,7 +217,7 @@ export default function ClientCreditsTab({ clientId, clientName, currency = 'NGN
               disabled={saving}
               className="text-sm bg-green-600 text-white px-5 py-1.5 rounded-lg hover:bg-green-700 disabled:opacity-50"
             >
-              {saving ? 'Saving...' : 'Save Credit'}
+              {saving ? 'Saving...' : 'Save Deposit'}
             </button>
           </div>
         </form>
@@ -228,7 +228,7 @@ export default function ClientCreditsTab({ clientId, clientName, currency = 'NGN
         <p className="text-sm text-gray-400 dark:text-gray-500 py-4 text-center">Loading...</p>
       ) : rows.length === 0 ? (
         <div className="text-center py-8">
-          <p className="text-sm text-gray-400 dark:text-gray-500">No credit history yet.</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">No deposit history yet.</p>
           <p className="text-xs text-gray-300 dark:text-gray-600 mt-1">Add a deposit above to get started.</p>
         </div>
       ) : (
@@ -265,7 +265,7 @@ export default function ClientCreditsTab({ clientId, clientName, currency = 'NGN
                         <button
                           onClick={() => handleDelete(row)}
                           disabled={deletingId === row.id}
-                          title="Reverse this credit"
+                          title="Reverse this deposit"
                           className="text-gray-300 dark:text-gray-600 hover:text-red-500 transition text-base leading-none disabled:opacity-40"
                         >
                           ×

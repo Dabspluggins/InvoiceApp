@@ -429,7 +429,7 @@ function InvoicePageInner() {
 
   async function handleClientSelect(clientId: string, clientCurrency: string) {
     if ((data.creditApplied ?? 0) > 0) {
-      showToast('Clear the applied credit before changing client.', 'error')
+      showToast('Clear the applied deposit before changing client.', 'error')
       return
     }
     setSelectedClientId(clientId)
@@ -453,7 +453,7 @@ function InvoicePageInner() {
     const remaining = Math.max(0, total - (data.creditApplied ?? 0) - totalPaid)
     const maxApply = Math.min(clientCreditBalance, remaining)
     if (parsedAmount > maxApply) {
-      setCreditApplyMsg({ text: `Amount exceeds the maximum applicable credit (${getCurrencySymbol(data.currency)}${maxApply.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}).`, type: 'error' })
+      setCreditApplyMsg({ text: `Amount exceeds the maximum applicable deposit (${getCurrencySymbol(data.currency)}${maxApply.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}).`, type: 'error' })
       return
     }
 
@@ -471,7 +471,7 @@ function InvoicePageInner() {
       })
       const json = await res.json()
       if (!res.ok) {
-        setCreditApplyMsg({ text: json.error || 'Failed to apply credit.', type: 'error' })
+        setCreditApplyMsg({ text: json.error || 'Failed to apply deposit.', type: 'error' })
         return
       }
       setClientCreditBalance(json.newBalance ?? 0)
@@ -577,7 +577,7 @@ function InvoicePageInner() {
       const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
 
       if ((data.creditApplied ?? 0) > 0 && total < (data.creditApplied ?? 0)) {
-        showToast('Cannot reduce invoice total below the credit already applied. Remove the credit first.', 'error')
+        showToast('Cannot reduce invoice total below the deposit already applied. Remove the deposit first.', 'error')
         return
       }
 
@@ -1122,7 +1122,7 @@ function InvoicePageInner() {
           const maxApply = Math.min(clientCreditBalance, remaining)
           return (
             <div className="mx-4 mt-4 mb-2 border border-green-200 dark:border-green-800 rounded-xl bg-green-50 dark:bg-green-900/20 p-4">
-              <h3 className="text-sm font-bold text-green-800 dark:text-green-200 mb-1">Apply Credit</h3>
+              <h3 className="text-sm font-bold text-green-800 dark:text-green-200 mb-1">Apply Deposit</h3>
               <p className="text-xs text-green-700 dark:text-green-400 mb-3">
                 Available balance: <span className="font-semibold">{getCurrencySymbol(data.currency)}{clientCreditBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </p>
@@ -1143,7 +1143,7 @@ function InvoicePageInner() {
                   disabled={applyingCredit || maxApply <= 0 || !creditApplyAmount}
                   className="text-sm font-semibold bg-green-600 text-white px-4 py-1.5 rounded-lg hover:bg-green-700 disabled:opacity-50 transition shrink-0"
                 >
-                  {applyingCredit ? 'Applying...' : 'Apply Credit'}
+                  {applyingCredit ? 'Applying...' : 'Apply Deposit'}
                 </button>
               </div>
               {creditApplyMsg && (

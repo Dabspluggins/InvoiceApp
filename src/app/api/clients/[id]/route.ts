@@ -30,7 +30,7 @@ export async function PUT(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { name, company, email, phone, address } = body
+  const { name, company, email, phone, address, currency } = body
 
   if (!name?.trim()) {
     return NextResponse.json({ error: 'Name is required' }, { status: 400 })
@@ -38,7 +38,7 @@ export async function PUT(
 
   const { data, error } = await supabase
     .from('clients')
-    .update({ name: name.trim(), company, email, phone, address })
+    .update({ name: name.trim(), company, email, phone, address, currency: currency || 'NGN' })
     .eq('id', id)
     .eq('user_id', user.id)
     .select()

@@ -17,7 +17,8 @@ interface Props {
   data: InvoiceData
   onChange: (data: InvoiceData) => void
   isSignedIn: boolean
-  onClientSelect?: (clientId: string) => void
+  onClientSelect?: (clientId: string, clientCurrency: string) => void
+  hasCreditApplied?: boolean
 }
 
 interface SavedClient {
@@ -27,6 +28,7 @@ interface SavedClient {
   email: string | null
   phone: string | null
   address: string | null
+  currency: string | null
 }
 
 
@@ -37,7 +39,7 @@ const MOBILE_MONEY_PROVIDERS = [
 
 type PaymentTab = 'bankTransfer' | 'mobileMoney' | 'other'
 
-export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect }: Props) {
+export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect, hasCreditApplied }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [savedClients, setSavedClients] = useState<SavedClient[]>([])
   const [savingClient, setSavingClient] = useState(false)
@@ -52,7 +54,7 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
       if (!user) return
       supabase
         .from('clients')
-        .select('id, name, company, email, phone, address')
+        .select('id, name, company, email, phone, address, currency')
         .order('name')
         .then(({ data }) => {
           if (data) setSavedClients(data)
@@ -152,14 +154,16 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
     if (!id) return
     const client = savedClients.find((c) => c.id === id)
     if (!client) return
+    const clientCurrency = client.currency || 'NGN'
     onChange({
       ...data,
       clientName: client.name,
       clientCompany: client.company || '',
       clientEmail: client.email || '',
       clientAddress: client.address || '',
+      currency: clientCurrency as Currency,
     })
-    onClientSelect?.(id)
+    onClientSelect?.(id, clientCurrency)
   }
 
   async function handleSaveAsClient() {
@@ -303,7 +307,13 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
           </div>
           <div>
             <label className={labelCls}>Currency</label>
-            <select className={inputCls} value={data.currency} onChange={(e) => set('currency', e.target.value as Currency)}>
+            <select
+              className={inputCls + (hasCreditApplied ? ' opacity-60 cursor-not-allowed' : '')}
+              value={data.currency}
+              onChange={(e) => set('currency', e.target.value as Currency)}
+              disabled={hasCreditApplied}
+              title={hasCreditApplied ? 'Clear the applied credit before changing currency.' : undefined}
+            >
               {CURRENCIES.map((c) => (
                 <option key={c.code} value={c.code}>{c.symbol} {c.code} - {c.label}</option>
               ))}
@@ -372,9 +382,11 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
           <div className="mb-3">
             <label className={labelCls}>Saved Clients</label>
             <select
-              className={inputCls}
+              className={inputCls + (hasCreditApplied ? ' opacity-60 cursor-not-allowed' : '')}
               defaultValue=""
               onChange={(e) => handleSelectClient(e.target.value)}
+              disabled={hasCreditApplied}
+              title={hasCreditApplied ? 'Clear the applied credit before changing client.' : undefined}
             >
               <option value="">-- Select a saved client --</option>
               {savedClients.map((c) => (

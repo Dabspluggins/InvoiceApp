@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { InvoiceData, Payment } from '@/lib/types'
 import { newLineItem, calcTotals } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrencySymbol } from '@/lib/currencies'
 import InvoiceForm from '@/components/InvoiceForm'
 import InvoicePreview from '@/components/InvoicePreview'
 import LockedFeature from '@/components/LockedFeature'
@@ -82,6 +83,7 @@ const defaultData: InvoiceData = {
   paymentDetails: undefined,
   template: 'classic',
   language: 'en',
+  creditApplied: 0,
 }
 
 function InvoicePageInner() {
@@ -102,8 +104,9 @@ function InvoicePageInner() {
   const [watermarkLogoUrl, setWatermarkLogoUrl] = useState<string | null>(null)
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [clientCreditBalance, setClientCreditBalance] = useState<number>(0)
-  const [creditDismissed, setCreditDismissed] = useState(false)
-  const [creditApplied, setCreditApplied] = useState<number>(0)
+  const [applyingCredit, setApplyingCredit] = useState(false)
+  const [creditApplyAmount, setCreditApplyAmount] = useState('')
+  const [creditApplyMsg, setCreditApplyMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [sendModal, setSendModal] = useState<SendModalState>({
     open: false,
     toEmail: '',
@@ -180,6 +183,14 @@ function InvoicePageInner() {
 
         setPayments(pmts || [])
 
+        const loadedCreditApplied = Number(inv.credit_applied || 0)
+        if (inv.client_id) {
+          setSelectedClientId(inv.client_id)
+          fetch(`/api/credits/balance?clientId=${inv.client_id}&currency=${encodeURIComponent(inv.currency || 'NGN')}`)
+            .then((r) => r.ok ? r.json() : null)
+            .then((json) => { if (json) setClientCreditBalance(json.balance ?? 0) })
+        }
+
         setData({
           invoiceNumber: inv.invoice_number,
           status: inv.status,
@@ -212,6 +223,7 @@ function InvoicePageInner() {
           paymentDetails: inv.payment_details || undefined,
           template: (inv.template as InvoiceData['template']) || 'classic',
           language: (inv.language as InvoiceData['language']) || 'en',
+          creditApplied: loadedCreditApplied,
         })
       }
 
@@ -397,6 +409,7 @@ function InvoicePageInner() {
       return
     }
     const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
+    const amountDue = Math.max(0, total - (data.creditApplied ?? 0))
     const shareUrl = `https://www.billbydab.com/i/${savedShareToken}`
     const businessName = data.businessName || 'Your Service Provider'
     const clientName = data.clientName || 'there'
@@ -409,32 +422,68 @@ function InvoicePageInner() {
       : 'N/A'
     const message =
       `Hi ${clientName},\n\nPlease find your invoice from ${businessName} below:\n\n` +
-      `Invoice No: ${data.invoiceNumber}\nAmount Due: ${data.currency}${total.toLocaleString()}\nDue Date: ${dueDate}\n\n` +
+      `Invoice No: ${data.invoiceNumber}\nAmount Due: ${data.currency}${amountDue.toLocaleString()}\nDue Date: ${dueDate}\n\n` +
       `View & download your invoice here:\n${shareUrl}\n\nThank you for your business.`
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
   }
 
-  async function handleClientSelect(clientId: string) {
+  async function handleClientSelect(clientId: string, clientCurrency: string) {
+    if ((data.creditApplied ?? 0) > 0) {
+      showToast('Clear the applied credit before changing client.', 'error')
+      return
+    }
     setSelectedClientId(clientId)
-    setCreditDismissed(false)
-    setCreditApplied(0)
+    setCreditApplyMsg(null)
+    setCreditApplyAmount('')
 
-    const supabase = createClient()
-    const { data: rows } = await supabase
-      .from('client_credits')
-      .select('amount, type')
-      .eq('client_id', clientId)
-
-    const credited = rows?.filter((r) => r.type === 'credited').reduce((s, r) => s + Number(r.amount), 0) ?? 0
-    const applied = rows?.filter((r) => r.type === 'applied').reduce((s, r) => s + Number(r.amount), 0) ?? 0
-    setClientCreditBalance(credited - applied)
+    const res = await fetch(`/api/credits/balance?clientId=${clientId}&currency=${encodeURIComponent(clientCurrency || 'NGN')}`)
+    if (res.ok) {
+      const json = await res.json()
+      setClientCreditBalance(json.balance ?? 0)
+    }
   }
 
-  function handleApplyCredit() {
+  async function handleApplyCreditAction() {
+    if (!savedInvoiceId || !selectedClientId) return
+    const parsedAmount = parseFloat(creditApplyAmount)
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) return
+
     const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
-    const toApply = Math.min(clientCreditBalance, total)
-    setCreditApplied(toApply)
-    setCreditDismissed(true)
+    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
+    const remaining = Math.max(0, total - (data.creditApplied ?? 0) - totalPaid)
+    const maxApply = Math.min(clientCreditBalance, remaining)
+    if (parsedAmount > maxApply) {
+      setCreditApplyMsg({ text: `Amount exceeds the maximum applicable credit (${getCurrencySymbol(data.currency)}${maxApply.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}).`, type: 'error' })
+      return
+    }
+
+    setApplyingCredit(true)
+    setCreditApplyMsg(null)
+    try {
+      const res = await fetch('/api/credits/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoiceId: savedInvoiceId,
+          clientId: selectedClientId,
+          creditAmount: parsedAmount,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setCreditApplyMsg({ text: json.error || 'Failed to apply credit.', type: 'error' })
+        return
+      }
+      setClientCreditBalance(json.newBalance ?? 0)
+      setData((prev) => ({ ...prev, creditApplied: (prev.creditApplied ?? 0) + parsedAmount }))
+      setCreditApplyAmount('')
+      setCreditApplyMsg({
+        text: `${getCurrencySymbol(data.currency)}${parsedAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} applied. New balance: ${getCurrencySymbol(data.currency)}${(json.newBalance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        type: 'success',
+      })
+    } finally {
+      setApplyingCredit(false)
+    }
   }
 
   function openSendModal() {
@@ -456,6 +505,7 @@ function InvoicePageInner() {
     setSendModal((s) => ({ ...s, sending: true }))
     try {
       const { subtotal, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
+      const amountDue = Math.max(0, total - (data.creditApplied ?? 0))
 
       const res = await fetch('/api/send-invoice', {
         method: 'POST',
@@ -481,7 +531,7 @@ function InvoicePageInner() {
             taxRate: data.taxRate,
             subtotal,
             taxAmount,
-            total,
+            total: amountDue,
             notes: data.notes,
             brandColor: data.brandColor,
             paymentDetails: data.paymentDetails,
@@ -526,6 +576,11 @@ function InvoicePageInner() {
 
       const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
 
+      if ((data.creditApplied ?? 0) > 0 && total < (data.creditApplied ?? 0)) {
+        showToast('Cannot reduce invoice total below the credit already applied. Remove the credit first.', 'error')
+        return
+      }
+
       const invoicePayload = {
         user_id: user.id,
         invoice_number: data.invoiceNumber,
@@ -556,6 +611,7 @@ function InvoicePageInner() {
         payment_details: data.paymentDetails ?? null,
         template: data.template || 'classic',
         language: data.language || 'en',
+        client_id: selectedClientId ?? null,
         recurring_next_date:
           data.isRecurring && data.recurringFrequency && data.dueDate
             ? nextRecurringDate(data.dueDate, data.recurringFrequency)
@@ -599,23 +655,6 @@ function InvoicePageInner() {
         }))
         const { error } = await supabase.from('line_items').insert(lineItemsPayload)
         if (error) throw error
-      }
-
-      // Record applied credit if any
-      if (creditApplied > 0 && selectedClientId && currentId) {
-        await fetch('/api/credits', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            client_id: selectedClientId,
-            amount: creditApplied,
-            type: 'applied',
-            reference_invoice_id: currentId,
-            description: `Credit applied to ${data.invoiceNumber}`,
-          }),
-        })
-        setClientCreditBalance((prev) => prev - creditApplied)
-        setCreditApplied(0)
       }
 
       showToast('Invoice saved!', 'success')
@@ -1074,44 +1113,52 @@ function InvoicePageInner() {
             </button>
           </LockedFeature>
         </div>
-        {clientCreditBalance > 0 && !creditDismissed && (
-          <div className="mx-4 mt-4 px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <span>
-              This client has <strong>₦{clientCreditBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> in credit. Apply credit to this invoice?
-            </span>
-            <div className="flex gap-2 shrink-0">
-              <button
-                onClick={handleApplyCredit}
-                className="text-xs font-semibold bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition"
-              >
-                Apply ₦{Math.min(clientCreditBalance, calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType).total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit
-              </button>
-              <button
-                onClick={() => setCreditDismissed(true)}
-                className="text-xs font-medium text-green-700 hover:text-green-900 px-2 py-1.5"
-              >
-                Dismiss
-              </button>
+        <InvoiceForm data={data} onChange={setData} isSignedIn={isSignedIn} onClientSelect={handleClientSelect} hasCreditApplied={(data.creditApplied ?? 0) > 0} />
+
+        {savedInvoiceId && selectedClientId && clientCreditBalance > 0 && (() => {
+          const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
+          const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
+          const remaining = Math.max(0, total - (data.creditApplied ?? 0) - totalPaid)
+          const maxApply = Math.min(clientCreditBalance, remaining)
+          return (
+            <div className="mx-4 mt-4 mb-2 border border-green-200 dark:border-green-800 rounded-xl bg-green-50 dark:bg-green-900/20 p-4">
+              <h3 className="text-sm font-bold text-green-800 dark:text-green-200 mb-1">Apply Credit</h3>
+              <p className="text-xs text-green-700 dark:text-green-400 mb-3">
+                Available balance: <span className="font-semibold">{getCurrencySymbol(data.currency)}{clientCreditBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={maxApply}
+                  value={creditApplyAmount}
+                  onChange={(e) => setCreditApplyAmount(e.target.value)}
+                  placeholder={maxApply > 0 ? maxApply.toFixed(2) : '0.00'}
+                  disabled={maxApply <= 0}
+                  className="flex-1 border border-green-300 dark:border-green-700 bg-white dark:bg-gray-700 text-green-900 dark:text-green-100 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-green-400 disabled:opacity-50"
+                />
+                <button
+                  onClick={handleApplyCreditAction}
+                  disabled={applyingCredit || maxApply <= 0 || !creditApplyAmount}
+                  className="text-sm font-semibold bg-green-600 text-white px-4 py-1.5 rounded-lg hover:bg-green-700 disabled:opacity-50 transition shrink-0"
+                >
+                  {applyingCredit ? 'Applying...' : 'Apply Credit'}
+                </button>
+              </div>
+              {creditApplyMsg && (
+                <p className={`text-xs mt-2 ${creditApplyMsg.type === 'success' ? 'text-green-700 dark:text-green-300' : 'text-red-600 dark:text-red-400'}`}>
+                  {creditApplyMsg.text}
+                </p>
+              )}
             </div>
-          </div>
-        )}
-        {creditApplied > 0 && (
-          <div className="mx-4 mt-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700 flex items-center justify-between gap-3">
-            <span>Credit applied: −₦{creditApplied.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-            <button
-              onClick={() => { setCreditApplied(0); setCreditDismissed(false) }}
-              className="text-green-500 hover:text-green-700"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-        <InvoiceForm data={data} onChange={setData} isSignedIn={isSignedIn} onClientSelect={handleClientSelect} />
+          )
+        })()}
 
         {savedInvoiceId && (() => {
           const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
           const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
-          const outstanding = total - totalPaid
+          const outstanding = total - (data.creditApplied ?? 0) - totalPaid
           return (
             <div className="mx-4 mb-6 mt-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-700 p-4">
               <div className="flex items-center justify-between mb-3">

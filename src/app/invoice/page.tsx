@@ -448,6 +448,15 @@ function InvoicePageInner() {
     const parsedAmount = parseFloat(creditApplyAmount)
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) return
 
+    const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
+    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
+    const remaining = Math.max(0, total - (data.creditApplied ?? 0) - totalPaid)
+    const maxApply = Math.min(clientCreditBalance, remaining)
+    if (parsedAmount > maxApply) {
+      setCreditApplyMsg({ text: `Amount exceeds the maximum applicable credit (${getCurrencySymbol(data.currency)}${maxApply.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}).`, type: 'error' })
+      return
+    }
+
     setApplyingCredit(true)
     setCreditApplyMsg(null)
     try {
@@ -566,6 +575,11 @@ function InvoicePageInner() {
       }
 
       const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
+
+      if ((data.creditApplied ?? 0) > 0 && total < (data.creditApplied ?? 0)) {
+        showToast('Cannot reduce invoice total below the credit already applied. Remove the credit first.', 'error')
+        return
+      }
 
       const invoicePayload = {
         user_id: user.id,

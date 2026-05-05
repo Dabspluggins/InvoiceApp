@@ -645,7 +645,11 @@ function InvoicePageInner() {
         })
         if (!applyRes.ok) {
           const applyJson = await applyRes.json()
-          throw new Error(applyJson.error || 'Credit application failed. Invoice was not saved.')
+          showToast(
+            `Invoice saved, but credit could not be applied: ${applyJson.error || 'unknown error'}. Please apply the credit manually from the client's Credits tab.`,
+            'error'
+          )
+          return
         }
         const applyJson = await applyRes.json()
         setClientCreditBalance(applyJson.newBalance ?? 0)
@@ -1164,7 +1168,7 @@ function InvoicePageInner() {
             )}
           </div>
         )}
-        <InvoiceForm data={data} onChange={setData} isSignedIn={isSignedIn} onClientSelect={handleClientSelect} hasCreditApplied={savedCreditApplied > 0} />
+        <InvoiceForm data={data} onChange={setData} isSignedIn={isSignedIn} onClientSelect={handleClientSelect} hasCreditApplied={creditApplied > 0} />
 
         {savedInvoiceId && (() => {
           const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)

@@ -1,8 +1,9 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
+import Script from 'next/script'
 import { createClient } from '@/lib/supabase/client'
 
 export default function SignupPage() {
@@ -15,7 +16,49 @@ export default function SignupPage() {
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const [captchaError, setCaptchaError] = useState(false)
+  const turnstileRef = useRef<HTMLDivElement>(null)
+  const turnstileWidgetIdRef = useRef<string | number | null>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    (window as any).onloadTurnstileCallback = () => {
+      if (!turnstileRef.current) return
+      const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+      if (!siteKey) {
+        setCaptchaError(true)
+        return
+      }
+      turnstileWidgetIdRef.current = (window as any).turnstile.render(
+        turnstileRef.current,
+        {
+          sitekey: siteKey,
+          callback:           (token: string) => { setCaptchaToken(token); setCaptchaError(false) },
+          'expired-callback': () => setCaptchaToken(null),
+          'error-callback':   () => { setCaptchaToken(null); setCaptchaError(true) },
+        }
+      )
+    }
+    if (typeof (window as any).turnstile !== 'undefined') {
+      (window as any).onloadTurnstileCallback()
+    }
+    return () => {
+      delete (window as any).onloadTurnstileCallback
+      if (turnstileWidgetIdRef.current != null) {
+        (window as any).turnstile?.remove(turnstileWidgetIdRef.current)
+        turnstileWidgetIdRef.current = null
+      }
+    }
+  }, [])
+
+  const resetCaptcha = () => {
+    if (turnstileWidgetIdRef.current != null) {
+      (window as any).turnstile?.reset(turnstileWidgetIdRef.current)
+    }
+    setCaptchaToken(null)
+    setCaptchaError(false)
+  }
 
   const handleGoogleSignup = async () => {
     setOauthLoading(true)
@@ -78,11 +121,13 @@ export default function SignupPage() {
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
+        captchaToken: captchaToken!,
       },
     })
 
     if (error) {
       setError(error.message)
+      resetCaptcha()
       setLoading(false)
     } else {
       setSuccess(true)
@@ -148,7 +193,7 @@ export default function SignupPage() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-3 text-sm bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-3 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -161,7 +206,7 @@ export default function SignupPage() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Min. 12 characters"
-                className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-3 pr-10 text-sm bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-3 pr-10 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
                 type="button"
@@ -182,7 +227,7 @@ export default function SignupPage() {
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
                 placeholder="Re-enter your password"
-                className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-3 pr-10 text-sm bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-3 pr-10 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
                 type="button"
@@ -194,6 +239,13 @@ export default function SignupPage() {
             </div>
           </div>
 
+          <div ref={turnstileRef} />
+          {captchaError && (
+            <p className="text-sm text-red-500 text-center">
+              CAPTCHA failed to load. Please disable any ad blockers and try again, or refresh the page.
+            </p>
+          )}
+
           {error && (
             <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 text-sm px-4 py-3 rounded-lg">
               {error}
@@ -202,7 +254,7 @@ export default function SignupPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !captchaToken}
             className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60"
           >
             {loading ? 'Creating account...' : 'Create Free Account'}
@@ -219,6 +271,13 @@ export default function SignupPage() {
           </Link>
         </div>
       </div>
+
+      <Script
+        id="cf-turnstile-script-signup"
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onloadTurnstileCallback"
+        strategy="lazyOnload"
+        onError={() => setCaptchaError(true)}
+      />
     </div>
   )
 }

@@ -242,7 +242,7 @@ export default function SignupPage() {
           <div ref={turnstileRef} />
           {captchaError && (
             <p className="text-sm text-red-500 text-center">
-              CAPTCHA failed to load. Please disable any ad blockers and try again, or refresh the page.
+              Security check failed. Please disable any ad blockers, refresh the page, or contact support.
             </p>
           )}
 
@@ -259,6 +259,11 @@ export default function SignupPage() {
           >
             {loading ? 'Creating account...' : 'Create Free Account'}
           </button>
+          {!captchaToken && !captchaError && !loading && (
+            <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+              Complete the security check above to create your account.
+            </p>
+          )}
         </form>
 
         <div className="mt-6 text-center space-y-3">

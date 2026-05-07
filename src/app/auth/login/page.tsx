@@ -294,7 +294,7 @@ export default function LoginPage() {
             <div ref={turnstileRef} />
             {captchaError && (
               <p className="text-sm text-red-500 text-center">
-                CAPTCHA failed to load. Please disable any ad blockers and try again, or refresh the page.
+                Security check failed. Please disable any ad blockers, refresh the page, or contact support.
               </p>
             )}
             {error && (
@@ -309,6 +309,11 @@ export default function LoginPage() {
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
+            {!captchaToken && !captchaError && !loading && (
+              <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+                Complete the security check above to sign in.
+              </p>
+            )}
           </form>
         )}
 

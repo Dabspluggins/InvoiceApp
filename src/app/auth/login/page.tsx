@@ -30,15 +30,23 @@ export default function LoginPage() {
   useEffect(() => {
     (window as any).onloadTurnstileCallback = () => {
       if (!turnstileRef.current) return
+      const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+      if (!siteKey) {
+        setCaptchaError(true)
+        return
+      }
       turnstileWidgetIdRef.current = (window as any).turnstile.render(
         turnstileRef.current,
         {
-          sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!,
+          sitekey: siteKey,
           callback:           (token: string) => { setCaptchaToken(token); setCaptchaError(false) },
           'expired-callback': () => setCaptchaToken(null),
           'error-callback':   () => { setCaptchaToken(null); setCaptchaError(true) },
         }
       )
+    }
+    if (typeof (window as any).turnstile !== 'undefined') {
+      (window as any).onloadTurnstileCallback()
     }
     return () => {
       delete (window as any).onloadTurnstileCallback
@@ -286,7 +294,7 @@ export default function LoginPage() {
             <div ref={turnstileRef} />
             {captchaError && (
               <p className="text-sm text-red-500 text-center">
-                Security check failed. Please refresh and try again.
+                CAPTCHA failed to load. Please disable any ad blockers and try again, or refresh the page.
               </p>
             )}
             {error && (
@@ -402,9 +410,10 @@ export default function LoginPage() {
       </div>
 
       <Script
-        id="cf-turnstile-script"
+        id="cf-turnstile-script-login"
         src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onloadTurnstileCallback"
         strategy="lazyOnload"
+        onError={() => setCaptchaError(true)}
       />
     </div>
   )

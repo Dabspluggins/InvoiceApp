@@ -86,15 +86,29 @@ async function getOwnerWatermark(userId: string) {
 
 async function recordView(token: string, invoice: InvoiceRow) {
   const supabase = getServiceClient()
-  const isFirstView = (invoice.view_count || 0) === 0
 
-  await supabase
+  // Atomically claim the first-view slot: only one concurrent request can win
+  // because the WHERE view_count = 0 condition is evaluated inside the DB transaction.
+  const { data: firstViewData } = await supabase
     .from('invoices')
-    .update({
-      viewed_at: new Date().toISOString(),
-      view_count: (invoice.view_count || 0) + 1,
-    })
+    .update({ viewed_at: new Date().toISOString(), view_count: 1 })
     .eq('share_token', token)
+    .eq('view_count', 0)
+    .select('id')
+
+  const isFirstView = (firstViewData?.length ?? 0) > 0
+
+  // For subsequent views, still increment the counter (minor concurrent-increment
+  // inaccuracy on the count is acceptable).
+  if (!isFirstView) {
+    await supabase
+      .from('invoices')
+      .update({
+        viewed_at: new Date().toISOString(),
+        view_count: (invoice.view_count || 0) + 1,
+      })
+      .eq('share_token', token)
+  }
 
   if (isFirstView && invoice.business_email && process.env.RESEND_API_KEY) {
     try {
@@ -143,7 +157,11 @@ async function recordView(token: string, invoice: InvoiceRow) {
 }
 
 function fmt(amount: number, currency: string) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)
+  } catch {
+    return `${amount.toFixed(2)} ${currency}`
+  }
 }
 
 export async function generateMetadata({

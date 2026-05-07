@@ -289,6 +289,9 @@ export async function POST(req: NextRequest) {
     if (!toEmail) {
       return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 })
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail)) {
+      return NextResponse.json({ error: 'Invalid recipient email address' }, { status: 400 })
+    }
     if (!body.invoiceId) {
       return NextResponse.json({ error: 'Save the invoice before sending it' }, { status: 400 })
     }

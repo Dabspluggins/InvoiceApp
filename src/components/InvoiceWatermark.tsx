@@ -26,7 +26,7 @@ export default function InvoiceWatermark({ logoUrl, opacity }: Props) {
       <img
         src={logoUrl}
         alt=""
-        style={{ width: '100%', height: 'auto', objectFit: 'contain' }}
+        style={{ width: '100%', height: 'auto', objectFit: 'contain', mixBlendMode: 'multiply' }}
       />
     </div>
   )

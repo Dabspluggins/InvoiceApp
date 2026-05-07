@@ -370,7 +370,7 @@ export default async function PublicInvoicePage({
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                   <div>
                     {invoice.logo_url && (
-                      <img src={invoice.logo_url} alt="Logo" className="mb-3 max-h-14 max-w-[180px] object-contain rounded" style={{ background: 'rgba(255,255,255,0.15)', padding: '4px' }} />
+                      <img src={invoice.logo_url} alt="Logo" className="mb-3 max-h-14 max-w-[180px] object-contain" style={{ mixBlendMode: 'multiply' }} />
                     )}
                     <h1 className="text-3xl font-black text-white tracking-tight leading-none">{invoice.business_name || 'Business'}</h1>
                     {invoice.business_address && <p className="text-sm text-white/70 mt-1.5 whitespace-pre-line">{invoice.business_address}</p>}
@@ -484,7 +484,7 @@ export default async function PublicInvoicePage({
               {/* Brand color header stripe */}
               <div className="px-8 py-8 sm:px-10" style={{ backgroundColor: brandColor }}>
                 {invoice.logo_url && (
-                  <img src={invoice.logo_url} alt="Logo" className="mb-4 max-h-16 max-w-[180px] object-contain rounded" style={{ background: 'rgba(255,255,255,0.15)', padding: '4px' }} />
+                  <img src={invoice.logo_url} alt="Logo" className="mb-4 max-h-16 max-w-[180px] object-contain" style={{ mixBlendMode: 'multiply' }} />
                 )}
                 <p className="text-xs font-semibold uppercase tracking-widest text-white/70 mb-1">Invoice from</p>
                 <h1 className="text-2xl sm:text-3xl font-bold text-white">{invoice.business_name || 'Business'}</h1>

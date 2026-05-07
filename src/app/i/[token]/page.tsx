@@ -34,6 +34,7 @@ interface InvoiceRow {
   discount_amount: number | null
   tax_rate: number
   tax_amount: number
+  credit_applied: number | null
   total: number
   notes: string | null
   brand_color: string | null
@@ -336,9 +337,15 @@ export default async function PublicInvoicePage({
                         <span>{fmt(invoice.tax_amount, invoice.currency)}</span>
                       </div>
                     )}
+                    {(invoice.credit_applied ?? 0) > 0 && (
+                      <div className="flex justify-between text-green-600">
+                        <span>{t.creditApplied}</span>
+                        <span>-{fmt(invoice.credit_applied ?? 0, invoice.currency)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between font-bold text-gray-900 pt-2 border-t border-gray-300">
                       <span>{t.total}</span>
-                      <span>{fmt(invoice.total, invoice.currency)}</span>
+                      <span>{fmt(Math.max(0, invoice.total - (invoice.credit_applied ?? 0)), invoice.currency)}</span>
                     </div>
                   </div>
                 </div>
@@ -441,11 +448,17 @@ export default async function PublicInvoicePage({
                         <span>{fmt(invoice.tax_amount, invoice.currency)}</span>
                       </div>
                     )}
+                    {(invoice.credit_applied ?? 0) > 0 && (
+                      <div className="flex justify-between text-green-600 border-b border-gray-100 pb-1.5">
+                        <span>{t.creditApplied}</span>
+                        <span>-{fmt(invoice.credit_applied ?? 0, invoice.currency)}</span>
+                      </div>
+                    )}
                     <div className="flex items-center mt-2 rounded overflow-hidden">
                       <div className="w-1.5 self-stretch rounded-l" style={{ backgroundColor: brandColor }} />
                       <div className="flex justify-between flex-1 px-3 py-2.5 bg-gray-900">
                         <span className="font-black text-white text-sm uppercase tracking-wide">{t.totalDue}</span>
-                        <span className="font-black text-white text-sm">{fmt(invoice.total, invoice.currency)}</span>
+                        <span className="font-black text-white text-sm">{fmt(Math.max(0, invoice.total - (invoice.credit_applied ?? 0)), invoice.currency)}</span>
                       </div>
                     </div>
                   </div>
@@ -550,9 +563,15 @@ export default async function PublicInvoicePage({
                         <span>{fmt(invoice.tax_amount, invoice.currency)}</span>
                       </div>
                     )}
+                    {(invoice.credit_applied ?? 0) > 0 && (
+                      <div className="flex justify-between text-sm text-green-600">
+                        <span>{t.creditApplied}</span>
+                        <span>-{fmt(invoice.credit_applied ?? 0, invoice.currency)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-base font-bold pt-2 border-t-2" style={{ borderColor: brandColor, color: brandColor }}>
                       <span>{t.totalDue}</span>
-                      <span>{fmt(invoice.total, invoice.currency)}</span>
+                      <span>{fmt(Math.max(0, invoice.total - (invoice.credit_applied ?? 0)), invoice.currency)}</span>
                     </div>
                   </div>
                 </div>

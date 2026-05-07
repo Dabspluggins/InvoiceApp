@@ -140,7 +140,7 @@ function buildEmailHtml(payload: InvoicePayload): string {
   const creditRow =
     invoiceData.creditApplied && invoiceData.creditApplied > 0
       ? `<tr>
-      <td colspan="3" style="padding:8px 12px;text-align:right;color:#16a34a;font-size:14px;">Credit applied</td>
+      <td colspan="3" style="padding:8px 12px;text-align:right;color:#16a34a;font-size:14px;">Deposit applied</td>
       <td style="padding:8px 12px;text-align:right;color:#16a34a;font-size:14px;">-${formatCurrency(invoiceData.creditApplied, invoiceData.currency)}</td>
     </tr>`
       : ''

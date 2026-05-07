@@ -87,28 +87,10 @@ async function getOwnerWatermark(userId: string) {
 async function recordView(token: string, invoice: InvoiceRow) {
   const supabase = getServiceClient()
 
-  // Atomically claim the first-view slot: only one concurrent request can win
-  // because the WHERE view_count = 0 condition is evaluated inside the DB transaction.
-  const { data: firstViewData } = await supabase
-    .from('invoices')
-    .update({ viewed_at: new Date().toISOString(), view_count: 1 })
-    .eq('share_token', token)
-    .eq('view_count', 0)
-    .select('id')
-
-  const isFirstView = (firstViewData?.length ?? 0) > 0
-
-  // For subsequent views, still increment the counter (minor concurrent-increment
-  // inaccuracy on the count is acceptable).
-  if (!isFirstView) {
-    await supabase
-      .from('invoices')
-      .update({
-        viewed_at: new Date().toISOString(),
-        view_count: (invoice.view_count || 0) + 1,
-      })
-      .eq('share_token', token)
-  }
+  // Single atomic DB call: increments view_count and returns true only for
+  // the first view. PostgreSQL row-locking ensures two concurrent opens
+  // never both see view_count = 0, so exactly one notification is sent.
+  const { data: isFirstView } = await supabase.rpc('record_invoice_view', { p_token: token })
 
   if (isFirstView && invoice.business_email && process.env.RESEND_API_KEY) {
     try {

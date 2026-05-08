@@ -11,14 +11,14 @@ export default function InvoiceWatermark({ logoUrl, opacity }: Props) {
       className="invoice-watermark"
       style={{
         position: 'absolute',
-        top: '65%',
+        top: '60%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
         opacity: opacity / 100,
         pointerEvents: 'none',
         zIndex: 0,
-        width: '55%',
-        maxWidth: '400px',
+        width: '45%',
+        maxWidth: '340px',
       }}
       aria-hidden="true"
     >

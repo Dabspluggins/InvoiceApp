@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { logError } from '@/lib/logger'
 
 async function recomputeInvoiceStatus(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -86,7 +87,7 @@ export async function POST(
 
     return NextResponse.json({ payment, status, totalPaid }, { status: 201 })
   } catch (err) {
-    console.error('invoice payment create error:', err)
+    logError('invoices/payments', 'Payment create failed', { userId: 'unknown', invoiceId: 'unknown' }, err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -136,7 +137,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, status, totalPaid })
   } catch (err) {
-    console.error('invoice payment delete error:', err)
+    logError('invoices/payments', 'Payment delete failed', { userId: 'unknown', invoiceId: 'unknown' }, err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -4,6 +4,7 @@ import { Resend } from 'resend'
 import { getCurrencySymbol } from '@/lib/currencies'
 import { sendLimiter } from '@/lib/ratelimit'
 import { logAudit } from '@/lib/audit'
+import { logError } from '@/lib/logger'
 
 interface LineItem {
   description: string
@@ -264,7 +265,7 @@ export async function POST(
     })
 
     if (sendError) {
-      console.error('Resend error:', sendError)
+      logError('estimates/send', 'Resend delivery failed', { userId: user?.id ?? 'unknown', estimateId: id }, sendError)
       return NextResponse.json({ error: sendError.message }, { status: 500 })
     }
 
@@ -288,11 +289,11 @@ export async function POST(
       entityType: 'estimate',
       entityId: id,
       metadata: { to: toEmail },
-    }).catch(console.error)
+    }).catch(e => logError('estimates/send', 'Audit log failed', { userId: user?.id ?? 'unknown' }, e))
 
     return NextResponse.json({ success: true })
   } catch (err) {
-    console.error('send estimate error:', err)
+    logError('estimates/send', 'Unhandled error', { userId: 'unknown', estimateId: id }, err)
     return NextResponse.json({ error: 'Failed to send estimate' }, { status: 500 })
   }
 }

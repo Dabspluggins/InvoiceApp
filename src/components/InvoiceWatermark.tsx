@@ -11,7 +11,7 @@ export default function InvoiceWatermark({ logoUrl, opacity }: Props) {
       className="invoice-watermark"
       style={{
         position: 'absolute',
-        top: '50%',
+        top: '65%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
         opacity: opacity / 100,

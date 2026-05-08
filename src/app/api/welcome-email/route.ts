@@ -11,7 +11,6 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createClient } from '@/lib/supabase/server'
-import { logError } from '@/lib/logger'
 
 function buildWelcomeEmailHtml(firstName: string, year: number): string {
   return `<!DOCTYPE html>
@@ -161,7 +160,7 @@ export async function POST() {
     })
 
     if (sendError) {
-      logError('welcome-email', 'Resend delivery failed', {}, sendError)
+      console.error('Resend error:', sendError)
       return NextResponse.json({ error: sendError.message }, { status: 500 })
     }
 
@@ -172,7 +171,7 @@ export async function POST() {
 
     return NextResponse.json({ success: true })
   } catch (err) {
-    logError('welcome-email', 'Unhandled error', {}, err)
+    console.error('Welcome email error:', err)
     return NextResponse.json({ error: 'Failed to send welcome email' }, { status: 500 })
   }
 }

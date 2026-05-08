@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { logAudit } from '@/lib/audit'
-import { logError } from '@/lib/logger'
 
 export async function POST(
   _req: NextRequest,
@@ -49,11 +48,11 @@ export async function POST(
       action: 'invoice.marked_paid',
       entityType: 'invoice',
       entityId: id,
-    }).catch(e => logError('invoices/mark-paid', 'Audit log failed', { userId: user?.id ?? 'unknown' }, e))
+    }).catch(console.error)
 
     return NextResponse.json({ success: true })
   } catch (err) {
-    logError('invoices/mark-paid', 'Unhandled error', { userId: 'unknown', invoiceId: 'unknown' }, err)
+    console.error('mark-paid error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

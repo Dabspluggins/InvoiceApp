@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { createHmac, timingSafeEqual } from 'crypto'
 import type { NextRequest } from 'next/server'
-import { logError } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,7 +63,7 @@ export async function GET(request: NextRequest) {
     .upsert({ id: userId, email_updates: false }, { onConflict: 'id' })
 
   if (error) {
-    logError('unsubscribe', 'Unsubscribe failed', {}, error)
+    console.error('Unsubscribe error:', error)
     return new Response(unsubscribeHtml('Something went wrong. Please contact support@billbydab.com.', true), {
       status: 500,
       headers: { 'Content-Type': 'text/html' },

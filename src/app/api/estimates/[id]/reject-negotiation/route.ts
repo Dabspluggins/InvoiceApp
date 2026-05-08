@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { Resend } from 'resend'
 import { escHtml } from '@/lib/utils'
-import { logError } from '@/lib/logger'
 
 export async function POST(
   req: NextRequest,
@@ -76,7 +75,7 @@ export async function POST(
       })
     }
   } catch (e) {
-    logError('estimates/reject-negotiation', 'Client email failed', { estimateId: id }, e)
+    console.error('Failed to email client on reject:', e)
   }
 
   return NextResponse.json({ success: true })

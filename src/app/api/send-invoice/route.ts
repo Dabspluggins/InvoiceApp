@@ -7,7 +7,6 @@ import { createClient } from '@/lib/supabase/server'
 import { sendLimiter } from '@/lib/ratelimit'
 import { logAudit } from '@/lib/audit'
 import { escHtml } from '@/lib/utils'
-import { logError } from '@/lib/logger'
 
 interface LineItem {
   description: string
@@ -372,7 +371,7 @@ export async function POST(req: NextRequest) {
     })
 
     if (error) {
-      logError('send-invoice', 'Resend delivery failed', { userId: user.id, invoiceId: invoice.id, toEmail }, error)
+      console.error('Resend error:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
@@ -389,12 +388,12 @@ export async function POST(req: NextRequest) {
         entityType: 'invoice',
         entityId: invoice.id,
         metadata: { to: toEmail },
-      }).catch(e => logError('send-invoice', 'Audit log failed', { userId: user.id }, e))
+      }).catch(console.error)
     }
 
     return NextResponse.json({ success: true, shareToken })
   } catch (err) {
-    logError('send-invoice', 'Unhandled error', { userId: user?.id ?? 'unknown', invoiceId: 'unknown', toEmail: 'unknown' }, err)
+    console.error('send-invoice error:', err)
     return NextResponse.json({ error: 'Failed to send invoice' }, { status: 500 })
   }
 }

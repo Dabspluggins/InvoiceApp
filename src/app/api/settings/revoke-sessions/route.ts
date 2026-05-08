@@ -9,7 +9,6 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
-import { logError } from '@/lib/logger'
 
 export async function POST() {
   const supabase = await createClient()
@@ -33,7 +32,7 @@ export async function POST() {
     .upsert({ id: user.id, revoke_token: token, revoke_token_expires_at: expiresAt })
 
   if (dbError) {
-    logError('settings/revoke-sessions', 'DB revoke failed', { userId: user?.id ?? 'unknown' }, dbError)
+    console.error('revoke-sessions db error:', dbError)
     return NextResponse.json({ error: 'Failed to generate token' }, { status: 500 })
   }
 
@@ -93,7 +92,7 @@ export async function POST() {
   })
 
   if (emailError) {
-    logError('settings/revoke-sessions', 'Notification email failed', { userId: user?.id ?? 'unknown' }, emailError)
+    console.error('revoke-sessions email error:', emailError)
     return NextResponse.json({ error: 'Failed to send confirmation email' }, { status: 500 })
   }
 

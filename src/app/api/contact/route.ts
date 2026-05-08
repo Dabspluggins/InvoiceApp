@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { contactLimiter } from '@/lib/ratelimit'
 import { escHtml, getTrustedIp } from '@/lib/utils'
-import { logError } from '@/lib/logger'
 
 export async function POST(req: NextRequest) {
   const ip = getTrustedIp(req)
@@ -126,7 +125,7 @@ export async function POST(req: NextRequest) {
     })
 
     if (notifyError) {
-      logError('contact', 'Resend notify failed', {}, notifyError)
+      console.error('Resend notify error:', notifyError)
       return NextResponse.json({ error: notifyError.message }, { status: 500 })
     }
 
@@ -140,7 +139,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (err) {
-    logError('contact', 'Unhandled error', {}, err)
+    console.error('contact route error:', err)
     return NextResponse.json({ error: 'Failed to send message' }, { status: 500 })
   }
 }

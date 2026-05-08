@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { loginLimiter, signupLimiter } from '@/lib/ratelimit'
 import { getTrustedIp } from '@/lib/utils'
-import { logError } from '@/lib/logger'
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,7 +22,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ allowed: true })
   } catch (err) {
-    logError('auth/check-rate-limit', 'Rate limit check failed', {}, err)
+    console.error('check-rate-limit error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

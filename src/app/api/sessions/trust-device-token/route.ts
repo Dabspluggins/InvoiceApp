@@ -3,7 +3,6 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { timingSafeEqual } from 'crypto'
 import { computeHmac } from '@/app/api/sessions/register/route'
 import { logAudit } from '@/lib/audit'
-import { logError } from '@/lib/logger'
 
 const BASE_URL = 'https://billbydab.com'
 
@@ -101,7 +100,7 @@ export async function GET(request: NextRequest) {
     )
 
   if (error) {
-    logError('sessions/trust-device-token', 'Device trust upsert failed', { userId: uid ?? 'unknown' }, error)
+    console.error('trust-device-token upsert error:', error)
     return htmlPage(
       'Something went wrong',
       false,
@@ -109,7 +108,7 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  logAudit({ userId: uid, action: 'device.trusted', metadata: { label } }).catch(e => logError('sessions/trust-device-token', 'Audit log failed', { userId: uid ?? 'unknown' }, e))
+  logAudit({ userId: uid, action: 'device.trusted', metadata: { label } }).catch(console.error)
 
   return htmlPage(
     'Device trusted',

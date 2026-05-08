@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { logAudit } from '@/lib/audit'
-import { logError } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -32,11 +31,11 @@ export async function POST(request: NextRequest) {
     )
 
   if (error) {
-    logError('sessions/trust-device', 'Device trust upsert failed', { userId: user?.id ?? 'unknown' }, error)
+    console.error('trust-device upsert error:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  logAudit({ userId: user.id, action: 'device.trusted', metadata: { label } }).catch(e => logError('sessions/trust-device', 'Audit log failed', { userId: user?.id ?? 'unknown' }, e))
+  logAudit({ userId: user.id, action: 'device.trusted', metadata: { label } }).catch(console.error)
 
   return NextResponse.json({ ok: true })
 }
@@ -65,11 +64,11 @@ export async function DELETE(request: NextRequest) {
     .eq('user_id', user.id)
 
   if (error) {
-    logError('sessions/trust-device', 'Device trust delete failed', { userId: user?.id ?? 'unknown' }, error)
+    console.error('trust-device delete error:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  logAudit({ userId: user.id, action: 'device.untrusted' }).catch(e => logError('sessions/trust-device', 'Audit log failed', { userId: user?.id ?? 'unknown' }, e))
+  logAudit({ userId: user.id, action: 'device.untrusted' }).catch(console.error)
 
   return NextResponse.json({ ok: true })
 }

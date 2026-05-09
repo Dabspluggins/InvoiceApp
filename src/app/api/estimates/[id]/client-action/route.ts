@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
+import { logError } from '@/lib/logger'
 
 function getAdmin() {
   return createAdminClient(
@@ -219,13 +220,13 @@ export async function POST(
         }
       } catch (notifyErr) {
         // Non-fatal — don't fail the request if notification fails
-        console.error('Failed to send owner notification:', notifyErr)
+        logError('estimates/[id]/client-action', 'Owner notification failed', { estimateId: id }, notifyErr)
       }
     }
 
     return NextResponse.json({ success: true })
   } catch (err) {
-    console.error('client-action error:', err)
+    logError('estimates/[id]/client-action', 'Unhandled error', { estimateId: id }, err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

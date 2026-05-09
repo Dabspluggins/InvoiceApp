@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { logError } from '@/lib/logger'
 
 export async function POST(
   _req: NextRequest,
@@ -142,7 +143,7 @@ export async function POST(
       .single()
 
     if (invoiceError || !invoice) {
-      console.error('Invoice creation error:', invoiceError)
+      logError('estimates/[id]/convert', 'Invoice creation failed', { userId: user.id, estimateId: id }, invoiceError)
       return NextResponse.json({ error: 'Failed to create invoice' }, { status: 500 })
     }
 
@@ -158,7 +159,7 @@ export async function POST(
       }))
       const { error: liError } = await supabase.from('line_items').insert(lineItemsPayload)
       if (liError) {
-        console.error('Line items error:', liError)
+        logError('estimates/[id]/convert', 'Line items insert failed', { userId: user.id, estimateId: id, invoiceId: invoice.id }, liError)
         // Clean up orphan invoice
         await supabase.from('invoices').delete().eq('id', invoice.id)
         return NextResponse.json({ error: 'Failed to create line items' }, { status: 500 })
@@ -182,7 +183,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, invoiceId: invoice.id })
   } catch (err) {
-    console.error('convert error:', err)
+    logError('estimates/[id]/convert', 'Unhandled error', { estimateId: id }, err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

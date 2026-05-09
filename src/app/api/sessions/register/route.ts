@@ -5,6 +5,7 @@ import { Resend } from 'resend'
 import { logAudit } from '@/lib/audit'
 import { getTrustedIp } from '@/lib/utils'
 import { sessionRegisterLimiter } from '@/lib/ratelimit'
+import { logError } from '@/lib/logger'
 
 function parseUserAgent(ua: string): { deviceType: string; browser: string } {
   const deviceType = /Mobile/i.test(ua) ? 'Mobile' : /Tablet|iPad/i.test(ua) ? 'Tablet' : 'Desktop'
@@ -184,7 +185,7 @@ export async function POST(request: NextRequest) {
     location,
     ip,
     ua,
-  }).catch(console.error)
+  }).catch((e) => logError('sessions/register', 'Suspicious login detection failed', { userId: user.id }, e))
 
   return NextResponse.json({ ok: true })
 }

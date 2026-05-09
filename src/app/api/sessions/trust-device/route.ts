@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { logAudit } from '@/lib/audit'
+import { logError } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
     )
 
   if (error) {
-    console.error('trust-device upsert error:', error)
+    logError('sessions/trust-device', 'Device upsert failed', { userId: user.id }, error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
@@ -64,7 +65,7 @@ export async function DELETE(request: NextRequest) {
     .eq('user_id', user.id)
 
   if (error) {
-    console.error('trust-device delete error:', error)
+    logError('sessions/trust-device', 'Device delete failed', { userId: user.id }, error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 

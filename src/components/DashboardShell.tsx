@@ -17,28 +17,32 @@ export default function DashboardShell({ user }: { user: User }) {
     const saved = localStorage.getItem('theme')
     const localDark = saved === 'dark' || (saved === null && localStorage.getItem('dashboard_dark_mode') === 'true')
     if (localDark) {
-      setDarkMode(true)
+      setDarkMode(prev => prev ? prev : true)
       document.documentElement.classList.add('dark')
     }
 
     // Reliable: fetch from Supabase and use as source of truth
-    supabase
+    const client = createClient()
+    let cancelled = false
+    client
       .from('profiles')
       .select('dark_mode, welcome_sent')
       .eq('id', user.id)
       .single()
       .then(({ data }) => {
+        if (cancelled) return
         // Send welcome email if not yet sent (fire-and-forget, no navigation issues here)
         if (!data || !data.welcome_sent) {
           fetch('/api/welcome-email', { method: 'POST' }).catch(() => {})
         }
         if (data && typeof data.dark_mode === 'boolean') {
           const dbDark = data.dark_mode
-          setDarkMode(dbDark)
+          setDarkMode(prev => (prev === dbDark ? prev : dbDark))
           document.documentElement.classList.toggle('dark', dbDark)
           localStorage.setItem('theme', dbDark ? 'dark' : 'light')
         }
       })
+    return () => { cancelled = true }
   }, [user.id])
 
   function handleSetDarkMode(v: boolean) {

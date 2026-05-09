@@ -35,9 +35,9 @@ export function escHtml(s: string | null | undefined): string {
 // Fallback: last value in X-Forwarded-For — Vercel appends the trusted IP at the end,
 // so reading the first value is attacker-controlled and must not be used.
 export function getTrustedIp(req: Request | NextRequest): string {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if ('ip' in req && typeof (req as any).ip === 'string') {
-    return (req as any).ip as string
+  const r = req as unknown as { ip?: string }
+  if (typeof r.ip === 'string') {
+    return r.ip
   }
   const xff = req.headers.get('x-forwarded-for')
   if (xff) {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { getCurrencySymbol } from '@/lib/currencies'
 
 type CreditType = 'credit_added' | 'credit_applied' | 'credit_refunded' | 'credit_adjusted'
@@ -70,16 +70,22 @@ export default function ClientCreditsTab({ clientId, clientName, currency = 'NGN
   const [toast, setToast] = useState<string | null>(null)
 
   const symbol = getCurrencySymbol(currency)
+  const isMountedRef = useRef(true)
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => { isMountedRef.current = false }
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
     const res = await fetch(`/api/credits?clientId=${clientId}&currency=${encodeURIComponent(currency)}`)
+    if (!isMountedRef.current) return
     if (res.ok) {
       const json = await res.json()
       setRows(json.rows || [])
       setBalance(json.balance ?? 0)
     }
-    setLoading(false)
+    if (isMountedRef.current) setLoading(false)
   }, [clientId, currency])
 
   useEffect(() => { load() }, [load])

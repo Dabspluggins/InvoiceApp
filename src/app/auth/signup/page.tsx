@@ -19,18 +19,18 @@ export default function SignupPage() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null)
   const [captchaError, setCaptchaError] = useState(false)
   const turnstileRef = useRef<HTMLDivElement>(null)
-  const turnstileWidgetIdRef = useRef<string | number | null>(null)
+  const turnstileWidgetIdRef = useRef<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
-    (window as any).onloadTurnstileCallback = () => {
+    window.onloadTurnstileCallback = () => {
       if (!turnstileRef.current) return
       const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
       if (!siteKey) {
         setCaptchaError(true)
         return
       }
-      turnstileWidgetIdRef.current = (window as any).turnstile.render(
+      turnstileWidgetIdRef.current = window.turnstile!.render(
         turnstileRef.current,
         {
           sitekey: siteKey,
@@ -40,21 +40,23 @@ export default function SignupPage() {
         }
       )
     }
-    if (typeof (window as any).turnstile !== 'undefined') {
-      (window as any).onloadTurnstileCallback()
+    if (typeof window.turnstile !== 'undefined') {
+      window.onloadTurnstileCallback?.()
     }
     return () => {
-      delete (window as any).onloadTurnstileCallback
-      if (turnstileWidgetIdRef.current != null) {
-        (window as any).turnstile?.remove(turnstileWidgetIdRef.current)
+      delete window.onloadTurnstileCallback
+      const widgetId = turnstileWidgetIdRef.current
+      if (widgetId != null) {
+        window.turnstile?.remove(widgetId)
         turnstileWidgetIdRef.current = null
       }
     }
   }, [])
 
   const resetCaptcha = () => {
-    if (turnstileWidgetIdRef.current != null) {
-      (window as any).turnstile?.reset(turnstileWidgetIdRef.current)
+    const widgetId = turnstileWidgetIdRef.current
+    if (widgetId != null) {
+      window.turnstile?.reset(widgetId)
     }
     setCaptchaToken(null)
     setCaptchaError(false)

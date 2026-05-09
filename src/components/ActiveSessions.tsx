@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 interface Session {
@@ -159,28 +159,36 @@ export default function ActiveSessions() {
   const [hasMfa, setHasMfa] = useState(false)
   const [revokeTarget, setRevokeTarget] = useState<Session | null>(null)
 
-  const loadSessions = useCallback(async () => {
-    const supabase = createClient()
-    const [{ data: { session } }, { data: factors }, { data: rows }] = await Promise.all([
-      supabase.auth.getSession(),
-      supabase.auth.mfa.listFactors(),
-      supabase.from('user_sessions').select('*').order('last_active', { ascending: false }),
-    ])
+  useEffect(() => {
+    let mounted = true
 
-    const hasTotpMfa = (factors?.totp ?? []).some(f => f.status === 'verified')
-    setHasMfa(hasTotpMfa)
+    const run = async () => {
+      const supabase = createClient()
+      const [{ data: { session } }, { data: factors }, { data: rows }] = await Promise.all([
+        supabase.auth.getSession(),
+        supabase.auth.mfa.listFactors(),
+        supabase.from('user_sessions').select('*').order('last_active', { ascending: false }),
+      ])
 
-    if (!session || !rows) { setLoading(false); return }
+      if (!mounted) return
 
-    const currentHash = await hashToken(session.access_token)
-    const enriched = rows.map(r => ({ ...r, isCurrent: r.session_token === currentHash }))
-    // Sort current first
-    enriched.sort((a, b) => (a.isCurrent ? -1 : b.isCurrent ? 1 : 0))
-    setSessions(enriched)
-    setLoading(false)
+      const hasTotpMfa = (factors?.totp ?? []).some(f => f.status === 'verified')
+      setHasMfa(hasTotpMfa)
+
+      if (!session || !rows) { setLoading(false); return }
+
+      const currentHash = await hashToken(session.access_token)
+      if (!mounted) return
+
+      const enriched = rows.map(r => ({ ...r, isCurrent: r.session_token === currentHash }))
+      enriched.sort((a, b) => (a.isCurrent ? -1 : b.isCurrent ? 1 : 0))
+      setSessions(enriched)
+      setLoading(false)
+    }
+
+    run()
+    return () => { mounted = false }
   }, [])
-
-  useEffect(() => { loadSessions() }, [loadSessions])
 
   return (
     <>

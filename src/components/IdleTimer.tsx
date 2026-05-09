@@ -19,7 +19,8 @@ export default function IdleTimer({ idleTimeoutMinutes }: Props) {
   const [warning, setWarning] = useState<WarningState>('none')
   const [countdown, setCountdown] = useState(60)
 
-  const lastActivityRef = useRef(Date.now())
+  const [mountTime] = useState<number>(() => Date.now())
+  const lastActivityRef = useRef(mountTime)
   const checkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 

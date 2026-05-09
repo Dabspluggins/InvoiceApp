@@ -560,7 +560,7 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
           </div>
           {!hasChanges && (
             <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-2">
-              Remove items or propose prices above to enable "Submit Revised Estimate"
+              Remove items or propose prices above to enable &quot;Submit Revised Estimate&quot;
             </p>
           )}
         </div>

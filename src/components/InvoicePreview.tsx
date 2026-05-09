@@ -14,6 +14,16 @@ interface Props {
 
 // ─── Shared payment details renderer ──────────────────────────────────────────
 
+function Row({ label, value }: { label: string; value?: string }) {
+  if (!value) return null
+  return (
+    <div className="flex gap-4 py-0.5">
+      <span className="w-40 flex-shrink-0 text-gray-400">{label}</span>
+      <span className="text-gray-800 break-all">{value}</span>
+    </div>
+  )
+}
+
 function PaymentBlock({ data, accentColor }: { data: InvoiceData; accentColor: string }) {
   const t = getInvoiceTranslations(data.language)
   const pd = data.paymentDetails
@@ -25,14 +35,6 @@ function PaymentBlock({ data, accentColor }: { data: InvoiceData; accentColor: s
   const hasMM = mm && (mm.provider || mm.phoneNumber)
   const hasOT = ot && (ot.paymentMethod || ot.details)
   if (!hasBT && !hasMM && !hasOT) return null
-
-  const Row = ({ label, value }: { label: string; value?: string }) =>
-    value ? (
-      <div className="flex gap-4 py-0.5">
-        <span className="w-40 flex-shrink-0 text-gray-400">{label}</span>
-        <span className="text-gray-800 break-all">{value}</span>
-      </div>
-    ) : null
 
   return (
     <div className="mb-6 rounded-lg border border-gray-200 overflow-hidden" style={{ background: '#F9FAFB' }}>

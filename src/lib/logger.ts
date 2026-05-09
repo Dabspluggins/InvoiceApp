@@ -4,10 +4,14 @@ export function logError(
   context: Record<string, unknown>,
   error: unknown
 ): void {
-  const serializedError =
-    error instanceof Error
-      ? { message: error.message, name: error.name, stack: error.stack }
-      : { raw: String(error) }
+  let serializedError: Record<string, unknown>
+  if (error instanceof Error) {
+    serializedError = { message: error.message, name: error.name, stack: error.stack }
+  } else if (error !== null && typeof error === 'object') {
+    serializedError = { ...(error as Record<string, unknown>) }
+  } else {
+    serializedError = { raw: String(error) }
+  }
   console.error(`[${endpoint}] ${action}`, {
     ...context,
     error: serializedError,

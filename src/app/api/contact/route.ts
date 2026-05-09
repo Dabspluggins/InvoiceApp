@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
     })
 
     if (notifyError) {
-      logError('contact', 'Resend notify failed', { email }, notifyError)
+      logError('contact', 'Resend notify failed', {}, notifyError)
       return NextResponse.json({ error: notifyError.message }, { status: 500 })
     }
 

@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
     )
 
   if (error) {
-    logError('sessions/trust-device-token', 'Device upsert failed', { userId: uid, deviceFingerprint: fingerprint }, error)
+    logError('sessions/trust-device-token', 'Device upsert failed', { userId: uid }, error)
     return htmlPage(
       'Something went wrong',
       false,

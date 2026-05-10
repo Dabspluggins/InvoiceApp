@@ -43,7 +43,7 @@ function Msg({ msg }: { msg: { type: 'success' | 'error'; text: string } | null 
   )
 }
 
-export default function MfaTwoFactor({ user: _user }: { user: User }) {
+export default function MfaTwoFactor({}: { user?: User }) {
   const supabase = createClient()
   const [step, setStep] = useState<Step>('loading')
   const [factorId, setFactorId] = useState('')

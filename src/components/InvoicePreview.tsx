@@ -146,7 +146,7 @@ function MinimalPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
             </tr>
           </thead>
           <tbody>
-            {data.lineItems.map((item, _i) => (
+            {data.lineItems.map((item) => (
               <tr key={item.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                 <td className="py-2.5 text-gray-700">{item.description || '—'}</td>
                 <td className="py-2.5 text-center text-gray-500">{item.quantity}</td>

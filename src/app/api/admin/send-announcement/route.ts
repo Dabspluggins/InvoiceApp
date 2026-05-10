@@ -34,13 +34,9 @@ export async function POST(request: NextRequest) {
   const {
     title,
     body: announcementBody,
-    recipientIds: _recipientIds,
-    recipientEmails: _recipientEmails,
   } = body as {
     title?: string
     body?: string
-    recipientIds?: string[]
-    recipientEmails?: string[]
   }
 
   if (!title?.trim() || !announcementBody?.trim()) {

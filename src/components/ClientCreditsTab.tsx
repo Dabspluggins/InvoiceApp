@@ -87,6 +87,7 @@ export default function ClientCreditsTab({ clientId, clientName, currency = 'NGN
     if (isMountedRef.current) setLoading(false)
   }, [clientId, currency])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional data-fetch-on-mount; setState only runs after await, never synchronously
   useEffect(() => { load() }, [load])
 
   function showToast(msg: string) {

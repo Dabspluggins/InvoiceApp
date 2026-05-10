@@ -1,12 +1,5 @@
+import { randomUUID } from 'crypto'
 import * as Sentry from '@sentry/nextjs'
-
-const ALLOWED_CONTEXT_KEYS = new Set(['userId', 'estimateId', 'invoiceId'])
-
-function scrubContext(ctx: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(
-    Object.entries(ctx).filter(([k]) => ALLOWED_CONTEXT_KEYS.has(k))
-  )
-}
 
 export function logError(
   endpoint: string,
@@ -23,18 +16,21 @@ export function logError(
     serializedError = { raw: String(error) }
   }
 
-  const payload = {
+  const requestId = randomUUID()
+
+  // Full context stays in Vercel server logs — never leaves our infrastructure
+  console.error(`[${endpoint}] ${action}`, {
+    requestId,
     ...context,
     error: serializedError,
     ts: new Date().toISOString(),
-  }
+  })
 
-  console.error(`[${endpoint}] ${action}`, payload)
-
+  // Only requestId goes to Sentry — no user or business data
   Sentry.withScope((scope) => {
     scope.setTag('endpoint', endpoint)
     scope.setTag('action', action)
-    scope.setContext('details', scrubContext(context))
+    scope.setContext('details', { requestId })
     if (error instanceof Error) {
       Sentry.captureException(error)
     } else {

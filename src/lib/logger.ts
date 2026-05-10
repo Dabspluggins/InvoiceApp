@@ -1,3 +1,6 @@
+import { randomUUID } from 'crypto'
+import * as Sentry from '@sentry/nextjs'
+
 export function logError(
   endpoint: string,
   action: string,
@@ -12,9 +15,26 @@ export function logError(
   } else {
     serializedError = { raw: String(error) }
   }
+
+  const requestId = randomUUID()
+
+  // Full context stays in Vercel server logs — never leaves our infrastructure
   console.error(`[${endpoint}] ${action}`, {
+    requestId,
     ...context,
     error: serializedError,
     ts: new Date().toISOString(),
+  })
+
+  // Only requestId goes to Sentry — no user or business data
+  Sentry.withScope((scope) => {
+    scope.setTag('endpoint', endpoint)
+    scope.setTag('action', action)
+    scope.setContext('details', { requestId })
+    if (error instanceof Error) {
+      Sentry.captureException(error)
+    } else {
+      Sentry.captureMessage(`[${endpoint}] ${action}`, 'error')
+    }
   })
 }

@@ -1,5 +1,13 @@
 import * as Sentry from '@sentry/nextjs'
 
+const SENSITIVE_KEYS = new Set(['email', 'token', 'password', 'secret', 'key', 'authorization', 'cookie'])
+
+function scrubContext(ctx: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(ctx).filter(([k]) => !SENSITIVE_KEYS.has(k.toLowerCase()))
+  )
+}
+
 export function logError(
   endpoint: string,
   action: string,
@@ -26,7 +34,7 @@ export function logError(
   Sentry.withScope((scope) => {
     scope.setTag('endpoint', endpoint)
     scope.setTag('action', action)
-    scope.setContext('details', context)
+    scope.setContext('details', scrubContext(context))
     if (error instanceof Error) {
       Sentry.captureException(error)
     } else {

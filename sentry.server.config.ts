@@ -7,5 +7,5 @@ Sentry.init({
 
   enableLogs: true,
 
-  sendDefaultPii: true,
+  sendDefaultPii: false,
 });

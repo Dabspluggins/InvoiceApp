@@ -1,10 +1,17 @@
 import * as Sentry from '@sentry/nextjs'
 
-const SENSITIVE_KEYS = new Set(['email', 'token', 'password', 'secret', 'key', 'authorization', 'cookie'])
+const SENSITIVE_KEYS = /email|token|password|secret|key|auth|cookie/i
 
-function scrubContext(ctx: Record<string, unknown>): Record<string, unknown> {
+function scrubContext(obj: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(
-    Object.entries(ctx).filter(([k]) => !SENSITIVE_KEYS.has(k.toLowerCase()))
+    Object.entries(obj)
+      .filter(([k]) => !SENSITIVE_KEYS.test(k))
+      .map(([k, v]) => [
+        k,
+        v !== null && typeof v === 'object' && !Array.isArray(v)
+          ? scrubContext(v as Record<string, unknown>)
+          : v,
+      ])
   )
 }
 

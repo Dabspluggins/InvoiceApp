@@ -258,6 +258,7 @@ export default async function PublicInvoicePage({
               <div className="px-8 sm:px-10 pt-10 pb-6 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                 <div>
                   {invoice.logo_url && (
+                    // eslint-disable-next-line @next/next/no-img-element -- logo rendered in printable invoice; Next.js Image breaks PDF export
                     <img src={invoice.logo_url} alt="Logo" className="mb-3 max-h-12 max-w-[160px] object-contain" />
                   )}
                   <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{invoice.business_name || 'Business'}</h1>
@@ -370,6 +371,7 @@ export default async function PublicInvoicePage({
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                   <div>
                     {invoice.logo_url && (
+                      // eslint-disable-next-line @next/next/no-img-element -- logo rendered in printable invoice; Next.js Image breaks PDF export
                       <img src={invoice.logo_url} alt="Logo" className="mb-3 max-h-14 max-w-[180px] object-contain" style={{ mixBlendMode: 'multiply' }} />
                     )}
                     <h1 className="text-3xl font-black text-white tracking-tight leading-none">{invoice.business_name || 'Business'}</h1>
@@ -484,6 +486,7 @@ export default async function PublicInvoicePage({
               {/* Brand color header stripe */}
               <div className="px-8 py-8 sm:px-10" style={{ backgroundColor: brandColor }}>
                 {invoice.logo_url && (
+                  // eslint-disable-next-line @next/next/no-img-element -- logo rendered in printable invoice; Next.js Image breaks PDF export
                   <img src={invoice.logo_url} alt="Logo" className="mb-4 max-h-16 max-w-[180px] object-contain" style={{ mixBlendMode: 'multiply' }} />
                 )}
                 <p className="text-xs font-semibold uppercase tracking-widest text-white/70 mb-1">Invoice from</p>

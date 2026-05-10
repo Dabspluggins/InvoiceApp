@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
 
@@ -43,7 +43,7 @@ function Msg({ msg }: { msg: { type: 'success' | 'error'; text: string } | null 
   )
 }
 
-export default function MfaTwoFactor({ user }: { user: User }) {
+export default function MfaTwoFactor({ user: _user }: { user: User }) {
   const supabase = createClient()
   const [step, setStep] = useState<Step>('loading')
   const [factorId, setFactorId] = useState('')
@@ -56,15 +56,8 @@ export default function MfaTwoFactor({ user }: { user: User }) {
   const [busy, setBusy] = useState(false)
   const codeRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => { checkStatus() }, [])
-
-  useEffect(() => {
-    if (step === 'enrolling-verify' || step === 'disabling') {
-      setTimeout(() => codeRef.current?.focus(), 50)
-    }
-  }, [step])
-
-  async function checkStatus() {
+  const checkStatus = useCallback(async () => {
+    const supabase = createClient()
     const { data } = await supabase.auth.mfa.listFactors()
     const verified = data?.totp?.find(f => f.status === 'verified')
     if (verified) {
@@ -73,7 +66,15 @@ export default function MfaTwoFactor({ user }: { user: User }) {
     } else {
       setStep('disabled')
     }
-  }
+  }, [])
+
+  useEffect(() => { checkStatus() }, [checkStatus])
+
+  useEffect(() => {
+    if (step === 'enrolling-verify' || step === 'disabling') {
+      setTimeout(() => codeRef.current?.focus(), 50)
+    }
+  }, [step])
 
   async function startEnrollment() {
     setMsg(null)

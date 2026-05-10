@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { User } from '@supabase/supabase-js'
@@ -95,21 +95,7 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
   const logoInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
-  useEffect(() => {
-    loadProfile()
-  }, [])
-
-  useEffect(() => {
-    function handleOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    if (open) document.addEventListener('mousedown', handleOutside)
-    return () => document.removeEventListener('mousedown', handleOutside)
-  }, [open])
-
-  async function loadProfile() {
+  const loadProfile = useCallback(async () => {
     const supabase = createClient()
     const { data } = await supabase
       .from('profiles')
@@ -133,7 +119,21 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
       const methods = (data.payment_methods as SavedPaymentMethod[]) || []
       setPaymentMethods(methods)
     }
-  }
+  }, [user.id, onThemeChange])
+
+  useEffect(() => {
+    loadProfile()
+  }, [loadProfile])
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    if (open) document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [open])
 
   async function upsertProfile(updates: Partial<Profile>) {
     const supabase = createClient()

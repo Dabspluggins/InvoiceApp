@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getCurrencySymbol, CURRENCIES } from '@/lib/currencies'
 import ClientCreditsTab from '@/components/ClientCreditsTab'
@@ -32,11 +32,7 @@ export default function ClientsClient() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [expandedCreditsId, setExpandedCreditsId] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadClients()
-  }, [])
-
-  async function loadClients() {
+  const loadClients = useCallback(async () => {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     const { data } = await supabase
@@ -63,7 +59,11 @@ export default function ClientsClient() {
     if (data && data.length > 0 && user) {
       loadCreditBalances(data, user.id)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    loadClients()
+  }, [loadClients])
 
   async function loadCreditBalances(clients: Client[], userId: string) {
     const supabase = createClient()

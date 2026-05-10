@@ -34,8 +34,8 @@ export async function POST(request: NextRequest) {
   const {
     title,
     body: announcementBody,
-    recipientIds,
-    recipientEmails,
+    recipientIds: _recipientIds,
+    recipientEmails: _recipientEmails,
   } = body as {
     title?: string
     body?: string

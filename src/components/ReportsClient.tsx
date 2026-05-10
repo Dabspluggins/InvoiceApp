@@ -88,10 +88,6 @@ function fmt(amount: number, currency: string) {
   return `${symbol}${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-function fmtNum(amount: number) {
-  return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
 function isOverdue(inv: ReportInvoice): boolean {
   return !!inv.due_date && inv.due_date < TODAY && inv.status !== 'paid'
 }

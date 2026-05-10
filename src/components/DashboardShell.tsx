@@ -8,18 +8,17 @@ import DashboardClient from './DashboardClient'
 import ProfileDropdown from './ProfileDropdown'
 
 export default function DashboardShell({ user }: { user: User }) {
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    const saved = localStorage.getItem('theme')
+    return saved === 'dark' || (saved === null && localStorage.getItem('dashboard_dark_mode') === 'true')
+  })
   const [themeColor, setThemeColor] = useState('#4F46E5')
   const supabase = createClient()
 
   useEffect(() => {
-    // Fast: apply localStorage immediately to avoid flash
-    const saved = localStorage.getItem('theme')
-    const localDark = saved === 'dark' || (saved === null && localStorage.getItem('dashboard_dark_mode') === 'true')
-    if (localDark) {
-      setDarkMode(prev => prev ? prev : true)
-      document.documentElement.classList.add('dark')
-    }
+    // Apply the locally-derived value to the DOM (no setState — value came from the initializer)
+    document.documentElement.classList.toggle('dark', darkMode)
 
     // Reliable: fetch from Supabase and use as source of truth
     const client = createClient()
@@ -43,6 +42,7 @@ export default function DashboardShell({ user }: { user: User }) {
         }
       })
     return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id])
 
   function handleSetDarkMode(v: boolean) {

@@ -77,7 +77,6 @@ export default function ClientCreditsTab({ clientId, clientName, currency = 'NGN
   }, [])
 
   const load = useCallback(async () => {
-    setLoading(true)
     const res = await fetch(`/api/credits?clientId=${clientId}&currency=${encodeURIComponent(currency)}`)
     if (!isMountedRef.current) return
     if (res.ok) {

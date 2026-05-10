@@ -1,3 +1,5 @@
+import * as Sentry from '@sentry/nextjs'
+
 export function logError(
   endpoint: string,
   action: string,
@@ -12,9 +14,23 @@ export function logError(
   } else {
     serializedError = { raw: String(error) }
   }
-  console.error(`[${endpoint}] ${action}`, {
+
+  const payload = {
     ...context,
     error: serializedError,
     ts: new Date().toISOString(),
+  }
+
+  console.error(`[${endpoint}] ${action}`, payload)
+
+  Sentry.withScope((scope) => {
+    scope.setTag('endpoint', endpoint)
+    scope.setTag('action', action)
+    scope.setContext('details', context)
+    if (error instanceof Error) {
+      Sentry.captureException(error)
+    } else {
+      Sentry.captureMessage(`[${endpoint}] ${action}`, 'error')
+    }
   })
 }

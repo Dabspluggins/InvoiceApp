@@ -2,14 +2,13 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-
-const ADMIN_EMAIL = 'enyinnayadaberechi@gmail.com'
+import { isAdmin } from '@/lib/auth/isAdmin'
 
 async function getAdminUser() {
   const supabase = await createClient()
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) return null
-  if (user.email !== ADMIN_EMAIL) return null
+  if (!(await isAdmin(user.id))) return null
   return user
 }
 

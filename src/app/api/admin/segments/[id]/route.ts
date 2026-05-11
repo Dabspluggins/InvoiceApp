@@ -1,8 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
-
-const ADMIN_EMAIL = 'enyinnayadaberechi@gmail.com'
+import { isAdmin } from '@/lib/auth/isAdmin'
 
 export async function DELETE(
   _req: Request,
@@ -10,7 +9,7 @@ export async function DELETE(
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user || user.email !== ADMIN_EMAIL) {
+  if (!user || !(await isAdmin(user.id))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

@@ -2,8 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-
-const ADMIN_EMAIL = 'enyinnayadaberechi@gmail.com'
+import { isAdmin } from '@/lib/auth/isAdmin'
 
 type Rule = {
   field: string
@@ -23,7 +22,7 @@ type UserData = {
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user || user.email !== ADMIN_EMAIL) {
+  if (!user || !(await isAdmin(user.id))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

@@ -3,8 +3,6 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { sendAnnouncement } from '@/lib/sendAnnouncement'
 
-const ADMIN_EMAIL = 'enyinnayadaberechi@gmail.com'
-
 function getAdminClient() {
   return createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -49,7 +47,7 @@ export async function GET(request: NextRequest) {
       await admin.from('announcements').insert({
         title: draft.subject,
         body: draft.body_text,
-        sent_by: ADMIN_EMAIL,
+        sent_by: 'system',
         recipient_count: result.sent,
       })
 

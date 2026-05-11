@@ -4,8 +4,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { announcementLimiter } from '@/lib/ratelimit'
 import { sendAnnouncement } from '@/lib/sendAnnouncement'
-
-const ADMIN_EMAIL = 'enyinnayadaberechi@gmail.com'
+import { isAdmin } from '@/lib/auth/isAdmin'
 
 export async function POST(request: NextRequest) {
   console.log('[send-announcement] Request received')
@@ -17,7 +16,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  if (user.email !== ADMIN_EMAIL) {
+  if (!(await isAdmin(user.id))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -56,7 +55,7 @@ export async function POST(request: NextRequest) {
     await admin.from('announcements').insert({
       title: title.trim(),
       body: announcementBody.trim(),
-      sent_by: ADMIN_EMAIL,
+      sent_by: user.email ?? 'admin',
       recipient_count: result.sent,
     })
 

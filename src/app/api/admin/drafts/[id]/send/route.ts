@@ -3,14 +3,12 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { sendAnnouncement } from '@/lib/sendAnnouncement'
+import { isAdmin } from '@/lib/auth/isAdmin'
 
-const ADMIN_EMAIL = 'enyinnayadaberechi@gmail.com'
-
-async function getAdminUser() {
+async function getAuthUser() {
   const supabase = await createClient()
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) return null
-  if (user.email !== ADMIN_EMAIL) return null
   return user
 }
 
@@ -26,8 +24,12 @@ export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await getAdminUser()
+  const user = await getAuthUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  if (!(await isAdmin(user.id))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const { id } = await params
   const admin = getAdminClient()
@@ -42,6 +44,13 @@ export async function POST(
     return NextResponse.json({ error: 'Draft not found' }, { status: 404 })
   }
 
+  if (!['draft', 'scheduled'].includes(draft.status)) {
+    return NextResponse.json(
+      { error: `Draft cannot be sent: current status is '${draft.status}'` },
+      { status: 409 }
+    )
+  }
+
   try {
     const result = await sendAnnouncement({ subject: draft.subject, body: draft.body_text })
 
@@ -53,7 +62,7 @@ export async function POST(
     await admin.from('announcements').insert({
       title: draft.subject,
       body: draft.body_text,
-      sent_by: ADMIN_EMAIL,
+      sent_by: user.email ?? 'admin',
       recipient_count: result.sent,
     })
 

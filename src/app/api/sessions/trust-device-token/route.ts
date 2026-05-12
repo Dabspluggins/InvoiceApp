@@ -108,6 +108,23 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  // Idempotent replay guard: if this fingerprint is already trusted, return success without re-upserting
+  const { data: alreadyTrusted } = await admin
+    .from('trusted_devices')
+    .select('trusted_at')
+    .eq('user_id', uid)
+    .eq('device_fingerprint', fingerprint)
+    .not('trusted_at', 'is', null)
+    .maybeSingle()
+
+  if (alreadyTrusted) {
+    return htmlPage(
+      'Device trusted',
+      true,
+      `<p>Device trusted successfully. You won't receive alerts from this device again.</p><a class="btn" href="${BASE_URL}/dashboard">Go to Dashboard</a>`,
+    )
+  }
+
   const { error } = await admin
     .from('trusted_devices')
     .upsert(

@@ -1,6 +1,7 @@
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createHmac } from 'crypto'
 import { Resend } from 'resend'
+import { escHtml } from '@/lib/utils'
 
 function generateUnsubToken(userId: string): string {
   const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30 // 30 days
@@ -103,8 +104,13 @@ function buildAnnouncementEmail(opts: {
 
   const bodyParagraphs = body
     .split(/\n\n+/)
-    .map(para => para.replace(/\n/g, '<br>'))
-    .map(para => `<p style="margin:0 0 16px;color:#222222;font-size:15px;line-height:1.75;">${para}</p>`)
+    .map(para => {
+      const escaped = para
+        .split('\n')
+        .map(line => escHtml(line))
+        .join('<br>')
+      return `<p style="margin:0 0 16px;color:#222222;font-size:15px;line-height:1.75;">${escaped}</p>`
+    })
     .join('')
 
   const html = `<!DOCTYPE html>
@@ -115,7 +121,7 @@ function buildAnnouncementEmail(opts: {
 </head>
 <body style="margin:0;padding:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;">
   <div style="max-width:580px;margin:40px auto;padding:0 24px;">
-    <p style="margin:0 0 20px;color:#222222;font-size:15px;line-height:1.75;">Hey ${firstName},</p>
+    <p style="margin:0 0 20px;color:#222222;font-size:15px;line-height:1.75;">Hey ${escHtml(firstName)},</p>
     ${bodyParagraphs}
     <p style="margin:0 0 16px;color:#222222;font-size:15px;line-height:1.75;">
       You can check out what&#39;s new at <a href="https://billbydab.com/dashboard" style="color:#222222;">billbydab.com/dashboard</a>.

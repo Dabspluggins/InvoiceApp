@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { logError } from '@/lib/logger'
+import { escHtml } from '@/lib/utils'
 
 function getAdmin() {
   return createAdminClient(
@@ -180,8 +181,8 @@ export async function POST(
         <tr>
           <td style="background:#ffffff;padding:32px 40px;">
             <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">
-              <strong>${clientName}</strong> has ${actionLabel} estimate
-              <strong>${estimate.estimate_number}</strong>${estimate.title ? ` (${estimate.title})` : ''}.
+              <strong>${escHtml(clientName)}</strong> has ${actionLabel} estimate
+              <strong>${escHtml(estimate.estimate_number)}</strong>${estimate.title ? ` (${escHtml(estimate.title)})` : ''}.
             </p>
             ${
               action === 'revise' && Array.isArray(deletedItemIds) && deletedItemIds.length > 0

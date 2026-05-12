@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Resend } from 'resend'
 import type { NextRequest } from 'next/server'
 import { logAudit } from '@/lib/audit'
+import { escHtml } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,9 +53,9 @@ function buildReminderEmail(opts: {
           <p style="margin:0;color:#ffffff;font-size:18px;font-weight:700;">BillByDab</p>
         </td></tr>
         <tr><td style="padding:32px;">
-          <p style="margin:0 0 16px;font-size:15px;color:#111827;">Hi ${clientName},</p>
+          <p style="margin:0 0 16px;font-size:15px;color:#111827;">Hi ${escHtml(clientName)},</p>
           <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
-            This is a friendly reminder that invoice <strong>#${invoiceNumber}</strong> for
+            This is a friendly reminder that invoice <strong>#${escHtml(invoiceNumber)}</strong> for
             <strong>${formatAmount(total, currency)}</strong> was due on
             <strong>${formatDate(dueDate)}</strong> and is still outstanding.
           </p>
@@ -64,7 +65,7 @@ function buildReminderEmail(opts: {
           </p>
           <p style="margin:0;font-size:15px;color:#111827;">
             Best regards,<br>
-            <strong>${senderName}</strong>
+            <strong>${escHtml(senderName)}</strong>
           </p>
         </td></tr>
         <tr><td style="padding:16px 32px;border-top:1px solid #f3f4f6;background:#f9fafb;text-align:center;">

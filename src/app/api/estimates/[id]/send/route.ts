@@ -5,6 +5,7 @@ import { getCurrencySymbol } from '@/lib/currencies'
 import { sendLimiter } from '@/lib/ratelimit'
 import { logAudit } from '@/lib/audit'
 import { logError } from '@/lib/logger'
+import { escHtml } from '@/lib/utils'
 
 interface LineItem {
   description: string
@@ -57,7 +58,7 @@ function buildEstimateEmail({
     .map(
       (item) => `
     <tr>
-      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;font-size:14px;">${item.description || '—'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;font-size:14px;">${escHtml(item.description) || '—'}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;font-size:14px;text-align:center;">${item.quantity}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;font-size:14px;text-align:right;">${fmt(item.unit_price, estimate.currency)}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;font-size:14px;text-align:right;">${fmt(item.amount, estimate.currency)}</td>
@@ -85,7 +86,7 @@ function buildEstimateEmail({
 
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Estimate ${estimate.estimate_number}</title></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Estimate ${escHtml(estimate.estimate_number)}</title></head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:40px 0;">
     <tr><td align="center">
@@ -95,8 +96,8 @@ function buildEstimateEmail({
         <tr>
           <td style="background:${brandColor};padding:32px 40px;border-radius:12px 12px 0 0;">
             <p style="margin:0;color:rgba(255,255,255,0.8);font-size:13px;text-transform:uppercase;letter-spacing:1px;">Estimate for review</p>
-            <h1 style="margin:4px 0 0;color:#ffffff;font-size:26px;font-weight:700;">${estimate.estimate_number}</h1>
-            ${estimate.title ? `<p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:15px;">${estimate.title}</p>` : ''}
+            <h1 style="margin:4px 0 0;color:#ffffff;font-size:26px;font-weight:700;">${escHtml(estimate.estimate_number)}</h1>
+            ${estimate.title ? `<p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:15px;">${escHtml(estimate.title)}</p>` : ''}
           </td>
         </tr>
 
@@ -105,8 +106,8 @@ function buildEstimateEmail({
           <td style="background:#ffffff;padding:32px 40px;">
 
             <p style="margin:0 0 24px;color:#374151;font-size:15px;line-height:1.6;">
-              Hi ${toName || 'there'},<br><br>
-              Please find your estimate ${estimate.estimate_number} below.
+              Hi ${escHtml(toName) || 'there'},<br><br>
+              Please find your estimate ${escHtml(estimate.estimate_number)} below.
               ${estimate.valid_until ? `This estimate is valid until <strong>${formatDate(estimate.valid_until)}</strong>.` : ''}
               <br><br>
               You can review the items, remove anything you don't need, and either approve it or send back your revisions.
@@ -160,7 +161,7 @@ function buildEstimateEmail({
               estimate.notes
                 ? `<div style="background:#fafafa;border-left:3px solid ${brandColor};padding:12px 16px;border-radius:0 6px 6px 0;margin-bottom:24px;">
               <p style="margin:0;color:#6b7280;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Notes</p>
-              <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">${estimate.notes}</p>
+              <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">${escHtml(estimate.notes)}</p>
             </div>`
                 : ''
             }

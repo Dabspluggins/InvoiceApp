@@ -93,6 +93,21 @@ export async function GET(request: NextRequest) {
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
+  // Verify the uid corresponds to a real user before trusting any device
+  const { data: userExists } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('id', uid)
+    .maybeSingle()
+
+  if (!userExists) {
+    return htmlPage(
+      'Invalid link',
+      false,
+      `<p>This link is invalid or has expired.</p><a class="btn" href="${BASE_URL}/dashboard">Go to Dashboard</a>`,
+    )
+  }
+
   const { error } = await admin
     .from('trusted_devices')
     .upsert(

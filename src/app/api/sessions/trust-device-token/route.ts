@@ -111,10 +111,9 @@ export async function GET(request: NextRequest) {
   // Idempotent replay guard: if this fingerprint is already trusted, return success without re-upserting
   const { data: alreadyTrusted } = await admin
     .from('trusted_devices')
-    .select('trusted_at')
+    .select('created_at')
     .eq('user_id', uid)
     .eq('device_fingerprint', fingerprint)
-    .not('trusted_at', 'is', null)
     .maybeSingle()
 
   if (alreadyTrusted) {

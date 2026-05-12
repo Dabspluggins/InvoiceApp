@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Worktrees and scripts are not part of the main source
+    ".claude/**",
+    "scripts/**",
   ]),
 ]);
 

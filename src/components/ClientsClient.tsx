@@ -15,6 +15,7 @@ interface Client {
   currency: string
   created_at: string
   portal_token: string | null
+  portal_token_expires_at: string | null
 }
 
 const emptyForm = { name: '', company: '', email: '', phone: '', address: '', currency: 'NGN' }
@@ -30,6 +31,8 @@ export default function ClientsClient() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null)
+  const [regeneratedId, setRegeneratedId] = useState<string | null>(null)
   const [expandedCreditsId, setExpandedCreditsId] = useState<string | null>(null)
 
   const loadClients = useCallback(async () => {
@@ -37,7 +40,7 @@ export default function ClientsClient() {
     const { data: { user } } = await supabase.auth.getUser()
     const { data } = await supabase
       .from('clients')
-      .select('id, name, company, email, phone, address, currency, created_at, portal_token')
+      .select('id, name, company, email, phone, address, currency, created_at, portal_token, portal_token_expires_at')
       .order('created_at', { ascending: false })
     setClients(data || [])
 
@@ -96,6 +99,28 @@ export default function ClientsClient() {
     await navigator.clipboard.writeText(url)
     setCopiedId(client.id)
     setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  async function handleRegeneratePortalLink(client: Client) {
+    setRegeneratingId(client.id)
+    try {
+      const res = await fetch(`/api/clients/${client.id}/regenerate-portal`, { method: 'POST' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to regenerate')
+      setClients((prev) =>
+        prev.map((c) =>
+          c.id === client.id
+            ? { ...c, portal_token: json.portal_token, portal_token_expires_at: json.portal_token_expires_at }
+            : c
+        )
+      )
+      setRegeneratedId(client.id)
+      setTimeout(() => setRegeneratedId(null), 3000)
+    } catch {
+      // silently fail — user can retry
+    } finally {
+      setRegeneratingId(null)
+    }
   }
 
   function openAdd() {
@@ -237,6 +262,19 @@ export default function ClientsClient() {
                           {copiedId === client.id ? 'Copied!' : '🔗 Portal link'}
                         </button>
                       )}
+                      {client.portal_token && (
+                        <button
+                          onClick={() => handleRegeneratePortalLink(client)}
+                          disabled={regeneratingId === client.id}
+                          className="text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 font-medium px-2 py-1 rounded transition disabled:opacity-50"
+                        >
+                          {regeneratedId === client.id
+                            ? 'Portal link regenerated'
+                            : regeneratingId === client.id
+                            ? 'Regenerating...'
+                            : '↺ Regenerate link'}
+                        </button>
+                      )}
                       <button
                         onClick={() => openEdit(client)}
                         className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium px-2 py-1 rounded transition"
@@ -340,6 +378,19 @@ export default function ClientsClient() {
                                 className="text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 font-medium px-2 py-1 rounded transition"
                               >
                                 {copiedId === client.id ? 'Copied!' : '🔗 Portal link'}
+                              </button>
+                            )}
+                            {client.portal_token && (
+                              <button
+                                onClick={() => handleRegeneratePortalLink(client)}
+                                disabled={regeneratingId === client.id}
+                                className="text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 font-medium px-2 py-1 rounded transition disabled:opacity-50"
+                              >
+                                {regeneratedId === client.id
+                                  ? 'Portal link regenerated'
+                                  : regeneratingId === client.id
+                                  ? 'Regenerating...'
+                                  : '↺ Regenerate link'}
                               </button>
                             )}
                             <button

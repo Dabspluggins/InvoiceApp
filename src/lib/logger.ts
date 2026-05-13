@@ -36,7 +36,7 @@ export function logError(
       ])
     )
   } else {
-    serializedError = { raw: String(error) }
+    serializedError = { raw: sanitizeErrorMessage(String(error)) }
   }
 
   const requestId = randomUUID()

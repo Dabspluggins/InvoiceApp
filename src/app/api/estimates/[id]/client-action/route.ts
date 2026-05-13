@@ -74,7 +74,22 @@ export async function POST(
         details: null,
       })
     } else if (action === 'revise') {
-      // Soft-delete the specified items
+      // Atomic status guard first — only proceed if not already responded to
+      const { data: revisedRows } = await admin
+        .from('estimates')
+        .update({ status: 'revised', updated_at: now })
+        .eq('id', id)
+        .not('status', 'in', '("approved","rejected","converted")')
+        .select('id')
+
+      if (!revisedRows || revisedRows.length === 0) {
+        return NextResponse.json(
+          { error: 'This estimate has already been responded to' },
+          { status: 409 }
+        )
+      }
+
+      // Soft-delete the specified items (only runs if status update succeeded)
       const safeDeletedIds =
         Array.isArray(deletedItemIds) && deletedItemIds.length > 0 ? deletedItemIds : []
 
@@ -91,20 +106,6 @@ export async function POST(
           actor: 'client',
           details: { item_ids: safeDeletedIds, count: safeDeletedIds.length },
         })
-      }
-
-      const { data: revisedRows } = await admin
-        .from('estimates')
-        .update({ status: 'revised', updated_at: now })
-        .eq('id', id)
-        .not('status', 'in', '("approved","rejected","converted")')
-        .select('id')
-
-      if (!revisedRows || revisedRows.length === 0) {
-        return NextResponse.json(
-          { error: 'This estimate has already been responded to' },
-          { status: 409 }
-        )
       }
 
       events.push({

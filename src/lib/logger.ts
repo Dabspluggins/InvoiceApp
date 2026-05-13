@@ -23,15 +23,18 @@ export function logError(
       message: sanitizeErrorMessage(error.message),
       name: error.name,
       // Strip stack frames that might contain interpolated values
-      stack: error.stack ? error.stack.split('\n').slice(0, 5).join('\n') : undefined,
+      stack: error.stack
+        ? sanitizeErrorMessage(error.stack).split('\n').slice(0, 5).join('\n')
+        : undefined,
     }
   } else if (error !== null && typeof error === 'object') {
     const raw = error as Record<string, unknown>
-    serializedError = {
-      ...raw,
-      // Sanitize message field if present (Supabase error objects have a message property)
-      ...(typeof raw.message === 'string' ? { message: sanitizeErrorMessage(raw.message) } : {}),
-    }
+    serializedError = Object.fromEntries(
+      Object.entries(raw).map(([k, v]) => [
+        k,
+        typeof v === 'string' ? sanitizeErrorMessage(v) : v,
+      ])
+    )
   } else {
     serializedError = { raw: String(error) }
   }
@@ -52,7 +55,9 @@ export function logError(
     scope.setTag('action', action)
     scope.setContext('details', { requestId })
     if (error instanceof Error) {
-      Sentry.captureException(error)
+      const sanitized = new Error(sanitizeErrorMessage(error.message))
+      sanitized.name = error.name
+      Sentry.captureException(sanitized)
     } else {
       Sentry.captureMessage(`[${endpoint}] ${action}`, 'error')
     }

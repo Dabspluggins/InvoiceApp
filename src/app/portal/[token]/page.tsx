@@ -23,6 +23,7 @@ type Client = {
   company: string | null
   email: string | null
   portal_token: string
+  portal_token_expires_at: string | null
   user_id: string
 }
 
@@ -127,12 +128,24 @@ export default async function PortalPage({
   // 1. Look up client by portal_token
   const { data: client, error: clientError } = await supabase
     .from('clients')
-    .select('id, name, company, email, portal_token, user_id')
+    .select('id, name, company, email, portal_token, portal_token_expires_at, user_id')
     .eq('portal_token', token)
     .single<Client>()
 
   if (clientError || !client || !client.email) {
     notFound()
+  }
+
+  if (client.portal_token_expires_at && new Date(client.portal_token_expires_at) < new Date()) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-10 text-center max-w-md w-full">
+          <p className="text-gray-700 dark:text-gray-300 text-sm font-medium">
+            This portal link has expired. Please contact the business for a new link.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   // 2. Fetch all invoices for this client's email (case-insensitive)

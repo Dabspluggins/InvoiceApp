@@ -28,10 +28,11 @@ export async function POST(request: NextRequest) {
   }
 
   const portal_token = crypto.randomUUID().replace(/-/g, '').slice(0, 16)
+  const portal_token_expires_at = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
 
   const { data, error } = await supabase
     .from('clients')
-    .insert({ user_id: user.id, name: name.trim(), company, email, phone, address, portal_token, currency: currency || 'NGN' })
+    .insert({ user_id: user.id, name: name.trim(), company, email, phone, address, portal_token, portal_token_expires_at, currency: currency || 'NGN' })
     .select()
     .single()
 

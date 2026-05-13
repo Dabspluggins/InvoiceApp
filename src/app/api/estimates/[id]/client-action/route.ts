@@ -44,14 +44,6 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid or expired link' }, { status: 403 })
     }
 
-    // Prevent re-submission
-    if (estimate.status === 'approved' || estimate.status === 'rejected') {
-      return NextResponse.json(
-        { error: 'This estimate has already been responded to' },
-        { status: 409 }
-      )
-    }
-
     const now = new Date().toISOString()
     const events: {
       estimate_id: string
@@ -61,10 +53,19 @@ export async function POST(
     }[] = []
 
     if (action === 'approve') {
-      await admin
+      const { data: approvedRows } = await admin
         .from('estimates')
         .update({ status: 'approved', updated_at: now })
         .eq('id', id)
+        .not('status', 'in', '("approved","rejected","converted")')
+        .select('id')
+
+      if (!approvedRows || approvedRows.length === 0) {
+        return NextResponse.json(
+          { error: 'This estimate has already been responded to' },
+          { status: 409 }
+        )
+      }
 
       events.push({
         estimate_id: id,
@@ -92,10 +93,19 @@ export async function POST(
         })
       }
 
-      await admin
+      const { data: revisedRows } = await admin
         .from('estimates')
         .update({ status: 'revised', updated_at: now })
         .eq('id', id)
+        .not('status', 'in', '("approved","rejected","converted")')
+        .select('id')
+
+      if (!revisedRows || revisedRows.length === 0) {
+        return NextResponse.json(
+          { error: 'This estimate has already been responded to' },
+          { status: 409 }
+        )
+      }
 
       events.push({
         estimate_id: id,

@@ -2,33 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { logError } from '@/lib/logger'
 
-async function recomputeInvoiceStatus(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  invoiceId: string,
-  invoiceTotal: number,
-  fallbackStatus: string
-) {
-  const { data: payments } = await supabase
-    .from('payments')
-    .select('amount')
-    .eq('invoice_id', invoiceId)
-
-  const totalPaid = (payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0)
-  const status = totalPaid >= invoiceTotal ? 'paid' : totalPaid > 0 ? 'partial' : fallbackStatus === 'draft' ? 'draft' : 'sent'
-
-  const update: { status: string; paid_at?: string | null } = { status }
-  if (status === 'paid') update.paid_at = new Date().toISOString()
-  if (status !== 'paid') update.paid_at = null
-
-  const { error } = await supabase
-    .from('invoices')
-    .update(update)
-    .eq('id', invoiceId)
-
-  if (error) throw error
-  return { status, totalPaid }
-}
-
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -78,12 +51,15 @@ export async function POST(
       return NextResponse.json({ error: paymentError?.message || 'Failed to record payment' }, { status: 500 })
     }
 
-    const { status, totalPaid } = await recomputeInvoiceStatus(
-      supabase,
-      id,
-      Number(invoice.total || 0),
-      invoice.status
-    )
+    const { data: recomputeData, error: recomputeError } = await supabase
+      .rpc('recompute_invoice_status', { p_invoice_id: id })
+      .single()
+
+    if (recomputeError || !recomputeData) {
+      return NextResponse.json({ error: 'Failed to update invoice status' }, { status: 500 })
+    }
+
+    const { new_status: status, total_paid: totalPaid } = recomputeData
 
     return NextResponse.json({ payment, status, totalPaid }, { status: 201 })
   } catch (err) {
@@ -128,12 +104,15 @@ export async function DELETE(
       return NextResponse.json({ error: deleteError.message }, { status: 500 })
     }
 
-    const { status, totalPaid } = await recomputeInvoiceStatus(
-      supabase,
-      id,
-      Number(invoice.total || 0),
-      invoice.status
-    )
+    const { data: recomputeData, error: recomputeError } = await supabase
+      .rpc('recompute_invoice_status', { p_invoice_id: id })
+      .single()
+
+    if (recomputeError || !recomputeData) {
+      return NextResponse.json({ error: 'Failed to update invoice status' }, { status: 500 })
+    }
+
+    const { new_status: status, total_paid: totalPaid } = recomputeData
 
     return NextResponse.json({ success: true, status, totalPaid })
   } catch (err) {

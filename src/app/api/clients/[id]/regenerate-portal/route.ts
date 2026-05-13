@@ -12,15 +12,16 @@ export async function POST(
 
   const { data: existing } = await supabase
     .from('clients')
-    .select('id')
+    .select('id, portal_validity_days')
     .eq('id', id)
     .eq('user_id', user.id)
     .single()
 
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  const validityDays = existing.portal_validity_days ?? 30
   const portal_token = crypto.randomUUID().replace(/-/g, '').slice(0, 16)
-  const portal_token_expires_at = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
+  const portal_token_expires_at = new Date(Date.now() + validityDays * 24 * 60 * 60 * 1000).toISOString()
 
   const { data, error } = await supabase
     .from('clients')

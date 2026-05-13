@@ -16,9 +16,12 @@ interface Client {
   created_at: string
   portal_token: string | null
   portal_token_expires_at: string | null
+  portal_validity_days: number
 }
 
-const emptyForm = { name: '', company: '', email: '', phone: '', address: '', currency: 'NGN' }
+const VALIDITY_OPTIONS = [30, 60, 90, 180] as const
+
+const emptyForm = { name: '', company: '', email: '', phone: '', address: '', currency: 'NGN', portal_validity_days: 30 }
 
 export default function ClientsClient() {
   const [clients, setClients] = useState<Client[]>([])
@@ -40,7 +43,7 @@ export default function ClientsClient() {
     const { data: { user } } = await supabase.auth.getUser()
     const { data } = await supabase
       .from('clients')
-      .select('id, name, company, email, phone, address, currency, created_at, portal_token, portal_token_expires_at')
+      .select('id, name, company, email, phone, address, currency, created_at, portal_token, portal_token_expires_at, portal_validity_days')
       .order('created_at', { ascending: false })
     setClients(data || [])
 
@@ -139,6 +142,7 @@ export default function ClientsClient() {
       phone: client.phone || '',
       address: client.address || '',
       currency: client.currency || 'NGN',
+      portal_validity_days: client.portal_validity_days ?? 30,
     })
     setError(null)
     setShowModal(true)
@@ -302,6 +306,7 @@ export default function ClientsClient() {
                       </span>
                     </div>
                   )}
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Portal: {client.portal_validity_days ?? 30}-day link</p>
                   <div className="mt-3">
                     <button
                       onClick={() => toggleCredits(client.id)}
@@ -343,7 +348,10 @@ export default function ClientsClient() {
                         key={client.id}
                         className="border-b border-gray-50 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                       >
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">{client.name}</td>
+                        <td className="px-6 py-4">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{client.name}</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Portal: {client.portal_validity_days ?? 30}-day link</p>
+                        </td>
                         <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{client.company || '—'}</td>
                         <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{client.email || '—'}</td>
                         <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{client.phone || '—'}</td>
@@ -497,6 +505,18 @@ export default function ClientsClient() {
                 >
                   {CURRENCIES.map((c) => (
                     <option key={c.code} value={c.code}>{c.symbol} {c.code} - {c.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Portal link validity</label>
+                <select
+                  className={inputCls}
+                  value={form.portal_validity_days}
+                  onChange={(e) => setForm({ ...form, portal_validity_days: Number(e.target.value) })}
+                >
+                  {VALIDITY_OPTIONS.map((days) => (
+                    <option key={days} value={days}>{days} days</option>
                   ))}
                 </select>
               </div>

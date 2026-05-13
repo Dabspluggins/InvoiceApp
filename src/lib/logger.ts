@@ -1,6 +1,16 @@
 import { randomUUID } from 'crypto'
 import * as Sentry from '@sentry/nextjs'
 
+/**
+ * Strips data values from Postgres constraint error messages to prevent PII
+ * from appearing in server logs.
+ * e.g. "Key (email)=(user@example.com) already exists" → "Key (email)=(...) already exists"
+ */
+function sanitizeErrorMessage(message: string): string {
+  // Remove the value portion of Postgres constraint errors: Key (col)=(VALUE)
+  return message.replace(/=\([^)]*\)/g, '=(...)')
+}
+
 export function logError(
   endpoint: string,
   action: string,
@@ -9,9 +19,19 @@ export function logError(
 ): void {
   let serializedError: Record<string, unknown>
   if (error instanceof Error) {
-    serializedError = { message: error.message, name: error.name, stack: error.stack }
+    serializedError = {
+      message: sanitizeErrorMessage(error.message),
+      name: error.name,
+      // Strip stack frames that might contain interpolated values
+      stack: error.stack ? error.stack.split('\n').slice(0, 5).join('\n') : undefined,
+    }
   } else if (error !== null && typeof error === 'object') {
-    serializedError = { ...(error as Record<string, unknown>) }
+    const raw = error as Record<string, unknown>
+    serializedError = {
+      ...raw,
+      // Sanitize message field if present (Supabase error objects have a message property)
+      ...(typeof raw.message === 'string' ? { message: sanitizeErrorMessage(raw.message) } : {}),
+    }
   } else {
     serializedError = { raw: String(error) }
   }

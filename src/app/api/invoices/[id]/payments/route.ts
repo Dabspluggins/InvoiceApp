@@ -59,7 +59,10 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to update invoice status' }, { status: 500 })
     }
 
-    const { new_status: status, total_paid: totalPaid } = recomputeData
+    const { new_status: status, total_paid: totalPaid } = recomputeData as {
+      new_status: string
+      total_paid: number
+    }
 
     return NextResponse.json({ payment, status, totalPaid }, { status: 201 })
   } catch (err) {
@@ -112,7 +115,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Failed to update invoice status' }, { status: 500 })
     }
 
-    const { new_status: status, total_paid: totalPaid } = recomputeData
+    const { new_status: status, total_paid: totalPaid } = recomputeData as {
+      new_status: string
+      total_paid: number
+    }
 
     return NextResponse.json({ success: true, status, totalPaid })
   } catch (err) {

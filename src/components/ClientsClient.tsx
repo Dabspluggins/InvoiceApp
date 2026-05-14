@@ -119,8 +119,8 @@ export default function ClientsClient() {
       )
       setRegeneratedId(client.id)
       setTimeout(() => setRegeneratedId(null), 3000)
-    } catch {
-      // silently fail — user can retry
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to regenerate portal link')
     } finally {
       setRegeneratingId(null)
     }

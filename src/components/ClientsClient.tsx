@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getCurrencySymbol, CURRENCIES } from '@/lib/currencies'
 import ClientCreditsTab from '@/components/ClientCreditsTab'
@@ -36,6 +36,7 @@ export default function ClientsClient() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null)
   const [regeneratedId, setRegeneratedId] = useState<string | null>(null)
+  const [regenerateError, setRegenerateError] = useState<{ id: string; msg: string } | null>(null)
   const [expandedCreditsId, setExpandedCreditsId] = useState<string | null>(null)
 
   const loadClients = useCallback(async () => {
@@ -120,7 +121,9 @@ export default function ClientsClient() {
       setRegeneratedId(client.id)
       setTimeout(() => setRegeneratedId(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to regenerate portal link')
+      const msg = err instanceof Error ? err.message : 'Failed to regenerate portal link'
+      setRegenerateError({ id: client.id, msg })
+      setTimeout(() => setRegenerateError(null), 4000)
     } finally {
       setRegeneratingId(null)
     }
@@ -292,6 +295,9 @@ export default function ClientsClient() {
                         ✕ Delete
                       </button>
                     </div>
+                    {regenerateError?.id === client.id && (
+                      <p className="text-xs text-red-500 mt-2">{regenerateError.msg}</p>
+                    )}
                   </div>
                   {(client.email || client.phone) && (
                     <div className="text-xs text-gray-400 dark:text-gray-500 space-y-0.5">
@@ -306,7 +312,7 @@ export default function ClientsClient() {
                       </span>
                     </div>
                   )}
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Portal: {client.portal_validity_days ?? 30}-day link</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Next link: {client.portal_validity_days ?? 30} days</p>
                   <div className="mt-3">
                     <button
                       onClick={() => toggleCredits(client.id)}
@@ -343,14 +349,13 @@ export default function ClientsClient() {
                 {clients.map((client) => {
                   const balance = creditBalances[client.id] ?? 0
                   return (
-                    <>
+                    <React.Fragment key={client.id}>
                       <tr
-                        key={client.id}
                         className="border-b border-gray-50 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                       >
                         <td className="px-6 py-4">
                           <p className="text-sm font-medium text-gray-900 dark:text-white">{client.name}</p>
-                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Portal: {client.portal_validity_days ?? 30}-day link</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Next link: {client.portal_validity_days ?? 30} days</p>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{client.company || '—'}</td>
                         <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{client.email || '—'}</td>
@@ -417,13 +422,20 @@ export default function ClientsClient() {
                         </td>
                       </tr>
                       {expandedCreditsId === client.id && (
-                        <tr key={`${client.id}-credits`} className="bg-gray-50 dark:bg-gray-900/30">
+                        <tr className="bg-gray-50 dark:bg-gray-900/30">
                           <td colSpan={7} className="px-6 py-5">
                             <ClientCreditsTab clientId={client.id} clientName={client.name} currency={client.currency} />
                           </td>
                         </tr>
                       )}
-                    </>
+                      {regenerateError?.id === client.id && (
+                        <tr>
+                          <td colSpan={7} className="px-6 pb-2">
+                            <p className="text-xs text-red-500">{regenerateError.msg}</p>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   )
                 })}
               </tbody>

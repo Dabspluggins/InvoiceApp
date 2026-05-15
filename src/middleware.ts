@@ -32,6 +32,8 @@ const PUBLIC_PATHS: string[] = [
   '/contact',
   '/support',
   '/i/',
+  // Sentry tunnel — must be public so error reports from logged-out users reach Sentry
+  '/monitoring',
   // API routes that use their own auth mechanism or are intentionally public
   '/api/unsubscribe',
   '/api/send-invoice',

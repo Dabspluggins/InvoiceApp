@@ -91,48 +91,41 @@ export default function SignupPage() {
       return
     }
 
+    let res: Response
     try {
-      const rlRes = await fetch('/api/auth/check-rate-limit', {
+      res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'signup' }),
+        body: JSON.stringify({ email, password, captchaToken }),
       })
-      if (!rlRes.ok) throw new Error('rate-limit check failed')
-      const rlData = await rlRes.json()
-      if (!rlData.allowed) {
-        const minutes = Math.ceil((rlData.retryAfter as number) / 60)
-        setError(
-          Number.isFinite(minutes)
-            ? `Too many attempts. Please try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`
-            : 'Too many attempts. Please try again later.'
-        )
-        setLoading(false)
-        return
-      }
     } catch {
-      setError('Too many attempts. Please try again later.')
+      setError('Network error. Please check your connection and try again.')
       setLoading(false)
       return
     }
 
-    const supabase = createClient()
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-        captchaToken: captchaToken!,
-      },
-    })
+    const data = await res.json()
 
-    if (error) {
-      setError(error.message)
+    if (res.status === 429) {
+      const minutes = Math.ceil((data.retryAfter ?? 0) / 60)
+      setError(
+        Number.isFinite(minutes) && minutes > 0
+          ? `Too many attempts. Please try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`
+          : 'Too many attempts. Please try again later.'
+      )
+      setLoading(false)
+      return
+    }
+
+    if (!res.ok) {
+      setError(data.error ?? 'Sign up failed. Please try again.')
       resetCaptcha()
       setLoading(false)
-    } else {
-      setSuccess(true)
-      setLoading(false)
+      return
     }
+
+    setSuccess(true)
+    setLoading(false)
   }
 
   if (success) {
@@ -286,3 +279,4 @@ export default function SignupPage() {
     </div>
   )
 }
+                                                                                                                                                                                                                                                                             

@@ -29,6 +29,10 @@ export async function POST(req: NextRequest) {
     if (typeof captchaToken !== 'string' || !captchaToken) {
       return NextResponse.json({ error: 'captchaToken is required' }, { status: 400 })
     }
+    // Mirror the client-side rule so direct API calls can't bypass it
+    if (password.length < 12) {
+      return NextResponse.json({ error: 'Password must be at least 12 characters' }, { status: 400 })
+    }
 
     // 2. Rate limit (atomically bound to the sign-up attempt below)
     const ip = getTrustedIp(req)

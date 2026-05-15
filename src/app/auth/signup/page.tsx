@@ -104,7 +104,8 @@ export default function SignupPage() {
       return
     }
 
-    const data = await res.json()
+    let data: { error?: string; retryAfter?: number } = {}
+    try { data = await res.json() } catch { /* non-JSON response — treat as generic failure */ }
 
     if (res.status === 429) {
       const minutes = Math.ceil((data.retryAfter ?? 0) / 60)

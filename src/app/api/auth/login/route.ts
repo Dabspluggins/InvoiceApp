@@ -48,10 +48,13 @@ export async function POST(req: NextRequest) {
     })
 
     if (signInError) {
-      // Return a generic message so we don't leak whether the email exists
+      // Always return a fixed generic message for auth failures so we don't
+      // leak whether the email exists, whether it's unconfirmed, disabled, etc.
+      // Supabase can return distinguishable messages like "Invalid login credentials",
+      // "Email not confirmed", "User is disabled" — none of that reaches the client.
       return NextResponse.json(
-        { error: signInError.message },
-        { status: signInError.status ?? 401 }
+        { error: 'Invalid email or password.' },
+        { status: 401 }
       )
     }
 

@@ -104,7 +104,8 @@ export default function LoginPage() {
       return
     }
 
-    const data = await res.json()
+    let data: { error?: string; retryAfter?: number; mfaRequired?: boolean } = {}
+    try { data = await res.json() } catch { /* non-JSON response — treat as generic failure */ }
 
     if (res.status === 429) {
       const minutes = Math.ceil((data.retryAfter ?? 0) / 60)

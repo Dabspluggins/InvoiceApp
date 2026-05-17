@@ -4,16 +4,25 @@ import type { NextConfig } from 'next'
 // Supabase project hostname — derived from env so preview environments work correctly
 const SUPABASE_HOST = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '')
 
+// PostHog ingestion host — defaults to US region; switch to https://eu.i.posthog.com for EU
+const POSTHOG_HOST = (process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com').replace(/\/$/, '')
+
+// PostHog assets CDN — serves the remote config JS that the SDK injects via <script> at runtime.
+// Derived from the ingestion host: us.i.posthog.com → us-assets.i.posthog.com
+const POSTHOG_ASSETS_HOST = POSTHOG_HOST.replace('.i.posthog.com', '-assets.i.posthog.com')
+
 // CSP in report-only mode: violations are logged to Sentry but nothing is blocked.
 // Phase 2 will replace 'unsafe-inline' with a nonce and flip to Content-Security-Policy.
 const cspDirectives = [
   // By default, only load resources from our own domain
   `default-src 'self'`,
 
-  // Scripts: self + Cloudflare Turnstile (login/signup CAPTCHA).
+  // Scripts: self + Cloudflare Turnstile (login/signup CAPTCHA) + PostHog assets CDN.
+  // PostHog's npm SDK injects a <script> at runtime to fetch its remote config from
+  // the assets CDN — that host must be explicitly allowed here.
   // 'unsafe-inline' is required for Next.js hydration scripts and the dark mode
   // inline script in layout.tsx. This will be replaced with a nonce in Phase 2.
-  `script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com`,
+  `script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com ${POSTHOG_ASSETS_HOST}`,
 
   // Styles: self + inline (Tailwind utility classes applied via className)
   `style-src 'self' 'unsafe-inline'`,
@@ -24,8 +33,8 @@ const cspDirectives = [
   // Fonts: Inter is bundled at build time and served from self — no external font CDN
   `font-src 'self'`,
 
-  // API / WebSocket connections: Supabase REST + Auth + Realtime (wss)
-  `connect-src 'self' ${SUPABASE_HOST} ${SUPABASE_HOST.replace('https://', 'wss://')}`,
+  // API / WebSocket connections: Supabase REST + Auth + Realtime (wss) + PostHog analytics
+  `connect-src 'self' ${SUPABASE_HOST} ${SUPABASE_HOST.replace('https://', 'wss://')} ${POSTHOG_HOST}`,
 
   // Frames: Cloudflare Turnstile renders its challenge in an iframe
   `frame-src https://challenges.cloudflare.com`,

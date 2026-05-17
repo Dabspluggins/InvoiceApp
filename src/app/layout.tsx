@@ -6,6 +6,7 @@ import DarkModeSync from '@/components/DarkModeSync'
 import IdleTimerLoader from '@/components/IdleTimerLoader'
 import RememberMeGuard from '@/components/RememberMeGuard'
 import SessionHeartbeat from '@/components/SessionHeartbeat'
+import PostHogProvider from '@/components/PostHogProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -78,12 +79,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className={`${inter.className} min-h-full bg-gray-50 dark:bg-gray-900 antialiased`} suppressHydrationWarning>
-        <Nav />
-        <DarkModeSync />
-        <RememberMeGuard />
-        <IdleTimerLoader />
-        <SessionHeartbeat />
-        {children}
+        <PostHogProvider>
+          <Nav />
+          <DarkModeSync />
+          <RememberMeGuard />
+          <IdleTimerLoader />
+          <SessionHeartbeat />
+          {children}
+        </PostHogProvider>
       </body>
     </html>
   )

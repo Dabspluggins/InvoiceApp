@@ -145,7 +145,7 @@ export default function Home() {
               </svg>
             </Link>
             <Link
-              href="/auth/login"
+              href="/dashboard"
               className="inline-flex items-center gap-2 text-gray-700 hover:text-indigo-600 font-semibold text-base px-7 py-3.5 rounded-xl border border-gray-200 hover:border-indigo-200 transition-colors"
             >
               See Dashboard

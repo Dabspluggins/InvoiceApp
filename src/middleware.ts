@@ -88,9 +88,23 @@ export async function middleware(request: NextRequest) {
   // by @supabase/ssr for correct session management in Next.js App Router.
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user && !isPublicPath(request.nextUrl.pathname)) {
+  const { pathname } = request.nextUrl
+
+  // Authenticated users visiting login/signup should go straight to the dashboard
+  const AUTH_PAGES = ['/auth/login', '/auth/signup']
+  if (user && AUTH_PAGES.includes(pathname)) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/dashboard'
+    const redirectResponse = NextResponse.redirect(url)
+    supabaseResponse.cookies.getAll().forEach(({ name, value, ...options }) =>
+      redirectResponse.cookies.set(name, value, options)
+    )
+    return redirectResponse
+  }
+
+  if (!user && !isPublicPath(pathname)) {
     // API routes should get a 401, not an HTML redirect
-    if (request.nextUrl.pathname.startsWith('/api/')) {
+    if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     const url = request.nextUrl.clone()

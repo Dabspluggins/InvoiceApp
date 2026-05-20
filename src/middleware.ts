@@ -19,43 +19,59 @@ function middlewareRateLimit(ip: string, maxRequests: number, windowMs: number):
   return true
 }
 
-// Paths that do not require authentication. Everything else is protected.
-const PUBLIC_PATHS: string[] = [
-  // Pages
+// Single paths that are public — only the exact URL, no subpaths.
+// Adding a route under one of these (e.g. /api/auth/login/debug) would NOT be public.
+const PUBLIC_EXACT: string[] = [
+  '/',
   '/invoice',
-  '/auth/',
   '/reset-password',
   '/forgot-password',
-  '/portal/',
   '/privacy',
   '/terms',
   '/contact',
   '/support',
-  '/i/',
-  // Sentry tunnel — must be public so error reports from logged-out users reach Sentry
+  // Sentry tunnel — only /monitoring, not /monitoring/* subpaths.
   '/monitoring',
-  // API routes that use their own auth mechanism or are intentionally public
+  // API endpoints that must be reachable without a session.
+  // /api/auth/change-password and /api/auth/secure-account are intentionally excluded —
+  // they require a session and are protected by middleware + their own getUser() check.
+  '/api/auth/login',
+  '/api/auth/signup',
+  '/api/auth/check-rate-limit',
   '/api/unsubscribe',
   '/api/send-invoice',
   '/api/contact',
-  '/api/auth/',
-  '/api/cron/',
-  '/api/webhooks/',
-  '/api/mfa/',
   '/api/sessions/register',
   '/api/welcome-email',
 ]
 
+// Subtrees that are intentionally public — every path under these prefixes is open.
+// Any new route added under a prefix below bypasses middleware auth automatically.
+// Each route in these subtrees MUST enforce its own auth/validation:
+//   /auth/*         — Supabase handles the auth flow
+//   /portal/*       — token-gated client portal pages
+//   /i/*            — public invoice share links
+//   /api/cron/*     — MUST validate CRON_SECRET header (verified: all 3 current routes do)
+//   /api/webhooks/* — MUST verify webhook signature (verified: resend route uses Svix)
+const PUBLIC_PREFIXES: string[] = [
+  '/auth/',
+  '/portal/',
+  '/i/',
+  '/api/cron/',
+  '/api/webhooks/',
+]
+
 function isPublicPath(pathname: string): boolean {
-  if (pathname === '/') return true
-  return PUBLIC_PATHS.some(
-    p => pathname === p.replace(/\/$/, '') || pathname.startsWith(p.endsWith('/') ? p : p + '/')
-  )
+  if (PUBLIC_EXACT.includes(pathname)) return true
+  return PUBLIC_PREFIXES.some(p => pathname.startsWith(p))
 }
 
 export async function middleware(request: NextRequest) {
-  // Rate-limit POST submissions to the login page (4 attempts per 15 min per IP)
-  if (request.nextUrl.pathname === '/auth/login' && request.method === 'POST') {
+  // Best-effort rate limit on direct POST to /api/auth/login.
+  // Primary protection is Upstash Redis inside the API route itself.
+  // This in-memory check provides a fast-path block within a single serverless instance
+  // but resets on cold start and is not shared across instances.
+  if (request.nextUrl.pathname === '/api/auth/login' && request.method === 'POST') {
     const ip = getTrustedIp(request)
     if (!middlewareRateLimit(ip, 4, 15 * 60 * 1000)) {
       return new NextResponse('Too many login attempts. Please try again later.', { status: 429 })

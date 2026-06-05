@@ -220,68 +220,70 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     if (isNaN(amountPaid) || amountPaid <= 0) return
 
     setRecordingPayment(true)
-
-    // Remaining balance = total minus any payments already recorded and any credit already applied.
-    // We compare against this — not raw invoice.total — so existing partial payments are honoured.
-    const totalAlreadyPaid = (invoice.payments || []).reduce((sum, p) => sum + p.amount, 0)
-    const creditApplied = Number(invoice.credit_applied || 0)
-    const remaining = invoice.total - totalAlreadyPaid - creditApplied
-
-    // The amount to record in the ledger is capped at what is still owed.
-    // Any amount above that is excess and will be offered as client credit.
-    // Guard: if the invoice is already fully covered by credit/prior payments, nothing to post
-    if (remaining <= 0.005) {
-      setRecordPaymentModal({ open: false, invoice: null, amount: '' })
-      setRecordingPayment(false)
-      showToast('This invoice is already fully covered', 'indigo')
-      return
-    }
-
-    const paymentAmount = Math.min(amountPaid, remaining)
-    const excess = amountPaid - remaining
-
-    const today = new Date().toISOString().slice(0, 10)
-
-    // All payments — partial, exact, and overpayment — go through the payments API
-    // so every payment is recorded in the ledger and status is recomputed correctly.
-    const res = await fetch(`/api/invoices/${invoice.id}/payments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: paymentAmount, paid_at: today }),
-    })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      showToast((err as { error?: string }).error || 'Failed to record payment', 'indigo')
-      return
-    }
-    const { status } = await res.json()
-    setInvoices((prev) =>
-      prev.map((inv) =>
-        inv.id === invoice.id
-          ? { ...inv, status: status as InvoiceStatus, payments: [...(inv.payments || []), { amount: paymentAmount }] }
-          : inv
-      )
-    )
-    setRecordPaymentModal({ open: false, invoice: null, amount: '' })
-
-    if (excess > 0.005) {
-      // Use client_id from the invoice directly — name lookup can match the wrong
-      // client when duplicate names exist.
-      const clientId = invoice.client_id ?? null
-      setCreditConfirmModal({
-        open: true,
-        excess,
-        clientName: invoice.client_name,
-        clientId,
-        invoiceId: invoice.id,
-        invoiceNumber: invoice.invoice_number,
-        currency: invoice.currency,
+    try {
+  
+      // Remaining balance = total minus any payments already recorded and any credit already applied.
+      // We compare against this — not raw invoice.total — so existing partial payments are honoured.
+      const totalAlreadyPaid = (invoice.payments || []).reduce((sum, p) => sum + p.amount, 0)
+      const creditApplied = Number(invoice.credit_applied || 0)
+      const remaining = invoice.total - totalAlreadyPaid - creditApplied
+  
+      // The amount to record in the ledger is capped at what is still owed.
+      // Any amount above that is excess and will be offered as client credit.
+      // Guard: if the invoice is already fully covered by credit/prior payments, nothing to post
+      if (remaining <= 0.005) {
+        setRecordPaymentModal({ open: false, invoice: null, amount: '' })
+        showToast('This invoice is already fully covered', 'indigo')
+        return
+      }
+  
+      const paymentAmount = Math.min(amountPaid, remaining)
+      const excess = amountPaid - remaining
+  
+      const today = new Date().toISOString().slice(0, 10)
+  
+      // All payments — partial, exact, and overpayment — go through the payments API
+      // so every payment is recorded in the ledger and status is recomputed correctly.
+      const res = await fetch(`/api/invoices/${invoice.id}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: paymentAmount, paid_at: today }),
       })
-    } else {
-      const label = paymentAmount < remaining - 0.005 ? 'Partial payment' : 'Invoice marked as paid'
-      showToast(`${label} — ${formatCurrency(paymentAmount, invoice.currency)} recorded ✓`, 'green')
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        showToast((err as { error?: string }).error || 'Failed to record payment', 'indigo')
+        return
+      }
+      const { status } = await res.json()
+      setInvoices((prev) =>
+        prev.map((inv) =>
+          inv.id === invoice.id
+            ? { ...inv, status: status as InvoiceStatus, payments: [...(inv.payments || []), { amount: paymentAmount }] }
+            : inv
+        )
+      )
+      setRecordPaymentModal({ open: false, invoice: null, amount: '' })
+  
+      if (excess > 0.005) {
+        // Use client_id from the invoice directly — name lookup can match the wrong
+        // client when duplicate names exist.
+        const clientId = invoice.client_id ?? null
+        setCreditConfirmModal({
+          open: true,
+          excess,
+          clientName: invoice.client_name,
+          clientId,
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.invoice_number,
+          currency: invoice.currency,
+        })
+      } else {
+        const label = paymentAmount < remaining - 0.005 ? 'Partial payment' : 'Invoice marked as paid'
+        showToast(`${label} — ${formatCurrency(paymentAmount, invoice.currency)} recorded ✓`, 'green')
+      }
+    } finally {
+      setRecordingPayment(false)
     }
-    setRecordingPayment(false)
   }
 
   async function handleConfirmCredit() {
@@ -422,56 +424,59 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     )
     if (unpaidSelected.length === 0) return
     setBulkMarkingPaid(true)
-
-    type Settled = { id: string; paymentAmount: number | null }
-    const today = new Date().toISOString().slice(0, 10)
-    const settled: Settled[] = []
-
-    // Route each invoice through the payments API so every payment is recorded
-    // in the ledger and recompute_invoice_status runs for each one.
-    for (const inv of unpaidSelected) {
-      const alreadyPaid = (inv.payments || []).reduce((s, p) => s + p.amount, 0)
-      const creditApplied = Number(inv.credit_applied || 0)
-      const remaining = inv.total - alreadyPaid - creditApplied
-      if (remaining <= 0.005) {
-        // Already effectively settled by credit — a zero-amount payment is invalid,
-        // so update the status directly. Only count as settled if DB succeeds.
-        const { error: dbError } = await supabase
-          .from('invoices')
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .update({ status: 'paid' as InvoiceStatus, paid_at: new Date().toISOString() } as any)
-          .eq('id', inv.id)
-        if (!dbError) settled.push({ id: inv.id, paymentAmount: null })
-        continue
-      }
-      const res = await fetch(`/api/invoices/${inv.id}/payments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: remaining, paid_at: today }),
-      })
-      if (res.ok) settled.push({ id: inv.id, paymentAmount: remaining })
-    }
-
-    if (settled.length > 0) {
-      const settledMap = new Map(settled.map((s) => [s.id, s.paymentAmount]))
-      setInvoices((prev) =>
-        prev.map((inv) => {
-          if (!settledMap.has(inv.id)) return inv
-          const payment = settledMap.get(inv.id)
-          return {
-            ...inv,
-            status: 'paid' as InvoiceStatus,
-            // Only append a payment row when an actual ledger payment was made (not the credit-only path)
-            payments: payment != null
-              ? [...(inv.payments || []), { amount: payment }]
-              : inv.payments,
-          }
+    try {
+  
+      type Settled = { id: string; paymentAmount: number | null }
+      const today = new Date().toISOString().slice(0, 10)
+      const settled: Settled[] = []
+  
+      // Route each invoice through the payments API so every payment is recorded
+      // in the ledger and recompute_invoice_status runs for each one.
+      for (const inv of unpaidSelected) {
+        const alreadyPaid = (inv.payments || []).reduce((s, p) => s + p.amount, 0)
+        const creditApplied = Number(inv.credit_applied || 0)
+        const remaining = inv.total - alreadyPaid - creditApplied
+        if (remaining <= 0.005) {
+          // Already effectively settled by credit — a zero-amount payment is invalid,
+          // so update the status directly. Only count as settled if DB succeeds.
+          const { error: dbError } = await supabase
+            .from('invoices')
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .update({ status: 'paid' as InvoiceStatus, paid_at: new Date().toISOString() } as any)
+            .eq('id', inv.id)
+          if (!dbError) settled.push({ id: inv.id, paymentAmount: null })
+          continue
+        }
+        const res = await fetch(`/api/invoices/${inv.id}/payments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: remaining, paid_at: today }),
         })
-      )
-      setSelectedIds(new Set())
-      showToast(`${settled.length} invoice${settled.length !== 1 ? 's' : ''} marked as paid ✓`, 'green')
+        if (res.ok) settled.push({ id: inv.id, paymentAmount: remaining })
+      }
+  
+      if (settled.length > 0) {
+        const settledMap = new Map(settled.map((s) => [s.id, s.paymentAmount]))
+        setInvoices((prev) =>
+          prev.map((inv) => {
+            if (!settledMap.has(inv.id)) return inv
+            const payment = settledMap.get(inv.id)
+            return {
+              ...inv,
+              status: 'paid' as InvoiceStatus,
+              // Only append a payment row when an actual ledger payment was made (not the credit-only path)
+              payments: payment != null
+                ? [...(inv.payments || []), { amount: payment }]
+                : inv.payments,
+            }
+          })
+        )
+        setSelectedIds(new Set())
+        showToast(`${settled.length} invoice${settled.length !== 1 ? 's' : ''} marked as paid ✓`, 'green')
+      }
+    } finally {
+      setBulkMarkingPaid(false)
     }
-    setBulkMarkingPaid(false)
   }
 
   function handleExportCSV() {

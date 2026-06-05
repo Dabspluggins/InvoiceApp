@@ -224,6 +224,13 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
 
     // The amount to record in the ledger is capped at what is still owed.
     // Any amount above that is excess and will be offered as client credit.
+    // Guard: if the invoice is already fully covered by credit/prior payments, nothing to post
+    if (remaining <= 0.005) {
+      setRecordPaymentModal({ open: false, invoice: null, amount: '' })
+      showToast('This invoice is already fully covered', 'indigo')
+      return
+    }
+
     const paymentAmount = Math.min(amountPaid, remaining)
     const excess = amountPaid - remaining
 
@@ -407,8 +414,9 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     )
     if (unpaidSelected.length === 0) return
 
+    type Settled = { id: string; paymentAmount: number | null }
     const today = new Date().toISOString().slice(0, 10)
-    const settled: string[] = []
+    const settled: Settled[] = []
 
     // Route each invoice through the payments API so every payment is recorded
     // in the ledger and recompute_invoice_status runs for each one.
@@ -417,14 +425,14 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
       const creditApplied = Number(inv.credit_applied || 0)
       const remaining = inv.total - alreadyPaid - creditApplied
       if (remaining <= 0.005) {
-        // Already effectively settled (credit covers it) — just recompute via a zero-amount
-        // payment would be invalid, so call mark-paid directly for this edge case.
-        await supabase
+        // Already effectively settled by credit — a zero-amount payment is invalid,
+        // so update the status directly. Only count as settled if DB succeeds.
+        const { error: dbError } = await supabase
           .from('invoices')
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .update({ status: 'paid' as InvoiceStatus, paid_at: new Date().toISOString() } as any)
           .eq('id', inv.id)
-        settled.push(inv.id)
+        if (!dbError) settled.push({ id: inv.id, paymentAmount: null })
         continue
       }
       const res = await fetch(`/api/invoices/${inv.id}/payments`, {
@@ -432,17 +440,24 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: remaining, paid_at: today }),
       })
-      if (res.ok) settled.push(inv.id)
+      if (res.ok) settled.push({ id: inv.id, paymentAmount: remaining })
     }
 
     if (settled.length > 0) {
-      const successIds = new Set(settled)
+      const settledMap = new Map(settled.map((s) => [s.id, s.paymentAmount]))
       setInvoices((prev) =>
-        prev.map((inv) =>
-          successIds.has(inv.id)
-            ? { ...inv, status: 'paid' as InvoiceStatus, payments: [...(inv.payments || []), { amount: inv.total - Number(inv.credit_applied || 0) - (inv.payments || []).reduce((s, p) => s + p.amount, 0) }] }
-            : inv
-        )
+        prev.map((inv) => {
+          if (!settledMap.has(inv.id)) return inv
+          const payment = settledMap.get(inv.id)
+          return {
+            ...inv,
+            status: 'paid' as InvoiceStatus,
+            // Only append a payment row when an actual ledger payment was made (not the credit-only path)
+            payments: payment != null
+              ? [...(inv.payments || []), { amount: payment }]
+              : inv.payments,
+          }
+        })
       )
       setSelectedIds(new Set())
       showToast(`${settled.length} invoice${settled.length !== 1 ? 's' : ''} marked as paid ✓`, 'green')
@@ -479,12 +494,21 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
   }
 
   const totalInvoices = invoices.length
-  const paidAmount = invoices
-    .filter((i) => i.status === 'paid')
-    .reduce((sum, i) => sum + i.total, 0)
-  const outstandingAmount = invoices
-    .filter((i) => i.status === 'sent' || i.status === 'pending')
-    .reduce((sum, i) => sum + i.total, 0)
+  const paidAmount = invoices.reduce((sum, i) => {
+    if (i.status === 'paid') return sum + i.total
+    // For partial invoices, count the portion already paid (cash + credit)
+    if (i.status === 'partial') return sum + getAmountPaid(i) + Number(i.credit_applied || 0)
+    return sum
+  }, 0)
+  const outstandingAmount = invoices.reduce((sum, i) => {
+    if (i.status === 'sent' || i.status === 'pending') return sum + i.total
+    // For partial invoices, count the remaining unpaid balance
+    if (i.status === 'partial') {
+      const settled = getAmountPaid(i) + Number(i.credit_applied || 0)
+      return sum + Math.max(0, i.total - settled)
+    }
+    return sum
+  }, 0)
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there'
 
@@ -729,9 +753,19 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs text-gray-400">{formatDateLong(inv.issue_date)}</span>
                     {inv.status === 'partial' ? (
-                      <span className="bg-purple-100 text-purple-700 text-xs font-semibold px-2 py-1 rounded-full">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const alreadyPaid = (inv.payments || []).reduce((s, p) => s + p.amount, 0)
+                          const creditApplied = Number(inv.credit_applied || 0)
+                          const remaining = Math.max(0, inv.total - alreadyPaid - creditApplied)
+                          setRecordPaymentModal({ open: true, invoice: inv, amount: String(remaining) })
+                        }}
+                        className="bg-purple-100 text-purple-700 text-xs font-semibold px-2 py-1 rounded-full hover:bg-purple-200 transition-colors cursor-pointer"
+                        title="Record next payment"
+                      >
                         PARTIAL
-                      </span>
+                      </button>
                     ) : (
                       <select
                         value={inv.status}
@@ -879,9 +913,19 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                           PAID
                         </span>
                       ) : inv.status === 'partial' ? (
-                        <span className="bg-purple-100 text-purple-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const alreadyPaid = (inv.payments || []).reduce((s, p) => s + p.amount, 0)
+                            const creditApplied = Number(inv.credit_applied || 0)
+                            const remaining = Math.max(0, inv.total - alreadyPaid - creditApplied)
+                            setRecordPaymentModal({ open: true, invoice: inv, amount: String(remaining) })
+                          }}
+                          className="bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300 text-xs font-semibold px-2 py-0.5 rounded-full hover:bg-purple-200 dark:hover:bg-purple-800/60 transition-colors cursor-pointer"
+                          title="Record next payment"
+                        >
                           PARTIAL
-                        </span>
+                        </button>
                       ) : (
                         <select
                           value={inv.status}
@@ -1141,7 +1185,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
               <h2 className="text-base font-semibold text-gray-900 dark:text-white">Record Overpayment as Credit?</h2>
               <button
-                onClick={() => { setCreditConfirmModal((s) => ({ ...s, open: false })); showToast('Invoice marked as paid ✓', 'green') }}
+                onClick={() => { setCreditConfirmModal((s) => ({ ...s, open: false })); }}
                 className="text-gray-400 hover:text-gray-600 text-xl leading-none"
               >
                 ×

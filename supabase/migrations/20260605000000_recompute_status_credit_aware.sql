@@ -66,7 +66,7 @@ UPDATE public.invoices i
 SET
   status  = 'paid',
   paid_at = COALESCE(i.paid_at, NOW())
-WHERE i.status = 'partial'
+WHERE i.status IN ('partial', 'sent', 'pending')
   AND COALESCE(i.credit_applied, 0) > 0
   AND (
     SELECT COALESCE(SUM(p.amount), 0)

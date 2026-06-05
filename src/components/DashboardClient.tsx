@@ -121,6 +121,8 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     currency: 'NGN',
   })
   const [recordingCredit, setRecordingCredit] = useState(false)
+  const [recordingPayment, setRecordingPayment] = useState(false)
+  const [bulkMarkingPaid, setBulkMarkingPaid] = useState(false)
   const router = useRouter()
 
   const filteredInvoices = useMemo(() => {
@@ -210,11 +212,14 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
   }, [supabase, invoices])
 
   async function handleConfirmPayment() {
+    if (recordingPayment) return
     const { invoice, amount } = recordPaymentModal
     if (!invoice) return
 
     const amountPaid = parseFloat(amount)
     if (isNaN(amountPaid) || amountPaid <= 0) return
+
+    setRecordingPayment(true)
 
     // Remaining balance = total minus any payments already recorded and any credit already applied.
     // We compare against this — not raw invoice.total — so existing partial payments are honoured.
@@ -227,6 +232,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     // Guard: if the invoice is already fully covered by credit/prior payments, nothing to post
     if (remaining <= 0.005) {
       setRecordPaymentModal({ open: false, invoice: null, amount: '' })
+      setRecordingPayment(false)
       showToast('This invoice is already fully covered', 'indigo')
       return
     }
@@ -275,6 +281,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
       const label = paymentAmount < remaining - 0.005 ? 'Partial payment' : 'Invoice marked as paid'
       showToast(`${label} — ${formatCurrency(paymentAmount, invoice.currency)} recorded ✓`, 'green')
     }
+    setRecordingPayment(false)
   }
 
   async function handleConfirmCredit() {
@@ -409,10 +416,12 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
   }
 
   async function handleBulkMarkPaid() {
+    if (bulkMarkingPaid) return
     const unpaidSelected = invoices.filter(
       (inv) => selectedIds.has(inv.id) && inv.status !== 'paid'
     )
     if (unpaidSelected.length === 0) return
+    setBulkMarkingPaid(true)
 
     type Settled = { id: string; paymentAmount: number | null }
     const today = new Date().toISOString().slice(0, 10)
@@ -462,6 +471,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
       setSelectedIds(new Set())
       showToast(`${settled.length} invoice${settled.length !== 1 ? 's' : ''} marked as paid ✓`, 'green')
     }
+    setBulkMarkingPaid(false)
   }
 
   function handleExportCSV() {
@@ -675,10 +685,10 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
               </span>
               <button
                 onClick={handleBulkMarkPaid}
-                disabled={!hasUnpaidSelected}
+                disabled={bulkMarkingPaid || !hasUnpaidSelected}
                 className="bg-green-600 text-white text-sm px-3 py-1.5 rounded-md hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
               >
-                ✓ Mark as Paid
+                {bulkMarkingPaid ? 'Working…' : '✓ Mark as Paid'}
               </button>
               <button
                 onClick={handleExportCSV}
@@ -744,7 +754,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                     </p>
                     {isPartial(inv) && (
                       <p className="text-xs text-purple-600 mt-0.5">
-                        {formatCurrency(getAmountPaid(inv), inv.currency)} paid
+                        {formatCurrency(getAmountPaid(inv) + Number(inv.credit_applied || 0), inv.currency)} paid
                       </p>
                     )}
                   </div>
@@ -900,7 +910,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                       {formatCurrency(inv.total, inv.currency)}
                       {isPartial(inv) && (
                         <div className="text-xs text-purple-600 mt-0.5">
-                          {formatCurrency(getAmountPaid(inv), inv.currency)} paid
+                          {formatCurrency(getAmountPaid(inv) + Number(inv.credit_applied || 0), inv.currency)} paid
                         </div>
                       )}
                     </td>
@@ -1166,10 +1176,10 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                   <button
                     type="button"
                     onClick={handleConfirmPayment}
-                    disabled={!recordPaymentModal.amount || parseFloat(recordPaymentModal.amount) <= 0}
+                    disabled={recordingPayment || !recordPaymentModal.amount || parseFloat(recordPaymentModal.amount) <= 0}
                     className="text-sm bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
                   >
-                    Confirm Payment
+                    {recordingPayment ? 'Recording…' : 'Confirm Payment'}
                   </button>
                 </div>
               </div>

@@ -73,3 +73,19 @@ WHERE i.status IN ('partial', 'sent', 'pending')
       FROM public.payments p
      WHERE p.invoice_id = i.id
   ) + COALESCE(i.credit_applied, 0) >= i.total;
+
+-- Backfill pt.2: normalize partially-credit-covered invoices to 'partial'.
+-- Example: total=100, credit_applied=20, payments=0, status='sent' → should be 'partial'.
+-- The first backfill above already handles the fully-settled case (effective >= total),
+-- so this only fires when 0 < effective < total.
+UPDATE public.invoices i
+SET
+  status  = 'partial',
+  paid_at = NULL
+WHERE i.status IN ('sent', 'pending')
+  AND COALESCE(i.credit_applied, 0) > 0
+  AND (
+    SELECT COALESCE(SUM(p.amount), 0)
+      FROM public.payments p
+     WHERE p.invoice_id = i.id
+  ) + COALESCE(i.credit_applied, 0) < i.total;

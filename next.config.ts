@@ -34,7 +34,7 @@ const cspDirectives = [
   `font-src 'self'`,
 
   // API / WebSocket connections: Supabase REST + Auth + Realtime (wss) + PostHog analytics
-  `connect-src 'self' ${SUPABASE_HOST} ${SUPABASE_HOST.replace('https://', 'wss://')} ${POSTHOG_HOST}`,
+  `connect-src 'self' ${SUPABASE_HOST} ${SUPABASE_HOST.replace('https://', 'wss://')} ${POSTHOG_HOST} ${POSTHOG_ASSETS_HOST}`,
 
   // Frames: Cloudflare Turnstile renders its challenge in an iframe
   `frame-src https://challenges.cloudflare.com`,

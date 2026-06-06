@@ -281,6 +281,8 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
         const label = paymentAmount < remaining - 0.005 ? 'Partial payment' : 'Invoice marked as paid'
         showToast(`${label} — ${formatCurrency(paymentAmount, invoice.currency)} recorded ✓`, 'green')
       }
+    } catch {
+      showToast('Failed to record payment. Please try again.', 'indigo')
     } finally {
       setRecordingPayment(false)
     }
@@ -302,6 +304,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
           clientId,
           amount: excess,
           referenceNumber: invoiceNumber,
+          invoiceId,
           currency,
           description: `Overpayment on ${invoiceNumber}`,
         }),
@@ -474,6 +477,8 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
         setSelectedIds(new Set())
         showToast(`${settled.length} invoice${settled.length !== 1 ? 's' : ''} marked as paid ✓`, 'green')
       }
+    } catch {
+      showToast('Failed to mark invoices as paid. Please try again.', 'indigo')
     } finally {
       setBulkMarkingPaid(false)
     }

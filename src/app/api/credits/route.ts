@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { clientId, amount, description, referenceNumber, currency } = body
+  const { clientId, amount, description, referenceNumber, invoiceId, currency } = body
 
   if (!clientId) return NextResponse.json({ error: 'clientId is required' }, { status: 400 })
 
@@ -97,6 +97,7 @@ export async function POST(request: NextRequest) {
       type: 'credit_added',
       description: description || null,
       reference_number: referenceNumber || null,
+      invoice_id: invoiceId || null,
       currency: currencyToUse,
     })
     .select()

@@ -311,12 +311,15 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
       })
       if (res.ok) {
         showToast(`${formatCurrency(excess, currency)} credit recorded for ${clientName} ✓`, 'green')
+        setCreditConfirmModal((s) => ({ ...s, open: false }))
       } else {
-        showToast('Failed to record credit', 'indigo')
+        const err = await res.json().catch(() => ({}))
+        showToast(err.error || 'Failed to record credit', 'indigo')
       }
+    } catch {
+      showToast('Failed to record credit. Please try again.', 'indigo')
     } finally {
       setRecordingCredit(false)
-      setCreditConfirmModal((s) => ({ ...s, open: false }))
     }
   }
 

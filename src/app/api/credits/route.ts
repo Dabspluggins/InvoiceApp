@@ -88,6 +88,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Currency does not match the client\'s configured currency' }, { status: 422 })
   }
 
+  // If invoiceId is supplied, verify the invoice belongs to this user and this client
+  if (invoiceId) {
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('invoices')
+      .select('id, client_id')
+      .eq('id', invoiceId)
+      .eq('user_id', user.id)
+      .single()
+
+    if (invoiceError || !invoice) {
+      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+    }
+
+    if (invoice.client_id !== clientId) {
+      return NextResponse.json({ error: 'Invoice does not belong to this client' }, { status: 422 })
+    }
+  }
+
   const { data, error } = await supabase
     .from('client_credits')
     .insert({

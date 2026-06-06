@@ -1,10 +1,31 @@
 import { createClient } from '@supabase/supabase-js'
 import { Metadata } from 'next'
 import { Resend } from 'resend'
+import { headers } from 'next/headers'
 import PrintButton from './PrintButton'
 import InvoiceWatermark from '@/components/InvoiceWatermark'
 import { PaymentDetails, InvoiceLanguage } from '@/lib/types'
 import { getInvoiceTranslations } from '@/lib/invoice-i18n'
+
+// Known bot/scanner patterns — case-insensitive substring match.
+// These requests are ignored entirely: no view_count increment, no email.
+// Keeps the "Viewed" dashboard badge meaningful (human opens only).
+const BOT_UA_PATTERNS = [
+  'whatsapp', 'facebookexternalhit', 'facebookbot',
+  'twitterbot', 'linkedinbot', 'slackbot',
+  'googlebot', 'adsbot-google', 'google-inspectiontool', 'google-read-aloud',
+  'bingbot', 'yandexbot',
+  'barracuda', 'proofpoint', 'mimecast', 'ironport', 'symantec',
+  'emailauditor', 'emailsecuritychecks', 'scanmail',
+  'curl/', 'wget/', 'python-requests', 'go-http-client',
+  'preview', 'prerender', 'crawler', 'spider', 'bot/',
+]
+
+function isKnownBot(ua: string | null): boolean {
+  if (!ua) return false
+  const lower = ua.toLowerCase()
+  return BOT_UA_PATTERNS.some((pattern) => lower.includes(pattern))
+}
 
 interface LineItem {
   description: string
@@ -173,7 +194,11 @@ export default async function PublicInvoicePage({
   const t = getInvoiceTranslations(language)
 
   if (result) {
-    await recordView(token, result.invoice)
+    const headersList = await headers()
+    const ua = headersList.get('user-agent')
+    if (!isKnownBot(ua)) {
+      await recordView(token, result.invoice)
+    }
   }
 
   const watermark = result
@@ -641,19 +666,24 @@ function SharePaymentBlock({ invoice, accentColor, t }: { invoice: InvoiceRow; a
               </div>
             </div>
           )}
+
           {hasMM && (
             <div>
               <p className="text-xs font-semibold text-gray-500 mb-1">{t.mobileMoney}</p>
               <div className="space-y-0.5">
                 {mm?.provider && <PayRow label={t.provider} value={mm.provider} />}
-                {mm?.phoneNumber && <PayRow label={t.phoneAccount} value={mm.phoneNumber} />}
+                {mm?.phoneNumber && <PayRow label={t.phoneNumber} value={mm.phoneNumber} />}
               </div>
             </div>
           )}
+
           {hasOT && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 mb-1">{ot?.paymentMethod || t.paymentDetails}</p>
-              {ot?.details && <p className="text-gray-700 whitespace-pre-line">{ot.details}</p>}
+              <p className="text-xs font-semibold text-gray-500 mb-1">Other</p>
+              <div className="space-y-0.5">
+                {ot?.paymentMethod && <PayRow label="Payment Method" value={ot.paymentMethod} />}
+                {ot?.details && <PayRow label="Details" value={ot.details} />}
+              </div>
             </div>
           )}
         </div>
@@ -664,9 +694,9 @@ function SharePaymentBlock({ invoice, accentColor, t }: { invoice: InvoiceRow; a
 
 function PayRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex gap-4">
-      <span className="w-36 flex-shrink-0 text-gray-400 sm:w-40">{label}</span>
-      <span className="text-gray-800 break-all">{value}</span>
+    <div className="flex justify-between gap-4">
+      <span className="text-gray-400 shrink-0">{label}</span>
+      <span className="text-gray-700 font-medium text-right">{value}</span>
     </div>
   )
 }

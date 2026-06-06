@@ -15,25 +15,14 @@ export default function AuthCallbackPage() {
     const safeNext = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/dashboard'
     const code = params.get('code')
 
-    // Fire-and-forget welcome email for new signups (not password resets or email changes)
-    function maybeSendWelcomeEmail(flowType: string | null, accessToken?: string) {
-      if (flowType !== 'recovery' && flowType !== 'email_change' && accessToken) {
-        fetch('/api/welcome-email', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          keepalive: true,
-        }).catch(() => {})
-      }
-    }
+    // Welcome email is now sent exclusively from DashboardShell on first visit,
+    // gated by an atomic DB claim in /api/welcome-email. Sending from the auth
+    // callback was too broad — it fired on every OAuth login, not just signups.
 
     // Primary: token_hash flow — most reliable, works cross-device, no PKCE verifier needed
     if (token_hash && type) {
       supabase.auth.verifyOtp({ token_hash, type }).then(({ data: { session }, error }) => {
         if (!error && session) {
-          maybeSendWelcomeEmail(type, session.access_token)
           if (type === 'recovery' || safeNext === '/reset-password') {
             router.replace(
               `/reset-password#access_token=${session.access_token}&refresh_token=${session.refresh_token}`
@@ -52,8 +41,6 @@ export default function AuthCallbackPage() {
     if (code) {
       supabase.auth.exchangeCodeForSession(code).then(({ data: { session }, error }) => {
         if (!error && session) {
-          // code flow: recovery is indicated by next=/reset-password
-          maybeSendWelcomeEmail(safeNext === '/reset-password' ? 'recovery' : null, session.access_token)
           if (safeNext === '/reset-password') {
             router.replace(
               `/reset-password#access_token=${session.access_token}&refresh_token=${session.refresh_token}`

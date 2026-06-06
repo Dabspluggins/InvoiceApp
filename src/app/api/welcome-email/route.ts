@@ -143,36 +143,58 @@ export async function POST() {
       return NextResponse.json({ error: 'RESEND_API_KEY not configured' }, { status: 500 })
     }
 
+    // --- Atomic claim ---
+    // Try to flip welcome_sent from false → true on an existing profile row.
+    // Only the request that wins this UPDATE proceeds to send.
+    const { data: updated } = await supabase
+      .from('profiles')
+      .update({ welcome_sent: true })
+      .eq('id', user.id)
+      .eq('welcome_sent', false)
+      .select('id')
+
+    const didClaim = updated && updated.length > 0
+
+    if (!didClaim) {
+      // No existing row with welcome_sent = false.
+      // Either (a) welcome_sent is already true → skip, or
+      // (b) no profile row exists yet → try to insert one.
+      const { data: inserted, error: insertError } = await supabase
+        .from('profiles')
+        .insert({ id: user.id, welcome_sent: true })
+        .select('id')
+
+      // Conflict (23505) means the row now exists with welcome_sent = true → already sent
+      if (insertError || !inserted || inserted.length === 0) {
+        return NextResponse.json({ skipped: true })
+      }
+      // Fell through — new profile row created, proceed to send
+    }
+
+    // --- Send email ---
     const resend = new Resend(apiKey)
 
     // Extract first name from email prefix (e.g. john.doe@... → John)
     const emailPrefix = user.email.split('@')[0]
-    const rawFirst = emailPrefix.replace(/[._-]/g, ' ').split(' ')[0]
-    const firstName = rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1)
-    const year = new Date().getFullYear()
+    const firstName =
+      emailPrefix
+        .split(/[._-]/)[0]
+        .replace(/[^a-zA-Z]/g, '')
+        .replace(/^./, (c) => c.toUpperCase()) || 'there'
 
+    const year = new Date().getFullYear()
     const html = buildWelcomeEmailHtml(firstName, year)
 
-    const { error: sendError } = await resend.emails.send({
+    await resend.emails.send({
       from: 'Dab from BillByDab <onboarding@billbydab.com>',
-      to: user.email,
-      subject: "You're in — let's get your first invoice out 🎉",
+      to: [user.email],
+      subject: "Welcome to BillByDab — let's get you paid",
       html,
     })
 
-    if (sendError) {
-      logError('welcome-email', 'Resend send failed', { userId: user.id }, sendError)
-      return NextResponse.json({ error: sendError.message }, { status: 500 })
-    }
-
-    // Mark as sent so dashboard doesn't trigger it again
-    await supabase
-      .from('profiles')
-      .upsert({ id: user!.id, welcome_sent: true }, { onConflict: 'id' })
-
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ sent: true })
   } catch (err) {
-    logError('welcome-email', 'Unhandled error', {}, err)
-    return NextResponse.json({ error: 'Failed to send welcome email' }, { status: 500 })
+    logError('welcome-email', 'send', {}, err)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

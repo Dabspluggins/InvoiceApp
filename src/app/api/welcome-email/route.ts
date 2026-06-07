@@ -185,12 +185,17 @@ export async function POST() {
     const year = new Date().getFullYear()
     const html = buildWelcomeEmailHtml(firstName, year)
 
-    await resend.emails.send({
+    const { error: sendError } = await resend.emails.send({
       from: 'Dab from BillByDab <onboarding@billbydab.com>',
       to: [user.email],
       subject: "Welcome to BillByDab — let's get you paid",
       html,
     })
+
+    if (sendError) {
+      logError('welcome-email', 'send', { userId: user.id }, sendError)
+      return NextResponse.json({ error: sendError.message }, { status: 500 })
+    }
 
     return NextResponse.json({ sent: true })
   } catch (err) {

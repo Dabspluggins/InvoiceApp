@@ -11,7 +11,7 @@ import { getInvoiceTranslations } from '@/lib/invoice-i18n'
 // These requests are ignored entirely: no view_count increment, no email.
 // Keeps the "Viewed" dashboard badge meaningful (human opens only).
 const BOT_UA_PATTERNS = [
-  'whatsapp', 'facebookexternalhit', 'facebookbot',
+  'facebookexternalhit', 'facebookbot',
   'twitterbot', 'linkedinbot', 'slackbot',
   'googlebot', 'adsbot-google', 'google-inspectiontool', 'google-read-aloud',
   'bingbot', 'yandexbot',

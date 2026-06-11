@@ -78,6 +78,35 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
   const [error, setError] = useState<string | null>(null)
   const [proposedPrices, setProposedPrices] = useState<Record<string, number>>({})
   const [priceErrors, setPriceErrors] = useState<Record<string, string>>({})
+  const [downloading, setDownloading] = useState(false)
+
+  async function handleDownloadPDF() {
+    const el = document.getElementById('estimate-doc')
+    if (!el) return
+    setDownloading(true)
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const h2p = (await import('html2pdf.js')).default
+      const parts = ['Estimate', estimate.estimate_number, estimate.client_name].filter(Boolean)
+      await h2p()
+        .set({
+          margin: 8,
+          filename: parts.join(' - ') + '.pdf',
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            ignoreElements: (el: Element) => el.classList.contains('pdf-exclude'),
+          },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        })
+        .from(el)
+        .save()
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   const activeItems = items.filter((i) => !i.pendingDelete)
   const deletedItems = items.filter((i) => i.pendingDelete)
@@ -226,7 +255,7 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div id="estimate-doc" className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <div className="bg-indigo-600 text-white px-4 py-6 md:py-8">
         <div className="max-w-3xl mx-auto">
@@ -240,6 +269,16 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
               Valid until: {formatDate(estimate.valid_until)}
             </p>
           )}
+          <button
+            onClick={handleDownloadPDF}
+            disabled={downloading}
+            className="pdf-exclude mt-4 inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-60"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            {downloading ? 'Generating PDF…' : 'Download PDF'}
+          </button>
         </div>
       </div>
 
@@ -264,7 +303,7 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
         )}
 
         {/* Instructions */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg px-4 py-3 text-sm text-blue-800 dark:text-blue-300">
+        <div className="pdf-exclude bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg px-4 py-3 text-sm text-blue-800 dark:text-blue-300">
           Click the{' '}
           <span className="font-semibold">✕</span> button on any line item to remove it. You can
           undo by clicking again. When done, use the buttons at the bottom to approve or submit
@@ -358,7 +397,7 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
                     >
                       {formatCurrency((proposedPrices[item.id] ?? item.unit_price) * item.quantity, estimate.currency)}
                     </td>
-                    <td className="px-4 py-4 text-center">
+                    <td className="pdf-exclude px-4 py-4 text-center">
                       <button
                         onClick={() => toggleDelete(item.id)}
                         className={`w-7 h-7 rounded-full text-sm font-bold transition-all flex items-center justify-center mx-auto ${
@@ -438,7 +477,7 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
                   </p>
                   <button
                     onClick={() => toggleDelete(item.id)}
-                    className={`mt-1 text-xs font-medium px-2 py-0.5 rounded-full transition-all ${
+                    className={`pdf-exclude mt-1 text-xs font-medium px-2 py-0.5 rounded-full transition-all ${
                       item.pendingDelete
                         ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400'
@@ -510,13 +549,13 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
 
         {/* Error */}
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg px-4 py-3 text-sm text-red-700 dark:text-red-300">
+          <div className="pdf-exclude bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg px-4 py-3 text-sm text-red-700 dark:text-red-300">
             {error}
           </div>
         )}
 
         {/* Action buttons */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <div className="pdf-exclude bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">Your Response</h3>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
             {hasDeletedItems && hasPriceChanges
@@ -567,7 +606,7 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
 
         {/* Active items summary if deletions pending */}
         {hasDeletedItems && (
-          <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-xl p-4">
+          <div className="pdf-exclude bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-xl p-4">
             <h3 className="text-sm font-semibold text-orange-800 dark:text-orange-300 mb-2">
               Items marked for removal:
             </h3>
@@ -595,7 +634,7 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
 
         {/* Remaining active items count */}
         {hasDeletedItems && activeItems.length > 0 && (
-          <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+          <p className="pdf-exclude text-xs text-center text-gray-500 dark:text-gray-400">
             {activeItems.length} item{activeItems.length !== 1 ? 's' : ''} remaining
           </p>
         )}

@@ -81,23 +81,29 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
   const [downloading, setDownloading] = useState(false)
 
   async function handleDownloadPDF() {
-    const el = document.getElementById('estimate-doc')
+    const el = document.getElementById('estimate-pdf-content')
     if (!el) return
     setDownloading(true)
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const h2p = (await import('html2pdf.js')).default
       const parts = ['Estimate', estimate.estimate_number, estimate.client_name].filter(Boolean)
       await h2p()
         .set({
-          margin: 8,
+          margin: 0,
           filename: parts.join(' - ') + '.pdf',
           image: { type: 'jpeg', quality: 0.98 },
           html2canvas: {
-            scale: 2,
+            scale: 1.5,
             useCORS: true,
             logging: false,
-            ignoreElements: (el: Element) => el.classList.contains('pdf-exclude'),
+            onclone: (_clonedDoc: Document, clonedEl: HTMLElement) => {
+              const inner = clonedEl.querySelector('#estimate-pdf-content') as HTMLElement | null
+              if (inner) {
+                inner.style.position = 'relative'
+                inner.style.left = '0'
+                inner.style.top = '0'
+              }
+            },
           },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         })
@@ -569,7 +575,7 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
           <div className="flex flex-col sm:flex-row gap-3">
             <button
               onClick={() => handleAction('approve')}
-              disabled={submitting}
+              disabled={submitting || hasChanges}
               className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 transition flex items-center justify-center gap-2"
             >
               {submitting ? (
@@ -642,6 +648,96 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
         <p className="text-center text-xs text-gray-400 dark:text-gray-500 pb-8">
           Sent via <span className="font-medium">BillByDab</span>
         </p>
+      </div>
+
+      {/* Dedicated PDF template — inline styles only (no Tailwind/color-mix), off-screen until html2canvas clones it */}
+      <div
+        id="estimate-pdf-content"
+        aria-hidden="true"
+        style={{ position: 'absolute', left: '-9999px', top: 0, width: '794px', background: 'white', color: '#111827', fontFamily: 'Arial, sans-serif' }}
+      >
+        {/* Header */}
+        <div style={{ background: '#4F46E5', color: 'white', padding: '32px 40px 28px' }}>
+          <p style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#C7D2FE', margin: '0 0 6px' }}>Estimate</p>
+          <h1 style={{ fontSize: '26px', fontWeight: 700, margin: '0 0 4px' }}>{estimate.estimate_number}</h1>
+          {estimate.title && <p style={{ fontSize: '15px', color: '#E0E7FF', margin: '0 0 4px' }}>{estimate.title}</p>}
+          {estimate.client_name && <p style={{ fontSize: '13px', color: '#C7D2FE', margin: '4px 0 0' }}>Prepared for: {estimate.client_name}</p>}
+          {estimate.valid_until && (
+            <p style={{ fontSize: '12px', color: '#C7D2FE', margin: '4px 0 0' }}>
+              Valid until: {formatDate(estimate.valid_until)}
+            </p>
+          )}
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '32px 40px' }}>
+          {/* Line items */}
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', marginBottom: '24px' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #E5E7EB' }}>
+                <th style={{ textAlign: 'left', padding: '8px 0', fontSize: '11px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Description</th>
+                <th style={{ textAlign: 'center', padding: '8px 12px', fontSize: '11px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, width: '60px' }}>Qty</th>
+                <th style={{ textAlign: 'right', padding: '8px 0', fontSize: '11px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, width: '110px' }}>Unit Price</th>
+                <th style={{ textAlign: 'right', padding: '8px 0', fontSize: '11px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, width: '110px' }}>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activeItems.map((item) => {
+                const pdfUnitPrice = proposedPrices[item.id] ?? item.unit_price
+                const pdfAmount = pdfUnitPrice * item.quantity
+                return (
+                  <tr key={item.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                    <td style={{ padding: '11px 0', color: '#1F2937' }}>{item.description || '—'}</td>
+                    <td style={{ padding: '11px 12px', textAlign: 'center', color: '#6B7280' }}>{item.quantity}</td>
+                    <td style={{ padding: '11px 0', textAlign: 'right', color: '#6B7280' }}>{formatCurrency(pdfUnitPrice, estimate.currency)}</td>
+                    <td style={{ padding: '11px 0', textAlign: 'right', fontWeight: 600, color: '#1F2937' }}>{formatCurrency(pdfAmount, estimate.currency)}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+
+          {/* Totals */}
+          <div style={{ marginLeft: 'auto', width: '280px', fontSize: '13px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', color: '#6B7280' }}>
+              <span>Subtotal</span><span>{formatCurrency(subtotal, estimate.currency)}</span>
+            </div>
+            {estimate.discount_value > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', color: '#6B7280' }}>
+                <span>Discount{estimate.discount_type === 'percentage' ? ` (${estimate.discount_value}%)` : ''}</span>
+                <span style={{ color: '#EF4444' }}>−{formatCurrency(discountAmount, estimate.currency)}</span>
+              </div>
+            )}
+            {estimate.tax_rate > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', color: '#6B7280' }}>
+                <span>Tax ({estimate.tax_rate}%)</span><span>{formatCurrency(taxAmount, estimate.currency)}</span>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid #E5E7EB', marginTop: '8px', paddingTop: '10px', fontWeight: 700, fontSize: '16px', color: '#111827' }}>
+              <span>Total</span><span>{formatCurrency(total, estimate.currency)}</span>
+            </div>
+          </div>
+
+          {/* Notes */}
+          {estimate.notes && (
+            <div style={{ marginTop: '28px', paddingTop: '20px', borderTop: '1px solid #E5E7EB' }}>
+              <p style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px' }}>Notes</p>
+              <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.65, margin: 0 }}>{estimate.notes}</p>
+            </div>
+          )}
+
+          {/* Terms */}
+          {estimate.terms && (
+            <div style={{ marginTop: '20px' }}>
+              <p style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px' }}>Terms &amp; Conditions</p>
+              <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.65, margin: 0 }}>{estimate.terms}</p>
+            </div>
+          )}
+
+          <p style={{ marginTop: '48px', textAlign: 'center', fontSize: '11px', color: '#9CA3AF' }}>
+            Generated with BillByDab
+          </p>
+        </div>
       </div>
     </div>
   )

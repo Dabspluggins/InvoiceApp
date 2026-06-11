@@ -125,7 +125,19 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
           margin: 0,
           filename: parts.join(' - ') + '.pdf',
           image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, logging: false },
+          html2canvas: {
+            scale: 1.5,
+            useCORS: true,
+            logging: false,
+            onclone: (_clonedDoc: Document, clonedEl: HTMLElement) => {
+              const inner = clonedEl.querySelector('#estimate-owner-pdf') as HTMLElement | null
+              if (inner) {
+                inner.style.position = 'relative'
+                inner.style.left = '0'
+                inner.style.top = '0'
+              }
+            },
+          },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         })
         .from(el)
@@ -312,10 +324,10 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
         tax_rate: taxRate,
         discount_type: discountType,
         discount_value: discountValue,
-        discount_amount: discountAmount,
-        subtotal,
-        tax_amount: taxAmount,
-        total,
+        discount_amount: pdfDiscountAmount,
+        subtotal: pdfSubtotal,
+        tax_amount: pdfTaxAmount,
+        total: pdfTotal,
         notes: notes || null,
         terms: terms || null,
         allow_negotiation: allowNegotiation,
@@ -323,6 +335,7 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
       }
 
       let currentId = savedId
+      let clientDeletedItems: { estimate_id: string; description: string | null; quantity: number; unit_price: number; amount: number; sort_order: number; min_price: number | null; client_proposed_price: number | null; deleted_by_client: boolean }[] = []
 
       if (currentId) {
         const { error } = await supabase
@@ -330,6 +343,13 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
           .update({ ...payload, updated_at: new Date().toISOString() })
           .eq('id', currentId)
         if (error) throw error
+        // Preserve client-deleted items before wiping the table
+        const { data: preserved } = await supabase
+          .from('estimate_line_items')
+          .select('estimate_id, description, quantity, unit_price, amount, sort_order, min_price, client_proposed_price, deleted_by_client')
+          .eq('estimate_id', currentId)
+          .eq('deleted_by_client', true)
+        clientDeletedItems = preserved ?? []
         await supabase.from('estimate_line_items').delete().eq('estimate_id', currentId)
       } else {
         const { data: inserted, error } = await supabase
@@ -365,8 +385,15 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
           amount: item.amount,
           sort_order: idx,
           min_price: item.min_price ?? null,
+          client_proposed_price: item.client_proposed_price ?? null,
+          deleted_by_client: false,
         }))
         const { error } = await supabase.from('estimate_line_items').insert(itemsPayload)
+        if (error) throw error
+      }
+      // Reinsert client-deleted items so negotiation state is not lost
+      if (clientDeletedItems.length > 0) {
+        const { error } = await supabase.from('estimate_line_items').insert(clientDeletedItems)
         if (error) throw error
       }
 
@@ -517,7 +544,28 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
       })
       if (!res.ok) throw new Error('Failed')
       setStatus('sent')
-      setLineItems(prev => prev.map(item => ({ ...item, client_proposed_price: null })))
+      // Re-fetch all line items (including previously client-deleted ones) so state is accurate
+      const supabase = createClient()
+      const { data: refreshedItems } = await supabase
+        .from('estimate_line_items')
+        .select('*')
+        .eq('estimate_id', savedId)
+        .order('sort_order')
+      if (refreshedItems) {
+        setLineItems(
+          refreshedItems.map((item) => ({
+            id: item.id,
+            description: item.description || '',
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            amount: item.amount,
+            deleted_by_client: item.deleted_by_client,
+            sort_order: item.sort_order,
+            min_price: item.min_price ?? null,
+            client_proposed_price: item.client_proposed_price ?? null,
+          }))
+        )
+      }
       setShowRejectModal(false)
       setRejectionNote('')
       showToast('Negotiation rejected. Client has been notified.', 'success')
@@ -1347,48 +1395,51 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
               </p>
             )}
 
-            {/* Line items */}
+            {/* Line items — use negotiated price where client proposed one */}
             {lineItems.length > 0 && (
               <div className="border-t border-gray-100 dark:border-gray-700 pt-3 space-y-1.5">
-                {lineItems.map((item, idx) => (
-                  <div key={idx} className="flex justify-between text-sm">
-                    <span className="text-gray-600 dark:text-gray-300 flex-1 truncate pr-4">
-                      {item.description || '(no description)'}
-                      {item.quantity !== 1 && (
-                        <span className="text-gray-400 dark:text-gray-500 ml-1">×{item.quantity}</span>
-                      )}
-                    </span>
-                    <span className="text-gray-800 dark:text-gray-200 font-medium shrink-0">
-                      {formatCurrency(item.amount, currency)}
-                    </span>
-                  </div>
-                ))}
+                {lineItems.map((item, idx) => {
+                  const displayAmount = (item.client_proposed_price ?? item.unit_price) * item.quantity
+                  return (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-300 flex-1 truncate pr-4">
+                        {item.description || '(no description)'}
+                        {item.quantity !== 1 && (
+                          <span className="text-gray-400 dark:text-gray-500 ml-1">×{item.quantity}</span>
+                        )}
+                      </span>
+                      <span className="text-gray-800 dark:text-gray-200 font-medium shrink-0">
+                        {formatCurrency(displayAmount, currency)}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             )}
 
-            {/* Totals */}
+            {/* Totals — mirror pdfTotals so panel and PDF always agree */}
             <div className="border-t border-gray-100 dark:border-gray-700 mt-3 pt-3 space-y-1.5">
               <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300">
                 <span>Subtotal</span>
-                <span>{formatCurrency(subtotal, currency)}</span>
+                <span>{formatCurrency(pdfSubtotal, currency)}</span>
               </div>
               {discountValue > 0 && (
                 <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300">
                   <span>
                     Discount{discountType === 'percentage' ? ` (${discountValue}%)` : ''}
                   </span>
-                  <span className="text-red-500">−{formatCurrency(discountAmount, currency)}</span>
+                  <span className="text-red-500">−{formatCurrency(pdfDiscountAmount, currency)}</span>
                 </div>
               )}
               {taxRate > 0 && (
                 <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300">
                   <span>Tax ({taxRate}%)</span>
-                  <span>{formatCurrency(taxAmount, currency)}</span>
+                  <span>{formatCurrency(pdfTaxAmount, currency)}</span>
                 </div>
               )}
               <div className="flex justify-between text-base font-bold text-gray-900 dark:text-white border-t border-gray-100 dark:border-gray-700 pt-2 mt-1">
                 <span>Total</span>
-                <span>{formatCurrency(total, currency)}</span>
+                <span>{formatCurrency(pdfTotal, currency)}</span>
               </div>
             </div>
 

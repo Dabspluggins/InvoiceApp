@@ -1,0 +1,282 @@
+{
+  "meta": {
+    "app": "BillByDab",
+    "url": "https://www.billbydab.com",
+    "stack": ["Next.js 16 (App Router)", "TypeScript", "Tailwind CSS", "Supabase", "Vercel"],
+    "generated": "2026-05-15",
+    "summary": {
+      "pages": 27,
+      "api_routes": 50,
+      "db_tables": 20,
+      "components": 30,
+      "lib_files": 11,
+      "integrations": 6
+    }
+  },
+  "pages": [
+    { "route": "/", "protected": false, "description": "Public homepage with product overview and CTA" },
+    { "route": "/invoice", "protected": false, "description": "Guest invoice creator — no account needed" },
+    { "route": "/i/[token]", "protected": false, "description": "Public invoice viewer via share token (read-only)" },
+    { "route": "/portal/[token]", "protected": false, "description": "Client portal — view all invoices by portal token" },
+    { "route": "/auth/login", "protected": false, "description": "Email/password login with CAPTCHA and MFA support" },
+    { "route": "/auth/signup", "protected": false, "description": "Account creation with email confirmation flow" },
+    { "route": "/auth/callback", "protected": false, "description": "OAuth/magic-link redirect handler from Supabase" },
+    { "route": "/forgot-password", "protected": false, "description": "Password reset request form" },
+    { "route": "/reset-password", "protected": false, "description": "Password reset with Supabase token" },
+    { "route": "/contact", "protected": false, "description": "Contact form (rate-limited)" },
+    { "route": "/support", "protected": false, "description": "Support and help documentation page" },
+    { "route": "/privacy", "protected": false, "description": "Privacy policy" },
+    { "route": "/terms", "protected": false, "description": "Terms of service" },
+    { "route": "/dashboard", "protected": true, "description": "Main dashboard — KPIs, recent activity, stats" },
+    { "route": "/estimates", "protected": true, "description": "List all user estimates with filters and actions" },
+    { "route": "/estimates/new", "protected": true, "description": "Create a new estimate" },
+    { "route": "/estimates/[id]", "protected": true, "description": "View or edit a specific estimate" },
+    { "route": "/estimates/[id]/review", "protected": false, "description": "Client-facing estimate review with approve/revise UI" },
+    { "route": "/clients", "protected": true, "description": "Client CRM — manage contacts and portal links" },
+    { "route": "/expenses", "protected": true, "description": "Expense tracking with invoice import" },
+    { "route": "/analytics", "protected": true, "description": "Revenue analytics and data visualisation" },
+    { "route": "/reports", "protected": true, "description": "Custom report builder" },
+    { "route": "/settings", "protected": true, "description": "Profile, preferences, MFA, security settings" },
+    { "route": "/settings/revoke-sessions", "protected": true, "description": "Manage and revoke active sessions" },
+    { "route": "/admin/announcements", "protected": true, "admin": true, "description": "Send platform-wide email announcements" },
+    { "route": "/admin/segments", "protected": true, "admin": true, "description": "Create and manage user targeting segments" },
+    { "route": "/admin/users", "protected": true, "admin": true, "description": "View and manage all user accounts" }
+  ],
+  "api_routes": {
+    "auth": [
+      { "path": "/api/auth/login", "methods": ["POST"], "auth": false, "rate_limit": "5/15min/IP (Upstash) + 4/15min/IP (middleware)", "description": "Sign in with email/password/captcha; returns mfaRequired flag" },
+      { "path": "/api/auth/signup", "methods": ["POST"], "auth": false, "rate_limit": "3/hour/IP (Upstash)", "description": "Create account with email/password/captcha; enforces 12-char password server-side" },
+      { "path": "/api/auth/change-password", "methods": ["POST"], "auth": true, "rate_limit": "5/15min/user", "description": "Change authenticated user's password" },
+      { "path": "/api/auth/secure-account", "methods": ["POST"], "auth": true, "rate_limit": null, "description": "Generate secure account token for sensitive operations" },
+      { "path": "/api/auth/check-rate-limit", "methods": ["POST"], "auth": false, "rate_limit": null, "description": "Legacy probe endpoint — no longer called by login/signup (deprecated)" }
+    ],
+    "mfa_sessions": [
+      { "path": "/api/mfa/backup-codes", "methods": ["GET", "POST"], "auth": true, "rate_limit": null, "description": "Generate or fetch MFA backup codes" },
+      { "path": "/api/mfa/verify-backup", "methods": ["POST"], "auth": true, "rate_limit": "5/15min/user", "description": "Verify backup code for MFA step-up" },
+      { "path": "/api/sessions/register", "methods": ["POST"], "auth": false, "rate_limit": "4/15min/IP", "description": "Register trusted device; returns trust_token" },
+      { "path": "/api/sessions/trust-device", "methods": ["POST"], "auth": true, "rate_limit": null, "description": "Mark current session as trusted device" },
+      { "path": "/api/sessions/trust-device-token", "methods": ["POST"], "auth": false, "rate_limit": null, "description": "Verify and activate a trust device token" },
+      { "path": "/api/sessions/heartbeat", "methods": ["POST"], "auth": true, "rate_limit": null, "description": "Update session last_active timestamp" },
+      { "path": "/api/sessions/revoke", "methods": ["POST"], "auth": true, "rate_limit": null, "description": "Revoke a specific session by ID" }
+    ],
+    "invoices": [
+      { "path": "/api/send-invoice", "methods": ["POST"], "auth": false, "rate_limit": "50/hour/user", "description": "Send invoice email via Resend; generates share_token; updates status to sent" },
+      { "path": "/api/invoices/next-number", "methods": ["GET"], "auth": true, "rate_limit": null, "description": "Get next auto-increment invoice number for user" },
+      { "path": "/api/invoices/share-token", "methods": ["POST"], "auth": true, "rate_limit": null, "description": "Generate or refresh share token for invoice viewer" },
+      { "path": "/api/invoices/[id]/mark-paid", "methods": ["PATCH"], "auth": true, "rate_limit": null, "description": "Mark invoice as fully paid; set paid_at" },
+      { "path": "/api/invoices/[id]/remind", "methods": ["POST"], "auth": true, "rate_limit": "50/hour/user", "description": "Send payment reminder email to client" },
+      { "path": "/api/invoices/[id]/payments", "methods": ["GET", "POST"], "auth": true, "rate_limit": null, "description": "List or record payments for an invoice" }
+    ],
+    "estimates": [
+      { "path": "/api/estimates/[id]/send", "methods": ["POST"], "auth": true, "rate_limit": "50/hour/user", "description": "Email estimate to client with unique review link" },
+      { "path": "/api/estimates/[id]/client-action", "methods": ["POST"], "auth": false, "rate_limit": null, "description": "Client approve or revise estimate (validated by client_token)" },
+      { "path": "/api/estimates/[id]/accept-negotiation", "methods": ["POST"], "auth": true, "rate_limit": null, "description": "Owner accepts client's proposed line item changes" },
+      { "path": "/api/estimates/[id]/reject-negotiation", "methods": ["POST"], "auth": true, "rate_limit": null, "description": "Owner rejects client's proposed changes" },
+      { "path": "/api/estimates/[id]/convert", "methods": ["POST"], "auth": true, "rate_limit": null, "description": "Convert approved estimate into a new invoice" },
+      { "path": "/api/estimates/templates", "methods": ["GET", "POST"], "auth": true, "rate_limit": null, "description": "List or create estimate templates" },
+      { "path": "/api/estimates/templates/[id]", "methods": ["GET", "PATCH", "DELETE"], "auth": true, "rate_limit": null, "description": "View, update, or delete a specific template" }
+    ],
+    "clients": [
+      { "path": "/api/clients", "methods": ["GET", "POST"], "auth": true, "rate_limit": null, "description": "List or create clients" },
+      { "path": "/api/clients/[id]", "methods": ["GET", "PATCH", "DELETE"], "auth": true, "rate_limit": null, "description": "View, update, or delete a client" },
+      { "path": "/api/clients/[id]/regenerate-portal", "methods": ["POST"], "auth": true, "rate_limit": null, "description": "Generate a new portal token for client; honours portal_validity_days setting" }
+    ],
+    "credits": [
+      { "path": "/api/credits", "methods": ["GET", "POST"], "auth": true, "rate_limit": null, "description": "List or create client credit entries" },
+      { "path": "/api/credits/[id]", "methods": ["GET", "PATCH", "DELETE"], "auth": true, "rate_limit": null, "description": "View, update, or delete a credit entry" },
+      { "path": "/api/credits/apply", "methods": ["POST"], "auth": true, "rate_limit": null, "description": "Apply credit to invoice via atomic Postgres RPC" },
+      { "path": "/api/credits/balance", "methods": ["GET"], "auth": true, "rate_limit": null, "description": "Get total available credit balance for a client" }
+    ],
+    "settings_account": [
+      { "path": "/api/settings/delete-account", "methods": ["POST"], "auth": true, "rate_limit": null, "description": "Permanently delete user account and all associated data" },
+      { "path": "/api/settings/revoke-sessions", "methods": ["POST"], "auth": true, "rate_limit": null, "description": "Revoke all active sessions except current" }
+    ],
+    "public_utility": [
+      { "path": "/api/contact", "methods": ["POST"], "auth": false, "rate_limit": "5/hour/IP", "description": "Contact form submission — sends to support inbox via Resend" },
+      { "path": "/api/welcome-email", "methods": ["POST"], "auth": false, "rate_limit": null, "description": "Send welcome email after new account confirmation" },
+      { "path": "/api/unsubscribe", "methods": ["POST"], "auth": false, "rate_limit": null, "description": "Unsubscribe from announcement emails by token" }
+    ],
+    "webhooks": [
+      { "path": "/api/webhooks/resend", "methods": ["POST"], "auth": false, "rate_limit": null, "description": "Handle Resend email webhooks (bounce, complaint, delivery events)" }
+    ],
+    "cron": [
+      { "path": "/api/cron/recurring", "methods": ["POST"], "auth": false, "rate_limit": null, "description": "Vercel Cron: process recurring invoices and generate next occurrence" },
+      { "path": "/api/cron/overdue-reminders", "methods": ["POST"], "auth": false, "rate_limit": null, "description": "Vercel Cron: send overdue payment reminder emails" },
+      { "path": "/api/cron/send-scheduled", "methods": ["POST"], "auth": false, "rate_limit": null, "description": "Vercel Cron: dispatch scheduled announcement drafts" }
+    ],
+    "admin": [
+      { "path": "/api/admin/announcements", "methods": ["GET"], "auth": true, "admin": true, "rate_limit": null, "description": "List all sent announcements" },
+      { "path": "/api/admin/send-announcement", "methods": ["POST"], "auth": true, "admin": true, "rate_limit": "10/24h/user", "description": "Send a platform-wide announcement email" },
+      { "path": "/api/admin/drafts", "methods": ["GET", "POST"], "auth": true, "admin": true, "rate_limit": null, "description": "List or create announcement drafts" },
+      { "path": "/api/admin/drafts/[id]", "methods": ["GET", "PATCH", "DELETE"], "auth": true, "admin": true, "rate_limit": null, "description": "View, update, or delete a specific draft" },
+      { "path": "/api/admin/drafts/[id]/send", "methods": ["POST"], "auth": true, "admin": true, "rate_limit": null, "description": "Send a draft announcement immediately" },
+      { "path": "/api/admin/segments", "methods": ["GET", "POST"], "auth": true, "admin": true, "rate_limit": null, "description": "List or create user segments" },
+      { "path": "/api/admin/segments/[id]", "methods": ["GET", "PATCH", "DELETE"], "auth": true, "admin": true, "rate_limit": null, "description": "View, update, or delete a segment" },
+      { "path": "/api/admin/segments/preview", "methods": ["POST"], "auth": true, "admin": true, "rate_limit": null, "description": "Preview segment matching — returns matching user count" },
+      { "path": "/api/admin/users", "methods": ["GET"], "auth": true, "admin": true, "rate_limit": null, "description": "List all users with role and status" }
+    ]
+  },
+  "database": {
+    "tables": [
+      { "name": "profiles", "access": "authenticated", "description": "User account metadata, preferences, branding, security settings", "key_columns": ["id", "business_name", "logo_url", "brand_color", "role", "idle_timeout_minutes", "watermark_enabled", "secure_account_token"] },
+      { "name": "invoices", "access": "authenticated", "description": "Core invoice documents with full billing info", "key_columns": ["id", "user_id", "invoice_number", "status", "issue_date", "due_date", "currency", "total", "share_token", "is_recurring", "recurring_frequency"] },
+      { "name": "line_items", "access": "authenticated", "description": "Invoice line items (cascade delete on invoice)", "key_columns": ["id", "invoice_id", "description", "quantity", "rate", "amount"] },
+      { "name": "payments", "access": "authenticated", "description": "Payment records per invoice", "key_columns": ["id", "invoice_id", "user_id", "amount", "paid_at", "note"] },
+      { "name": "clients", "access": "authenticated", "description": "Client contacts with portal access tokens", "key_columns": ["id", "user_id", "name", "email", "portal_token", "portal_token_expires_at", "portal_validity_days"] },
+      { "name": "client_credits", "access": "authenticated", "description": "Credit ledger entries per client (credited / applied)", "key_columns": ["id", "user_id", "client_id", "amount", "type", "reference_invoice_id"] },
+      { "name": "expenses", "access": "authenticated", "description": "Expense tracker with invoice and client linkage", "key_columns": ["id", "user_id", "client_id", "invoice_id", "description", "amount", "date", "category", "billable"] },
+      { "name": "templates", "access": "authenticated", "description": "Reusable invoice templates stored as JSONB", "key_columns": ["id", "user_id", "name", "data"] },
+      { "name": "estimates", "access": "authenticated", "description": "Estimate documents with negotiation support", "key_columns": ["id", "user_id", "estimate_number", "status", "client_token", "allow_negotiation", "max_discount_pct", "valid_until"] },
+      { "name": "estimate_line_items", "access": "authenticated", "description": "Estimate line items with client negotiation fields", "key_columns": ["id", "estimate_id", "description", "unit_price", "min_price", "client_proposed_price", "deleted_by_client"] },
+      { "name": "estimate_events", "access": "authenticated", "description": "Audit trail for all estimate state changes", "key_columns": ["id", "estimate_id", "event_type", "actor", "details"] },
+      { "name": "estimate_templates", "access": "authenticated", "description": "Reusable estimate templates with negotiation config", "key_columns": ["id", "user_id", "name", "allow_negotiation", "max_discount_pct", "valid_days"] },
+      { "name": "estimate_template_items", "access": "authenticated", "description": "Line items for estimate templates", "key_columns": ["id", "template_id", "description", "unit_price", "min_price"] },
+      { "name": "audit_logs", "access": "service_role (write) / authenticated (read own)", "description": "Immutable user action log — inserts via service_role only", "key_columns": ["id", "user_id", "action", "entity_type", "entity_id", "metadata"] },
+      { "name": "mfa_backup_codes", "access": "authenticated", "description": "Hashed TOTP backup codes per user", "key_columns": ["id", "user_id", "code_hash", "used"] },
+      { "name": "trusted_devices", "access": "authenticated", "description": "Trusted device tokens for MFA bypass", "key_columns": ["id", "user_id", "token_hash", "device_info", "expires_at"] },
+      { "name": "user_sessions", "access": "service_role (write) / authenticated (read own)", "description": "Active session tracking with device/IP info", "key_columns": ["id", "user_id", "session_token", "device_type", "browser", "ip_address", "last_active"] },
+      { "name": "user_segments", "access": "service_role (admin only)", "description": "JSONB-rule-based user targeting segments for announcements", "key_columns": ["id", "name", "rules", "created_by"] },
+      { "name": "announcement_drafts", "access": "service_role (admin only)", "description": "Email announcement drafts with scheduling support", "key_columns": ["id", "subject", "body_html", "status", "scheduled_for", "recipient_mode"] },
+      { "name": "announcements", "access": "service_role (admin only)", "description": "Log of all sent platform announcements", "key_columns": ["id", "subject", "recipient_count", "sent_by", "created_at"] }
+    ],
+    "rls": "All tables protected by Row Level Security. Users see only rows where user_id = auth.uid(). Admin routes use service_role key to bypass RLS entirely.",
+    "stored_procedures": [
+      "apply_credit_to_invoice(p_credit_id, p_invoice_id, p_amount) — atomic credit debit + invoice payment",
+      "recompute_invoice_status(invoice_id) — recalculate draft/sent/paid/partial/overdue",
+      "record_invoice_view(p_invoice_id) — increment view count, set viewed_at"
+    ]
+  },
+  "integrations": [
+    {
+      "name": "Supabase",
+      "purpose": "PostgreSQL database, user authentication (email/password + MFA TOTP + OAuth), row-level security, storage",
+      "env_vars": ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"],
+      "files": ["src/lib/supabase/server.ts", "src/lib/supabase/client.ts", "src/middleware.ts", "all API routes"]
+    },
+    {
+      "name": "Upstash Redis",
+      "purpose": "Distributed rate limiting for login, signup, send, contact, backup codes, admin announcements",
+      "env_vars": ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"],
+      "files": ["src/lib/ratelimit.ts"]
+    },
+    {
+      "name": "Resend",
+      "purpose": "Transactional email sending — invoices, estimates, reminders, welcome emails, announcements",
+      "env_vars": ["RESEND_API_KEY"],
+      "files": ["src/app/api/send-invoice/route.ts", "src/app/api/estimates/[id]/send/route.ts", "src/app/api/invoices/[id]/remind/route.ts", "src/lib/sendAnnouncement.ts"]
+    },
+    {
+      "name": "Sentry",
+      "purpose": "Error monitoring and CSP violation reporting — request IDs only, no PII sent",
+      "env_vars": ["SENTRY_DSN", "SENTRY_AUTH_TOKEN"],
+      "files": ["src/lib/logger.ts", "src/instrumentation.ts", "src/instrumentation-client.ts", "next.config.ts"]
+    },
+    {
+      "name": "Cloudflare Turnstile",
+      "purpose": "CAPTCHA for login and signup forms to prevent bot credential stuffing",
+      "env_vars": ["NEXT_PUBLIC_TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY"],
+      "files": ["src/app/auth/login/page.tsx", "src/app/auth/signup/page.tsx", "src/app/api/auth/login/route.ts", "src/app/api/auth/signup/route.ts"]
+    },
+    {
+      "name": "Vercel",
+      "purpose": "Hosting, preview deployments, Cron Jobs (recurring invoices, reminders, announcements), edge middleware",
+      "env_vars": ["VERCEL_ENV", "NEXT_PUBLIC_SITE_URL"],
+      "files": ["vercel.json", "src/app/api/cron/*"]
+    }
+  ],
+  "auth_flows": {
+    "signup": [
+      "User fills email + password (12+ chars) + Turnstile CAPTCHA on /auth/signup",
+      "POST /api/auth/signup — rate check (3/hour/IP) → supabase.auth.signUp() server-side",
+      "Supabase sends confirmation email with magic link to emailRedirectTo: /auth/callback",
+      "User clicks link → /auth/callback exchanges token → session cookie set",
+      "Redirect to /dashboard"
+    ],
+    "login": [
+      "User fills email + password + Turnstile CAPTCHA on /auth/login",
+      "Middleware: 4 POST attempts per 15min per IP (in-memory)",
+      "POST /api/auth/login — rate check (5/15min/IP Upstash) → supabase.auth.signInWithPassword() server-side",
+      "On auth failure: always returns 'Invalid email or password.' — no provider message leakage",
+      "On success: checks MFA level (supabase.auth.mfa.getAuthenticatorAssuranceLevel())",
+      "If mfaRequired: returns { mfaRequired: true } → browser shows TOTP screen",
+      "TOTP: supabase.auth.mfa.challengeAndVerify() from browser client",
+      "On MFA pass: POST /api/sessions/register → trust token stored",
+      "Redirect to /dashboard"
+    ],
+    "oauth": [
+      "User clicks 'Continue with Google' → supabase.auth.signInWithOAuth() from browser",
+      "Redirect to Google → back to /auth/callback with code",
+      "Supabase exchanges code for session → cookies set",
+      "Redirect to /dashboard"
+    ],
+    "session_management": [
+      "All requests: middleware calls supabase.auth.getUser() to refresh expiring tokens",
+      "SessionHeartbeat component: POST /api/sessions/heartbeat every 30s",
+      "IdleTimer: logs out after idle_timeout_minutes (configurable per user)",
+      "Trusted devices: 30-day trust token skips MFA step-up",
+      "User can revoke all sessions from /settings/revoke-sessions"
+    ]
+  },
+  "key_data_flows": {
+    "invoice_send": [
+      "User creates invoice on /invoice with line items, client info, due date",
+      "POST /api/invoices saves as 'draft' in invoices + line_items tables",
+      "User clicks Send → POST /api/send-invoice (rate: 50/hour/user)",
+      "Server generates unique share_token, builds HTML email via Resend",
+      "Email contains invoice details + /i/[share_token] viewer link",
+      "Invoice status → 'sent'; logAudit('invoice.sent') recorded",
+      "Client visits /i/[share_token] → view_count incremented, viewed_at set",
+      "Client downloads PDF via html2pdf.js in browser — no server needed"
+    ],
+    "client_portal": [
+      "User creates client → system generates portal_token (16 random bytes, hex-encoded)",
+      "Token stored in clients.portal_token with expiry = now + portal_validity_days",
+      "User shares /portal/[token] with client",
+      "Client visits → server validates token against clients table (service_role)",
+      "Fetches all invoices for that client → shows grouped by currency",
+      "Status badges: PAID / OVERDUE / PENDING",
+      "No authentication required — purely token-based"
+    ],
+    "estimate_lifecycle": [
+      "User creates estimate on /estimates/new with negotiation options and line items",
+      "Status: 'draft' → POST /api/estimates/[id]/send (rate: 50/hour/user)",
+      "Resend emails client with review link: /estimates/[id]/review?token=[client_token]",
+      "Status → 'sent'; estimate_events record created",
+      "Client visits review page → can Approve or Revise (propose new prices/remove items)",
+      "If Approve → status 'approved' → owner can convert to invoice",
+      "If Revise → status 'revised' → owner can accept or reject negotiation",
+      "Accept negotiation → line items updated → estimate re-sent to client",
+      "Convert → POST /api/estimates/[id]/convert → new invoice created → status 'converted'"
+    ]
+  },
+  "security": {
+    "headers": ["X-Content-Type-Options: nosniff", "X-Frame-Options: SAMEORIGIN", "Referrer-Policy: strict-origin-when-cross-origin", "Strict-Transport-Security: max-age=63072000; includeSubDomains; preload", "Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()", "Content-Security-Policy-Report-Only (Phase 1 — violations sent to Sentry)"],
+    "rate_limiting": {
+      "middleware": "Login POST: 4/15min/IP (in-memory, resets on cold start)",
+      "upstash_redis": ["login: 5/15min/IP", "signup: 3/hour/IP", "send: 50/hour/user", "contact: 5/hour/IP", "backup_codes: 5/15min/user", "change_password: 5/15min/user", "session_register: 4/15min/IP", "admin_announcement: 10/24h/user"]
+    },
+    "mfa": "TOTP via Supabase MFA (AAL2). Backup codes hashed with crypto.randomBytes(). Trusted device tokens (30-day).",
+    "audit_log": "All sensitive actions logged to audit_logs via service_role (users cannot forge entries)",
+    "csp_phase": "Report-only (Phase 1). Known violations: wasm-eval (Next.js/Turbopack), vercel.live (preview only). Enforcement deferred until sufficient violation data collected.",
+    "password_policy": "Minimum 12 characters, enforced on client AND server (/api/auth/signup)"
+  },
+  "middleware": {
+    "file": "src/middleware.ts",
+    "public_paths": ["/", "/invoice", "/auth/", "/reset-password", "/forgot-password", "/portal/", "/privacy", "/terms", "/contact", "/support", "/i/", "/monitoring", "/api/unsubscribe", "/api/send-invoice", "/api/contact", "/api/auth/", "/api/cron/", "/api/webhooks/", "/api/mfa/", "/api/sessions/register", "/api/welcome-email"],
+    "auth_logic": "supabase.auth.getUser() on every request — refreshes session cookie automatically. Protected routes redirect to /auth/login (or 401 for API routes).",
+    "matcher": "All paths except _next/static, _next/image, favicon, and image files"
+  },
+  "lib": [
+    { "file": "src/lib/supabase/server.ts", "exports": "createClient() — SSR Supabase client using next/headers cookies" },
+    { "file": "src/lib/supabase/client.ts", "exports": "createClient() — browser Supabase client with PKCE flow" },
+    { "file": "src/lib/ratelimit.ts", "exports": "loginLimiter, signupLimiter, sendLimiter, contactLimiter, announcementLimiter, sessionRegisterLimiter, backupCodeLimiter, changePasswordLimiter" },
+    { "file": "src/lib/audit.ts", "exports": "logAudit(userId, action, entityType, entityId, metadata) — writes to audit_logs via service_role" },
+    { "file": "src/lib/logger.ts", "exports": "logError(endpoint, action, context, error) — sanitizes PII, logs to Vercel + Sentry (requestId only)" },
+    { "file": "src/lib/types.ts", "exports": "InvoiceStatus, EstimateStatus, LineItem, Currency, InvoiceData, EstimateTemplate, RecurringFrequency and more" },
+    { "file": "src/lib/utils.ts", "exports": "calcTotals(), formatCurrency(), newLineItem(), escHtml(), getTrustedIp()" },
+    { "file": "src/lib/currencies.ts", "exports": "CURRENCIES array, getCurrencySymbol() — 12 supported currencies" },
+    { "file": "src/lib/invoice-i18n.ts", "exports": "getInvoiceTranslations() — invoice label translations (en, fr, es)" },
+    { "file": "src/lib/sendAnnouncement.ts", "exports": "sendAnnouncement() — batch email sender for platform announcements" },
+    { "file": "src/lib/auth/isAdmin.ts", "exports": "isAdmin(userId) — checks profiles.role === 'admin'" }
+  ]
+}

@@ -16,6 +16,7 @@ export async function POST(
   const body = await req.json().catch(() => ({}))
   const rejectionNote = body.note || null
 
+  // Fetch estimate for email data (we need client_email, estimate_number, etc.)
   const { data: estimate } = await supabase
     .from('estimates')
     .select('*')
@@ -28,27 +29,24 @@ export async function POST(
     return NextResponse.json({ error: 'Only revised estimates can be rejected' }, { status: 400 })
   }
 
-  // Clear client_proposed_price from all line items
-  await supabase
-    .from('estimate_line_items')
-    .update({ client_proposed_price: null })
-    .eq('estimate_id', id)
-
-  // Revert estimate status to 'sent' so client can review again
-  await supabase
-    .from('estimates')
-    .update({ status: 'sent', updated_at: new Date().toISOString() })
-    .eq('id', id)
-
-  // Log event
-  await supabase.from('estimate_events').insert({
-    estimate_id: id,
-    event_type: 'negotiation_rejected',
-    actor: 'owner',
-    details: rejectionNote ? { note: rejectionNote } : null,
+  // Single transactional RPC: resets line items, recalculates totals, updates status, logs event
+  const { data: rpcResult, error: rpcError } = await supabase.rpc('reject_estimate_negotiation', {
+    p_estimate_id: id,
+    p_note: rejectionNote,
   })
 
-  // Email the client
+  if (rpcError) {
+    logError('estimates/[id]/reject-negotiation', 'RPC failed', { userId: user.id, estimateId: id }, rpcError)
+    return NextResponse.json({ error: 'Failed to reject negotiation' }, { status: 500 })
+  }
+
+  const result = rpcResult as { error?: string; success?: boolean }
+  if (result?.error) {
+    const status = result.error === 'not_found' ? 404 : result.error === 'not_revised' ? 400 : 500
+    return NextResponse.json({ error: result.error }, { status })
+  }
+
+  // Email the client — best-effort, never fails the request
   try {
     const apiKey = process.env.RESEND_API_KEY
     if (apiKey && estimate.client_email) {

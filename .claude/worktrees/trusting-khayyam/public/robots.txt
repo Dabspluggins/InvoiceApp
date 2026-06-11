@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /invoice
+Disallow: /clients
+Disallow: /analytics
+Disallow: /auth/
+
+Sitemap: https://www.billbydab.com/sitemap.xml

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Email Preview — BillByDab Announcement</title>
+  <style>
+    /* Browser chrome reset — makes the preview feel like an email client */
+    body {
+      margin: 0;
+      padding: 40px 20px;
+      background: #e5e7eb;
+      font-family: Georgia, 'Times New Roman', serif;
+    }
+    .preview-label {
+      max-width: 600px;
+      margin: 0 auto 12px;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      color: #6b7280;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+
+  <p class="preview-label">📧 Email Preview — renders exactly as it appears in Gmail inbox</p>
+
+  <!-- ============================================================
+       ACTUAL EMAIL HTML STARTS HERE
+       (everything below this comment is what gets sent via Resend)
+       ============================================================ -->
+  <div style="max-width:600px;margin:0 auto;background:#ffffff;padding:0;">
+
+    <!-- Email body — no header bar, no card, no shadow -->
+    <div style="padding:40px 48px 32px;font-family:Arial,Helvetica,sans-serif;">
+
+      <!-- Greeting -->
+      <p style="margin:0 0 20px;color:#111827;font-size:15px;line-height:1.75;">
+        Hi Sarah,
+      </p>
+
+      <!-- Body paragraphs — plain prose, no styling chrome -->
+      <p style="margin:0 0 16px;color:#111827;font-size:15px;line-height:1.75;">
+        I wanted to share something I've been working on for the past few weeks. BillByDab now supports
+        recurring invoices — you can set a client up once and the invoice goes out automatically every
+        month (or whatever interval you choose).
+      </p>
+
+      <p style="margin:0 0 16px;color:#111827;font-size:15px;line-height:1.75;">
+        A lot of you asked for this, especially freelancers with retainer clients. I heard you. It's
+        live now — just open any invoice and look for the "Make recurring" option in the settings panel.
+      </p>
+
+      <p style="margin:0 0 16px;color:#111827;font-size:15px;line-height:1.75;">
+        If you run into any issues or have feedback, just reply to this email. I read every message.
+      </p>
+
+      <!-- Plain hyperlink replacing the CTA button -->
+      <p style="margin:0 0 24px;color:#111827;font-size:15px;line-height:1.75;">
+        You can try it here: <a href="https://billbydab.com/dashboard" style="color:#111827;">billbydab.com/dashboard</a>
+      </p>
+
+      <!-- Signature — personal, no logo, no tagline -->
+      <p style="margin:0 0 4px;color:#111827;font-size:15px;line-height:1.75;">
+        Thanks for using BillByDab.
+      </p>
+      <p style="margin:0;color:#111827;font-size:15px;line-height:1.75;">
+        Dab<br>
+        Founder of BillByDab
+      </p>
+
+    </div>
+
+    <!-- Unsubscribe — plain inline text, no footer bar, no background -->
+    <div style="padding:0 48px 40px;font-family:Arial,Helvetica,sans-serif;">
+      <p style="margin:0;color:#9ca3af;font-size:12px;line-height:1.6;">
+        You're receiving this because you opted in to product updates.
+        <a href="https://billbydab.com/api/unsubscribe?token=USER_ID_PLACEHOLDER" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a>
+      </p>
+    </div>
+
+  </div>
+  <!-- ============================================================
+       ACTUAL EMAIL HTML ENDS HERE
+       ============================================================ -->
+
+</body>
+</html>

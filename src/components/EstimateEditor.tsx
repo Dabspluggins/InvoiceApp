@@ -124,9 +124,9 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
         .set({
           margin: 0,
           filename: parts.join(' - ') + '.pdf',
-          image: { type: 'jpeg', quality: 0.98 },
+          image: { type: 'png' },
           html2canvas: {
-            scale: 1.5,
+            scale: 2,
             useCORS: true,
             logging: false,
             onclone: (_clonedDoc: Document, clonedEl: HTMLElement) => {

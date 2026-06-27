@@ -462,7 +462,7 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
     const businessName =
       user?.user_metadata?.business_name ||
       user?.email ||
-      'BillByDab'
+      'Vortali'
     const reviewUrl = `${window.location.origin}/estimates/${savedId}/review?token=${clientToken}`
     const clientNameStr = clientName || 'there'
     const validUntilStr = validUntil
@@ -476,7 +476,7 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
     if (title) message += `\n${title}`
     message += `\nTotal: ${currency} ${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     if (validUntilStr) message += `\nValid until: ${validUntilStr}`
-    message += `\n\nReview, edit, and approve your estimate here:\n${reviewUrl}\n\nSent via BillByDab`
+    message += `\n\nReview, edit, and approve your estimate here:\n${reviewUrl}\n\nSent via Vortali`
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, '_blank')
     // Update status to 'sent'
     await supabase
@@ -1638,7 +1638,7 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
           )}
 
           <p style={{ marginTop: '48px', textAlign: 'center', fontSize: '11px', color: '#9CA3AF' }}>
-            Generated with BillByDab
+            Generated with Vortali
           </p>
         </div>
       </div>

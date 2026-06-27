@@ -12,11 +12,11 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: {
-    default: 'BillByDab — Free Invoice Generator for Freelancers',
-    template: '%s | BillByDab',
+    default: 'Vortali — Free Invoice Generator for Freelancers',
+    template: '%s | Vortali',
   },
   description:
-    'Create and send professional invoices for free. BillByDab is the easiest free invoice generator for freelancers, brands, and small businesses. No signup required to start.',
+    'Create and send professional invoices for free. Vortali is the easiest free invoice generator for freelancers, brands, and small businesses. No signup required to start.',
   keywords: [
     'free invoice generator',
     'invoice generator online',
@@ -25,15 +25,15 @@ export const metadata: Metadata = {
     'freelancer invoice',
     'small business invoice',
   ],
-  authors: [{ name: 'BillByDab' }],
-  creator: 'BillByDab',
-  metadataBase: new URL('https://www.billbydab.com'),
+  authors: [{ name: 'Vortali' }],
+  creator: 'Vortali',
+  metadataBase: new URL('https://www.vortali.com'),
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://www.billbydab.com',
-    siteName: 'BillByDab',
-    title: 'BillByDab — Free Invoice Generator for Freelancers',
+    url: 'https://www.vortali.com',
+    siteName: 'Vortali',
+    title: 'Vortali — Free Invoice Generator for Freelancers',
     description:
       'Create and send professional invoices for free. The easiest invoice generator for freelancers and small businesses.',
     images: [
@@ -41,13 +41,13 @@ export const metadata: Metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'BillByDab Free Invoice Generator',
+        alt: 'Vortali Free Invoice Generator',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'BillByDab — Free Invoice Generator Online',
+    title: 'Vortali — Free Invoice Generator Online',
     description: 'Create and send professional invoices for free.',
     images: ['/og-image.png'],
   },
@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     },
   },
   alternates: {
-    canonical: 'https://www.billbydab.com',
+    canonical: 'https://www.vortali.com',
   },
   verification: {
     google: 'Vj2ZbW5Vaauc_l98V1ZsAVbgQnfWyeeivmzwvjY2F94',

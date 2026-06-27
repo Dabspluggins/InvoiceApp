@@ -117,7 +117,7 @@ async function recordView(token: string, invoice: InvoiceRow) {
     try {
       const resend = new Resend(process.env.RESEND_API_KEY)
       await resend.emails.send({
-        from: 'BillByDab <invoices@billbydab.com>',
+        from: 'Vortali <invoices@vortali.com>',
         to: [invoice.business_email],
         subject: `Your invoice ${invoice.invoice_number} was viewed by ${invoice.client_name || 'your client'}`,
         html: `<!DOCTYPE html>
@@ -129,7 +129,7 @@ async function recordView(token: string, invoice: InvoiceRow) {
       <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
         <tr>
           <td style="background:#4F46E5;padding:28px 36px;">
-            <p style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">BillByDab</p>
+            <p style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">Vortali</p>
           </td>
         </tr>
         <tr>
@@ -139,12 +139,12 @@ async function recordView(token: string, invoice: InvoiceRow) {
               <strong>${invoice.client_name || 'Your client'}</strong> just opened invoice <strong>${invoice.invoice_number}</strong>.
               Log in to check the status.
             </p>
-            <a href="https://www.billbydab.com/dashboard" style="display:inline-block;background:#4F46E5;color:#ffffff;padding:11px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Go to Dashboard →</a>
+            <a href="https://www.vortali.com/dashboard" style="display:inline-block;background:#4F46E5;color:#ffffff;padding:11px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Go to Dashboard →</a>
           </td>
         </tr>
         <tr>
           <td style="background:#f9fafb;padding:16px 36px;border-top:1px solid #e5e7eb;text-align:center;">
-            <p style="margin:0;color:#9ca3af;font-size:12px;">Sent via <strong style="color:#6b7280;">BillByDab</strong></p>
+            <p style="margin:0;color:#9ca3af;font-size:12px;">Sent via <strong style="color:#6b7280;">Vortali</strong></p>
           </td>
         </tr>
       </table>
@@ -174,10 +174,10 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { token } = await params
   const result = await getInvoice(token)
-  if (!result) return { title: 'Invoice not found — BillByDab' }
+  if (!result) return { title: 'Invoice not found — Vortali' }
   const { invoice } = result
   return {
-    title: `Invoice ${invoice.invoice_number}${invoice.business_name ? ` from ${invoice.business_name}` : ''} — BillByDab`,
+    title: `Invoice ${invoice.invoice_number}${invoice.business_name ? ` from ${invoice.business_name}` : ''} — Vortali`,
   }
 }
 
@@ -216,10 +216,10 @@ export default async function PublicInvoicePage({
             new link.
           </p>
           <a
-            href="https://www.billbydab.com"
+            href="https://www.vortali.com"
             className="inline-block bg-indigo-600 text-white px-6 py-3 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
           >
-            Go to BillByDab
+            Go to Vortali
           </a>
         </div>
       </div>
@@ -249,14 +249,14 @@ export default async function PublicInvoicePage({
 
       {/* Nav bar */}
       <nav className="no-print sticky top-0 z-10 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center justify-between">
-        <a href="https://www.billbydab.com" className="flex items-center gap-2">
+        <a href="https://www.vortali.com" className="flex items-center gap-2">
           <span className="text-lg font-bold" style={{ color: brandColor }}>
-            BillByDab
+            Vortali
           </span>
         </a>
         <div className="flex items-center gap-2">
           <a
-            href={`https://wa.me/?text=${encodeURIComponent(`View this invoice here: https://www.billbydab.com/i/${token}`)}`}
+            href={`https://wa.me/?text=${encodeURIComponent(`View this invoice here: https://www.vortali.com/i/${token}`)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
@@ -624,10 +624,10 @@ export default async function PublicInvoicePage({
           <div className="px-8 sm:px-10 py-5 bg-gray-50 border-t border-gray-100 text-center">
             <p className="text-xs text-gray-400">
               Powered by{' '}
-              <a href="https://www.billbydab.com" className="font-semibold text-gray-500 hover:text-indigo-600 transition">
-                BillByDab
+              <a href="https://www.vortali.com" className="font-semibold text-gray-500 hover:text-indigo-600 transition">
+                Vortali
               </a>{' '}
-              — free invoice generator at billbydab.com
+              — free invoice generator at vortali.com
             </p>
           </div>
         </div>

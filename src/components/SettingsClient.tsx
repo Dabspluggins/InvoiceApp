@@ -774,7 +774,7 @@ export default function SettingsClient({
             <div className="flex-1">
               <p className="text-sm font-medium text-gray-900 dark:text-white">Product updates &amp; announcements</p>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                Get notified about new features and improvements to BillByDab.
+                Get notified about new features and improvements to Vortali.
               </p>
             </div>
             <button
@@ -1064,8 +1064,8 @@ export default function SettingsClient({
       {/* Support link */}
       <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
         Need help? Contact us at{' '}
-        <a href="mailto:support@billbydab.com" className="text-indigo-600 hover:text-indigo-700 font-medium transition-colors">
-          support@billbydab.com
+        <a href="mailto:support@vortali.com" className="text-indigo-600 hover:text-indigo-700 font-medium transition-colors">
+          support@vortali.com
         </a>
       </p>
 

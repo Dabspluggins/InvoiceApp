@@ -109,7 +109,7 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold text-blue-600">BillByDab</Link>
+          <Link href="/" className="text-2xl font-bold text-blue-600">Vortali</Link>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">Choose a new password</p>
         </div>
 

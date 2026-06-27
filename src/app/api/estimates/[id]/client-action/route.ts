@@ -166,13 +166,13 @@ export async function POST(
 
         if (ownerEmail) {
           const resend = new Resend(apiKey)
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.billbydab.com'
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.vortali.com'
           const estimateUrl = `${appUrl}/estimates/${id}`
           const clientName = estimate.client_name || 'Your client'
           const actionLabel = action === 'approve' ? 'approved' : 'submitted revisions on'
 
           await resend.emails.send({
-            from: 'BillByDab <invoices@billbydab.com>',
+            from: 'Vortali <invoices@vortali.com>',
             to: [ownerEmail],
             subject: `${clientName} has ${actionLabel} estimate ${estimate.estimate_number}`,
             html: `<!DOCTYPE html>
@@ -220,7 +220,7 @@ export async function POST(
         </tr>
         <tr>
           <td style="background:#f9fafb;padding:16px 40px;border-radius:0 0 12px 12px;border-top:1px solid #e5e7eb;text-align:center;">
-            <p style="margin:0;color:#9ca3af;font-size:12px;">Sent via <strong style="color:#6b7280;">BillByDab</strong></p>
+            <p style="margin:0;color:#9ca3af;font-size:12px;">Sent via <strong style="color:#6b7280;">Vortali</strong></p>
           </td>
         </tr>
       </table>

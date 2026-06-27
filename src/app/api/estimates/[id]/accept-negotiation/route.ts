@@ -45,7 +45,7 @@ export async function POST(
       const resend = new Resend(apiKey)
       const businessName = user.user_metadata?.business_name || user.email || 'Your service provider'
       await resend.emails.send({
-        from: 'BillByDab <noreply@billbydab.com>',
+        from: 'Vortali <noreply@vortali.com>',
         to: estimate.client_email,
         subject: `Your negotiation on estimate ${estimate.estimate_number} has been accepted`,
         html: `
@@ -54,7 +54,7 @@ export async function POST(
             <p>Hi ${escHtml(estimate.client_name || 'there')},</p>
             <p><strong>${escHtml(businessName)}</strong> has accepted your revised pricing on estimate <strong>${escHtml(estimate.estimate_number)}</strong>${estimate.title ? ` — ${escHtml(estimate.title)}` : ''}.</p>
             <p>They will now proceed to create your invoice at the agreed prices. You should receive it shortly.</p>
-            <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">Sent via BillByDab</p>
+            <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">Sent via Vortali</p>
           </div>
         `,
       })

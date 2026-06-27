@@ -395,7 +395,7 @@ function InvoicePageInner() {
   function handleDownloadPDF() {
     const invoiceNumber = data.invoiceNumber
     const clientName = data.clientName
-    const parts = ['BillByDab', 'Invoice', invoiceNumber, clientName].filter(Boolean)
+    const parts = ['Vortali', 'Invoice', invoiceNumber, clientName].filter(Boolean)
     const title = parts.join(' - ')
     const prev = document.title
     document.title = title
@@ -410,7 +410,7 @@ function InvoicePageInner() {
     }
     const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
     const amountDue = Math.max(0, total - (data.creditApplied ?? 0))
-    const shareUrl = `https://www.billbydab.com/i/${savedShareToken}`
+    const shareUrl = `https://www.vortali.com/i/${savedShareToken}`
     const businessName = data.businessName || 'Your Service Provider'
     const clientName = data.clientName || 'there'
     const dueDate = data.dueDate
@@ -491,7 +491,7 @@ function InvoicePageInner() {
       open: true,
       toEmail: data.clientEmail || '',
       toName: data.clientName || '',
-      subject: `Invoice ${data.invoiceNumber} from ${data.businessName || 'BillByDab'}`,
+      subject: `Invoice ${data.invoiceNumber} from ${data.businessName || 'Vortali'}`,
       message: `Hi ${data.clientName || 'there'},\n\nPlease find attached your invoice ${data.invoiceNumber}${data.dueDate ? `, due on ${new Date(data.dueDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}.\n\nThank you for your business!`,
       sending: false,
     })

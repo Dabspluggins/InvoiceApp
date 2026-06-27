@@ -537,7 +537,7 @@ export default function AnnouncementComposer({ draft, onDraftSaved }: Props) {
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">Email Preview</p>
             <div className="border border-gray-200 dark:border-gray-600 rounded-xl overflow-hidden text-sm shadow-sm">
               <div style={{ background: '#111827', padding: '24px 28px' }}>
-                <p style={{ margin: 0, color: '#ffffff', fontSize: '20px', fontWeight: 700 }}>BillByDab</p>
+                <p style={{ margin: 0, color: '#ffffff', fontSize: '20px', fontWeight: 700 }}>Vortali</p>
                 <p style={{ margin: '4px 0 0', color: '#9ca3af', fontSize: '12px' }}>Built in Lagos. Free everywhere.</p>
               </div>
               <div style={{ padding: '28px', background: '#ffffff' }}>
@@ -563,7 +563,7 @@ export default function AnnouncementComposer({ draft, onDraftSaved }: Props) {
               </div>
               <div style={{ padding: '16px 28px', borderTop: '1px solid #f3f4f6', background: '#f9fafb', textAlign: 'center' }}>
                 <p style={{ margin: 0, color: '#9ca3af', fontSize: '11px' }}>
-                  © {new Date().getFullYear()} BillByDab · <span style={{ color: '#9ca3af' }}>Unsubscribe</span>
+                  © {new Date().getFullYear()} Vortali · <span style={{ color: '#9ca3af' }}>Unsubscribe</span>
                 </p>
               </div>
             </div>

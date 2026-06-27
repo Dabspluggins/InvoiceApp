@@ -149,7 +149,7 @@ export default function SignupPage() {
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold text-blue-600">BillByDab</Link>
+          <Link href="/" className="text-2xl font-bold text-blue-600">Vortali</Link>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">Create your free account</p>
         </div>
 

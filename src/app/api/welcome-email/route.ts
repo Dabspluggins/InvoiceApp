@@ -25,7 +25,7 @@ function buildWelcomeEmailHtml(firstName: string, year: number): string {
 
     <!-- Header -->
     <div style="background:#111827;padding:32px 40px;">
-      <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;letter-spacing:-0.5px;">BillByDab</h1>
+      <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;letter-spacing:-0.5px;">Vortali</h1>
       <p style="margin:6px 0 0;color:#9ca3af;font-size:14px;">Built in Lagos. Free everywhere.</p>
     </div>
 
@@ -37,7 +37,7 @@ function buildWelcomeEmailHtml(firstName: string, year: number): string {
       </p>
 
       <p style="margin:0 0 16px;color:#111827;font-size:16px;font-weight:700;line-height:1.5;">
-        Someone built BillByDab for you.
+        Someone built Vortali for you.
       </p>
 
       <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.75;">
@@ -52,7 +52,7 @@ function buildWelcomeEmailHtml(firstName: string, year: number): string {
       <hr style="border:none;border-top:1px solid #e5e7eb;margin:0 0 28px;">
 
       <p style="margin:0 0 20px;color:#111827;font-size:15px;font-weight:600;line-height:1.5;">
-        Here&#39;s what makes BillByDab different:
+        Here&#39;s what makes Vortali different:
       </p>
 
       <!-- Feature card: Price Negotiation -->
@@ -85,7 +85,7 @@ function buildWelcomeEmailHtml(firstName: string, year: number): string {
 
       <!-- CTA Button -->
       <div style="margin:0 0 36px;">
-        <a href="https://www.billbydab.com/invoice"
+        <a href="https://www.vortali.com/invoice"
            style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;letter-spacing:0.2px;">
           Send your first invoice &#8594;
         </a>
@@ -107,8 +107,8 @@ function buildWelcomeEmailHtml(firstName: string, year: number): string {
       <!-- Signature -->
       <p style="margin:0;color:#111827;font-size:15px;line-height:1.8;">
         <strong>Dab</strong><br>
-        <span style="color:#6b7280;font-size:13px;">Founder, BillByDab &#183; Built in Lagos</span><br>
-        <a href="mailto:onboarding@billbydab.com" style="color:#6b7280;font-size:13px;text-decoration:none;">onboarding@billbydab.com</a>
+        <span style="color:#6b7280;font-size:13px;">Founder, Vortali &#183; Built in Lagos</span><br>
+        <a href="mailto:onboarding@vortali.com" style="color:#6b7280;font-size:13px;text-decoration:none;">onboarding@vortali.com</a>
       </p>
 
     </div>
@@ -117,10 +117,10 @@ function buildWelcomeEmailHtml(firstName: string, year: number): string {
     <div style="padding:24px 40px;border-top:1px solid #f3f4f6;background:#f9fafb;">
       <p style="margin:0;color:#9ca3af;font-size:12px;line-height:1.7;text-align:center;">
         You&#39;re receiving this because you just created an account at
-        <a href="https://www.billbydab.com" style="color:#4F46E5;text-decoration:none;">billbydab.com</a>.<br>
-        &#169; ${year} BillByDab &#183;
-        <a href="https://www.billbydab.com/privacy" style="color:#9ca3af;text-decoration:none;">Privacy Policy</a> &#183;
-        <a href="https://www.billbydab.com/terms" style="color:#9ca3af;text-decoration:none;">Terms</a>
+        <a href="https://www.vortali.com" style="color:#4F46E5;text-decoration:none;">vortali.com</a>.<br>
+        &#169; ${year} Vortali &#183;
+        <a href="https://www.vortali.com/privacy" style="color:#9ca3af;text-decoration:none;">Privacy Policy</a> &#183;
+        <a href="https://www.vortali.com/terms" style="color:#9ca3af;text-decoration:none;">Terms</a>
       </p>
     </div>
 
@@ -186,9 +186,9 @@ export async function POST() {
     const html = buildWelcomeEmailHtml(firstName, year)
 
     const { error: sendError } = await resend.emails.send({
-      from: 'Dab from BillByDab <onboarding@billbydab.com>',
+      from: 'Dab from Vortali <onboarding@vortali.com>',
       to: [user.email],
-      subject: "Welcome to BillByDab — let's get you paid",
+      subject: "Welcome to Vortali — let's get you paid",
       html,
     })
 

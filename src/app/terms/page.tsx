@@ -2,9 +2,9 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Terms of Service — BillByDab',
+  title: 'Terms of Service — Vortali',
   description:
-    'Read the Terms of Service for BillByDab, the free invoice generation tool for freelancers and small businesses.',
+    'Read the Terms of Service for Vortali, the free invoice generation tool for freelancers and small businesses.',
 }
 
 export default function TermsPage() {
@@ -25,34 +25,34 @@ export default function TermsPage() {
 
           <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-10">
             Please read these Terms of Service (&ldquo;Terms&rdquo;) carefully before using
-            BillByDab (&ldquo;we&rdquo;, &ldquo;our&rdquo;, or &ldquo;us&rdquo;) at{' '}
-            <span className="font-medium text-gray-800">billbydab.com</span>. By accessing or
+            Vortali (&ldquo;we&rdquo;, &ldquo;our&rdquo;, or &ldquo;us&rdquo;) at{' '}
+            <span className="font-medium text-gray-800">vortali.com</span>. By accessing or
             using the service you agree to be bound by these Terms. If you do not agree, please
             do not use the service.
           </p>
 
           <Section title="1. Acceptance of Terms">
             <p className="text-gray-600 leading-relaxed">
-              By creating an account or otherwise using BillByDab, you confirm that you are at
+              By creating an account or otherwise using Vortali, you confirm that you are at
               least 13 years old, that you have read and understood these Terms, and that you
               agree to be bound by them and by our{' '}
               <Link href="/privacy" className="text-indigo-600 hover:underline">
                 Privacy Policy
               </Link>
-              . These Terms form a legally binding agreement between you and BillByDab.
+              . These Terms form a legally binding agreement between you and Vortali.
             </p>
           </Section>
 
           <Section title="2. Service Description">
             <p className="text-gray-600 leading-relaxed mb-4">
-              BillByDab is a free online invoice generation tool that lets freelancers and small
+              Vortali is a free online invoice generation tool that lets freelancers and small
               businesses create, send, and manage invoices. The core service is provided at no
               charge.
             </p>
             <p className="text-gray-600 leading-relaxed">
               We do not guarantee continuous, uninterrupted, or error-free access to the service.
               We may perform maintenance, upgrades, or make changes to the platform at any time
-              without prior notice. BillByDab shall not be liable for any downtime or service
+              without prior notice. Vortali shall not be liable for any downtime or service
               interruptions.
             </p>
           </Section>
@@ -71,8 +71,8 @@ export default function TermsPage() {
               </li>
               <li>
                 Notify us immediately at{' '}
-                <a href="mailto:support@billbydab.com" className="text-indigo-600 hover:underline">
-                  support@billbydab.com
+                <a href="mailto:support@vortali.com" className="text-indigo-600 hover:underline">
+                  support@vortali.com
                 </a>{' '}
                 if you suspect unauthorised access to your account.
               </li>
@@ -82,7 +82,7 @@ export default function TermsPage() {
 
           <Section title="4. Acceptable Use">
             <p className="text-gray-600 leading-relaxed mb-4">
-              You agree to use BillByDab only for lawful purposes and in accordance with these
+              You agree to use Vortali only for lawful purposes and in accordance with these
               Terms. You must not:
             </p>
             <ul className="list-disc pl-6 space-y-2 text-gray-600">
@@ -115,35 +115,35 @@ export default function TermsPage() {
 
           <Section title="5. Intellectual Property">
             <p className="text-gray-600 leading-relaxed mb-4">
-              <strong>Platform:</strong> BillByDab, including its design, source code, trademarks,
-              and all platform content, is owned by BillByDab and protected by applicable
+              <strong>Platform:</strong> Vortali, including its design, source code, trademarks,
+              and all platform content, is owned by Vortali and protected by applicable
               intellectual property laws. You may not copy, modify, distribute, or reverse-engineer
               any part of the platform without our express written permission.
             </p>
             <p className="text-gray-600 leading-relaxed">
               <strong>Your content:</strong> You retain full ownership of all invoice data, client
               information, and other content you create or upload through the service. By using
-              BillByDab you grant us a limited, non-exclusive licence to store and process your
+              Vortali you grant us a limited, non-exclusive licence to store and process your
               content solely to provide the service to you.
             </p>
           </Section>
 
           <Section title="6. Disclaimers">
             <p className="text-gray-600 leading-relaxed mb-4">
-              BillByDab is provided <strong>&ldquo;as is&rdquo;</strong> and{' '}
+              Vortali is provided <strong>&ldquo;as is&rdquo;</strong> and{' '}
               <strong>&ldquo;as available&rdquo;</strong> without warranty of any kind, express or
               implied, including but not limited to warranties of merchantability, fitness for a
               particular purpose, or non-infringement.
             </p>
             <p className="text-gray-600 leading-relaxed mb-4">
-              BillByDab is an invoice creation tool only. We are not accountants, lawyers, or
+              Vortali is an invoice creation tool only. We are not accountants, lawyers, or
               financial advisers. Invoices generated through the platform are provided for your
               convenience. We are not responsible for any financial, legal, or tax decisions you
               make based on invoices created using our service. You should consult a qualified
               professional for advice specific to your situation.
             </p>
             <p className="text-gray-600 leading-relaxed">
-              To the fullest extent permitted by applicable law, BillByDab shall not be liable for
+              To the fullest extent permitted by applicable law, Vortali shall not be liable for
               any indirect, incidental, special, consequential, or punitive damages arising out of
               or related to your use of the service.
             </p>
@@ -171,7 +171,7 @@ export default function TermsPage() {
               We may update these Terms from time to time. When we do, we will update the effective
               date at the top of this page. For material changes we will notify you by email or via
               an in-app notice at least 14 days before the changes take effect. Your continued use
-              of BillByDab after the changes take effect constitutes your acceptance of the revised
+              of Vortali after the changes take effect constitutes your acceptance of the revised
               Terms.
             </p>
           </Section>
@@ -188,8 +188,8 @@ export default function TermsPage() {
           <Section title="10. Contact Us">
             <p className="text-gray-600 leading-relaxed">
               If you have any questions about these Terms, please contact us at{' '}
-              <a href="mailto:support@billbydab.com" className="text-indigo-600 hover:underline">
-                support@billbydab.com
+              <a href="mailto:support@vortali.com" className="text-indigo-600 hover:underline">
+                support@vortali.com
               </a>
               .
             </p>
@@ -199,7 +199,7 @@ export default function TermsPage() {
 
         <div className="mt-14 pt-8 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
           <Link href="/" className="text-indigo-600 hover:underline font-medium">
-            ← Back to BillByDab
+            ← Back to Vortali
           </Link>
           <span>·</span>
           <Link href="/privacy" className="hover:text-indigo-600 transition-colors">

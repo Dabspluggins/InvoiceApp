@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
                 <td style="padding:12px 16px;color:#374151;font-size:13px;line-height:1.6;">${safeMessage}</td>
               </tr>
             </table>
-            <p style="margin:0;color:#9ca3af;font-size:12px;text-align:center;">Sent via BillByDab Contact Form</p>
+            <p style="margin:0;color:#9ca3af;font-size:12px;text-align:center;">Sent via Vortali Contact Form</p>
           </td>
         </tr>
       </table>
@@ -90,24 +90,24 @@ export async function POST(req: NextRequest) {
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
         <tr>
           <td style="background:#4F46E5;padding:32px 40px;border-radius:12px 12px 0 0;">
-            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">BillByDab</h1>
+            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">Vortali</h1>
           </td>
         </tr>
         <tr>
           <td style="background:#ffffff;padding:32px 40px;border-radius:0 0 12px 12px;">
             <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">Hi ${safeName},</p>
             <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">
-              Thanks for reaching out to BillByDab. We've received your message and will respond within 24 hours.
+              Thanks for reaching out to Vortali. We've received your message and will respond within 24 hours.
             </p>
             <p style="margin:0 0 24px;color:#6b7280;font-size:14px;line-height:1.6;">
-              In the meantime, you can visit our <a href="https://www.billbydab.com/support" style="color:#4F46E5;text-decoration:none;">Help &amp; Support</a> page for answers to common questions.
+              In the meantime, you can visit our <a href="https://www.vortali.com/support" style="color:#4F46E5;text-decoration:none;">Help &amp; Support</a> page for answers to common questions.
             </p>
-            <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">— The BillByDab Team</p>
+            <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">— The Vortali Team</p>
           </td>
         </tr>
         <tr>
           <td style="background:#f9fafb;padding:16px 40px;border-radius:0 0 12px 12px;border-top:1px solid #e5e7eb;text-align:center;">
-            <p style="margin:0;color:#9ca3af;font-size:12px;">This is an automated confirmation from <strong style="color:#6b7280;">BillByDab</strong></p>
+            <p style="margin:0;color:#9ca3af;font-size:12px;">This is an automated confirmation from <strong style="color:#6b7280;">Vortali</strong></p>
           </td>
         </tr>
       </table>
@@ -118,10 +118,10 @@ export async function POST(req: NextRequest) {
 
     // Send notification to support inbox
     const { error: notifyError } = await resend.emails.send({
-      from: 'BillByDab <invoices@billbydab.com>',
-      to: ['support@billbydab.com'],
+      from: 'Vortali <invoices@vortali.com>',
+      to: ['support@vortali.com'],
       replyTo: email,
-      subject: `[BillByDab Contact] ${subject} — from ${name}`,
+      subject: `[Vortali Contact] ${subject} — from ${name}`,
       html: notifyHtml,
     })
 
@@ -132,9 +132,9 @@ export async function POST(req: NextRequest) {
 
     // Send auto-reply to the user
     await resend.emails.send({
-      from: 'BillByDab Support <invoices@billbydab.com>',
+      from: 'Vortali Support <invoices@vortali.com>',
       to: [email],
-      subject: `We've received your message — BillByDab`,
+      subject: `We've received your message — Vortali`,
       html: autoReplyHtml,
     })
 

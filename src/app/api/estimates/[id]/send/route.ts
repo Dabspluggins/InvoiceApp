@@ -183,7 +183,7 @@ function buildEstimateEmail({
         <!-- Footer -->
         <tr>
           <td style="background:#f9fafb;padding:20px 40px;border-radius:0 0 12px 12px;border-top:1px solid #e5e7eb;text-align:center;">
-            <p style="margin:0;color:#9ca3af;font-size:12px;">This estimate was sent via <strong style="color:#6b7280;">BillByDab</strong></p>
+            <p style="margin:0;color:#9ca3af;font-size:12px;">This estimate was sent via <strong style="color:#6b7280;">Vortali</strong></p>
           </td>
         </tr>
 
@@ -247,7 +247,7 @@ export async function POST(
       .eq('deleted_by_client', false)
       .order('sort_order')
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.billbydab.com'
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.vortali.com'
     const reviewUrl = `${appUrl}/estimates/${id}/review?token=${estimate.client_token}`
 
     const html = buildEstimateEmail({
@@ -259,7 +259,7 @@ export async function POST(
 
     const resend = new Resend(apiKey)
     const { error: sendError } = await resend.emails.send({
-      from: 'BillByDab <invoices@billbydab.com>',
+      from: 'Vortali <invoices@vortali.com>',
       to: [toEmail],
       subject: `Estimate ${estimate.estimate_number} — please review`,
       html,

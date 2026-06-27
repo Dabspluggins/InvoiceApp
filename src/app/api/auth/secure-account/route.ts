@@ -4,7 +4,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { logAudit } from '@/lib/audit'
 import { logError } from '@/lib/logger'
 
-const BASE_URL = 'https://billbydab.com'
+const BASE_URL = 'https://www.vortali.com'
 
 async function hashToken(token: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
@@ -22,7 +22,7 @@ function htmlPage(title: string, success: boolean, body: string): NextResponse {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>${title} — BillByDab</title>
+  <title>${title} — Vortali</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f3f4f6;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}

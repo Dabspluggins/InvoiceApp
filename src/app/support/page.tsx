@@ -2,16 +2,16 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Support & FAQ - BillByDab',
-  description: 'Get help with BillByDab. Find answers to common questions about invoices, accounts, currencies, payment details, data safety, and support.',
+  title: 'Support & FAQ - Vortali',
+  description: 'Get help with Vortali. Find answers to common questions about invoices, accounts, currencies, payment details, data safety, and support.',
   alternates: {
-    canonical: 'https://www.billbydab.com/support',
+    canonical: 'https://www.vortali.com/support',
   },
 }
 
 const faqs = [
   {
-    q: 'Is BillByDab free?',
+    q: 'Is Vortali free?',
     a: 'Yes — creating and downloading invoices is completely free. No credit card needed.',
   },
   {
@@ -28,7 +28,7 @@ const faqs = [
   },
   {
     q: 'Can I send invoices directly to my clients?',
-    a: 'Yes. From your dashboard, open a saved invoice and use Send Invoice. BillByDab sends your client a professional email with the invoice details, line items, and payment instructions.',
+    a: 'Yes. From your dashboard, open a saved invoice and use Send Invoice. Vortali sends your client a professional email with the invoice details, line items, and payment instructions.',
   },
   {
     q: 'How do I add my logo?',
@@ -52,7 +52,7 @@ const faqs = [
   },
   {
     q: 'How do I contact support?',
-    a: 'Use the contact form or email support@billbydab.com. We aim to respond within 24 hours.',
+    a: 'Use the contact form or email support@vortali.com. We aim to respond within 24 hours.',
   },
 ]
 
@@ -103,10 +103,10 @@ export default function SupportPage() {
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
             Email us at{' '}
             <a
-              href="mailto:support@billbydab.com"
+              href="mailto:support@vortali.com"
               className="text-indigo-600 dark:text-indigo-400 font-medium hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
             >
-              support@billbydab.com
+              support@vortali.com
             </a>{' '}
             — we respond within 24 hours.
           </p>

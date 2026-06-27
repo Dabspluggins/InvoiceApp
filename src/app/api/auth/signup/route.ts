@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       email,
       password,
       options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.billbydab.com'}/auth/callback`,
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.vortali.com'}/auth/callback`,
         captchaToken,
       },
     })

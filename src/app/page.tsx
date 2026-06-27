@@ -3,15 +3,15 @@ import Link from 'next/link'
 
 export const metadata: Metadata = {
   alternates: {
-    canonical: 'https://www.billbydab.com',
+    canonical: 'https://www.vortali.com',
   },
 }
 
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  name: 'BillByDab',
-  url: 'https://www.billbydab.com',
+  name: 'Vortali',
+  url: 'https://www.vortali.com',
   description: 'Free invoice generator for freelancers and small businesses',
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
@@ -79,7 +79,7 @@ const features = [
   },
   {
     title: 'Free forever',
-    desc: 'No credit card required. No hidden fees. No limits. BillByDab is free to use for everyone.',
+    desc: 'No credit card required. No hidden fees. No limits. Vortali is free to use for everyone.',
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -167,7 +167,7 @@ export default function Home() {
               {/* Colored header bar */}
               <div className="bg-indigo-600 px-6 py-4 flex items-center justify-between">
                 <span className="text-white text-xl font-extrabold tracking-widest uppercase">Invoice</span>
-                <span className="text-white text-lg font-bold tracking-tight">BillByDab</span>
+                <span className="text-white text-lg font-bold tracking-tight">Vortali</span>
               </div>
 
               <div className="px-6 pt-5 pb-4">
@@ -269,7 +269,7 @@ export default function Home() {
           <div className="text-center mb-14">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">The free invoice generator built for freelancers</h2>
             <p className="text-gray-500 dark:text-gray-400 text-lg max-w-xl mx-auto">
-              Create invoices online in seconds — no overhead, no credit card, no limits. BillByDab is the free invoice maker trusted by freelancers, consultants, and small businesses.
+              Create invoices online in seconds — no overhead, no credit card, no limits. Vortali is the free invoice maker trusted by freelancers, consultants, and small businesses.
             </p>
           </div>
 
@@ -346,7 +346,7 @@ export default function Home() {
                 <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <span className="font-bold text-gray-900 dark:text-white">BillByDab</span>
+                <span className="font-bold text-gray-900 dark:text-white">Vortali</span>
               </div>
               <p className="text-sm text-gray-400 dark:text-gray-500 leading-relaxed">Free invoice generator for freelancers &amp; small businesses.</p>
             </div>
@@ -366,8 +366,8 @@ export default function Home() {
               <ul className="space-y-2">
                 <li><Link href="/support" className="text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition-colors">Help Center</Link></li>
                 <li>
-                  <a href="mailto:support@billbydab.com" className="text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition-colors">
-                    support@billbydab.com
+                  <a href="mailto:support@vortali.com" className="text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition-colors">
+                    support@vortali.com
                   </a>
                 </li>
               </ul>
@@ -384,21 +384,10 @@ export default function Home() {
           </div>
 
           <div className="border-t border-gray-100 dark:border-gray-700 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-gray-400 dark:text-gray-500">&copy; {new Date().getFullYear()} BillByDab. All rights reserved.</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500">&copy; {new Date().getFullYear()} Vortali. All rights reserved.</p>
             <nav className="flex items-center gap-5">
               <Link href="/contact" className="text-sm text-gray-400 dark:text-gray-500 hover:text-indigo-600 transition-colors">Contact</Link>
               <Link href="/support" className="text-sm text-gray-400 dark:text-gray-500 hover:text-indigo-600 transition-colors">Support</Link>
-              <a
-                href="https://x.com/billbydab"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-gray-400 dark:text-gray-500 hover:text-indigo-600 transition-colors inline-flex items-center gap-1"
-              >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.258 5.63 5.907-5.63Zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                </svg>
-                Twitter
-              </a>
             </nav>
           </div>
         </div>

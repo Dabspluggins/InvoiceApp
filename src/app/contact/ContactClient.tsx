@@ -143,10 +143,10 @@ export default function ContactClient() {
           <span>
             Prefer email?{' '}
             <a
-              href="mailto:support@billbydab.com"
+              href="mailto:support@vortali.com"
               className="text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
             >
-              support@billbydab.com
+              support@vortali.com
             </a>
           </span>
         </div>

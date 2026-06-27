@@ -58,7 +58,7 @@ export async function POST(
       const safeTitle = estimate.title ? escHtml(estimate.title) : null
       const safeRejectionNote = rejectionNote ? escHtml(rejectionNote) : null
       await resend.emails.send({
-        from: 'BillByDab <noreply@billbydab.com>',
+        from: 'Vortali <noreply@vortali.com>',
         to: estimate.client_email,
         subject: `Update on estimate ${estimate.estimate_number}`,
         html: `
@@ -68,7 +68,7 @@ export async function POST(
             <p><strong>${safeBusinessName}</strong> was unable to accept the revised pricing on estimate <strong>${safeEstimateNumber}</strong>${safeTitle ? ` — ${safeTitle}` : ''}.</p>
             ${safeRejectionNote ? `<p style="background: #fef2f2; border: 1px solid #fecaca; padding: 12px; border-radius: 8px;"><strong>Note from ${safeBusinessName}:</strong> ${safeRejectionNote}</p>` : ''}
             <p>The original prices remain in effect. Please contact ${safeBusinessName} directly to discuss further.</p>
-            <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">Sent via BillByDab</p>
+            <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">Sent via Vortali</p>
           </div>
         `,
       })

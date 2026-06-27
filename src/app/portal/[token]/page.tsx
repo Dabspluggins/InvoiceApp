@@ -101,7 +101,7 @@ export async function generateMetadata({
     .eq('portal_token', token)
     .single<{ name: string; company: string | null }>()
 
-  if (!client) return { title: 'Portal | BillByDab' }
+  if (!client) return { title: 'Portal | Vortali' }
 
   const { data: invoice } = await supabase
     .from('invoices')
@@ -110,9 +110,9 @@ export async function generateMetadata({
     .limit(1)
     .single<{ business_name: string | null }>()
 
-  const businessName = invoice?.business_name || 'BillByDab'
+  const businessName = invoice?.business_name || 'Vortali'
   return {
-    title: `Invoices from ${businessName} | BillByDab`,
+    title: `Invoices from ${businessName} | Vortali`,
     robots: { index: false, follow: false },
   }
 }
@@ -159,7 +159,7 @@ export default async function PortalPage({
     .order('issue_date', { ascending: false })
 
   const allInvoices: Invoice[] = invoices || []
-  const businessName = allInvoices[0]?.business_name || 'BillByDab'
+  const businessName = allInvoices[0]?.business_name || 'Vortali'
   const summaries = buildSummaries(allInvoices)
   const clientLabel = client.company
     ? `${client.name} / ${client.company}`
@@ -362,14 +362,14 @@ export default async function PortalPage({
         <p className="text-center text-xs text-gray-400 mt-10">
           Powered by{' '}
           <a
-            href="https://www.billbydab.com"
+            href="https://www.vortali.com"
             className="hover:text-indigo-500 transition"
             target="_blank"
             rel="noopener noreferrer"
           >
-            BillByDab
+            Vortali
           </a>{' '}
-          — free invoice generator at billbydab.com
+          — free invoice generator at vortali.com
         </p>
       </div>
     </div>

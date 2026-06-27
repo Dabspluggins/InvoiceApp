@@ -646,7 +646,7 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
         )}
 
         <p className="text-center text-xs text-gray-400 dark:text-gray-500 pb-8">
-          Sent via <span className="font-medium">BillByDab</span>
+          Sent via <span className="font-medium">Vortali</span>
         </p>
       </div>
 
@@ -735,7 +735,7 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
           )}
 
           <p style={{ marginTop: '48px', textAlign: 'center', fontSize: '11px', color: '#9CA3AF' }}>
-            Generated with BillByDab
+            Generated with Vortali
           </p>
         </div>
       </div>

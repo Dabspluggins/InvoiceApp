@@ -179,7 +179,7 @@ export default function ReportsClient() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `billbydab-report-${from}-${to}.csv`
+    a.download = `vortali-report-${from}-${to}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }

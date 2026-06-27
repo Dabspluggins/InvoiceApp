@@ -60,14 +60,14 @@ function buildSuspiciousLoginEmail({
   })
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>New sign-in to your BillByDab account</title></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>New sign-in to your Vortali account</title></head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:40px 0;">
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
         <tr>
           <td style="background:#DC2626;padding:32px 40px;border-radius:12px 12px 0 0;">
-            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">BillByDab</h1>
+            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">Vortali</h1>
             <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">Security Alert</p>
           </td>
         </tr>
@@ -75,7 +75,7 @@ function buildSuspiciousLoginEmail({
           <td style="background:#ffffff;padding:32px 40px;">
             <h2 style="margin:0 0 16px;color:#111827;font-size:18px;font-weight:600;">New sign-in to your account</h2>
             <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6;">
-              We detected a sign-in to your BillByDab account from a new device and location.
+              We detected a sign-in to your Vortali account from a new device and location.
             </p>
             <table cellpadding="0" cellspacing="0" style="width:100%;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:24px;">
               <tr>
@@ -118,7 +118,7 @@ function buildSuspiciousLoginEmail({
         </tr>
         <tr>
           <td style="background:#f9fafb;padding:20px 40px;border-radius:0 0 12px 12px;border-top:1px solid #e5e7eb;text-align:center;">
-            <p style="margin:0;color:#9ca3af;font-size:12px;">Sent via <strong style="color:#6b7280;">BillByDab</strong></p>
+            <p style="margin:0;color:#9ca3af;font-size:12px;">Sent via <strong style="color:#6b7280;">Vortali</strong></p>
           </td>
         </tr>
       </table>
@@ -277,15 +277,15 @@ async function detectAndAlertSuspiciousLogin({
   const trustExpiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24
   const hmacMessage = `${deviceFingerprint}|${label}|${userId}|${trustExpiresAt}`
   const sig = await computeHmac(hmacMessage)
-  const trustLink = `https://billbydab.com/api/sessions/trust-device-token?fingerprint=${deviceFingerprint}&label=${encodeURIComponent(label)}&uid=${userId}&expires=${trustExpiresAt}&sig=${sig}`
+  const trustLink = `https://www.vortali.com/api/sessions/trust-device-token?fingerprint=${deviceFingerprint}&label=${encodeURIComponent(label)}&uid=${userId}&expires=${trustExpiresAt}&sig=${sig}`
 
-  const secureLink = `https://billbydab.com/api/auth/secure-account?token=${rawToken}`
+  const secureLink = `https://www.vortali.com/api/auth/secure-account?token=${rawToken}`
   const resend = new Resend(apiKey)
 
   await resend.emails.send({
-    from: 'BillByDab Security <security@billbydab.com>',
+    from: 'Vortali Security <security@vortali.com>',
     to: [userEmail],
-    subject: 'New sign-in to your BillByDab account',
+    subject: 'New sign-in to your Vortali account',
     html: buildSuspiciousLoginEmail({
       browser,
       deviceType,

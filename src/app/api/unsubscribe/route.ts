@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!supabaseUrl || !serviceRoleKey) {
-    return new Response(unsubscribeHtml('Server configuration error. Please contact support@billbydab.com.', true), {
+    return new Response(unsubscribeHtml('Server configuration error. Please contact support@vortali.com.', true), {
       status: 500,
       headers: { 'Content-Type': 'text/html' },
     })
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     logError('unsubscribe', 'Profile upsert failed', { userId }, error)
-    return new Response(unsubscribeHtml('Something went wrong. Please contact support@billbydab.com.', true), {
+    return new Response(unsubscribeHtml('Something went wrong. Please contact support@vortali.com.', true), {
       status: 500,
       headers: { 'Content-Type': 'text/html' },
     })
@@ -81,7 +81,7 @@ function unsubscribeHtml(errorMessage?: string, isError = false): string {
   const message = isError
     ? `<p style="color:#dc2626;">${errorMessage}</p>`
     : `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.75;">
-        You&#39;ve been unsubscribed from BillByDab product updates.
+        You&#39;ve been unsubscribed from Vortali product updates.
       </p>
       <p style="margin:0;color:#6b7280;font-size:14px;line-height:1.7;">
         You&#39;ll still receive important emails about your account (invoices, security alerts, etc.).
@@ -92,12 +92,12 @@ function unsubscribeHtml(errorMessage?: string, isError = false): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Unsubscribed — BillByDab</title>
+  <title>Unsubscribed — Vortali</title>
 </head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
   <div style="max-width:520px;margin:60px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.10);">
     <div style="background:#111827;padding:28px 40px;">
-      <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;">BillByDab</h1>
+      <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;">Vortali</h1>
       <p style="margin:6px 0 0;color:#9ca3af;font-size:13px;">Built in Lagos. Free everywhere.</p>
     </div>
     <div style="padding:40px;">
@@ -105,7 +105,7 @@ function unsubscribeHtml(errorMessage?: string, isError = false): string {
       ${message}
       <p style="margin:24px 0 0;font-size:13px;color:#9ca3af;">
         Changed your mind? You can re-enable product updates in your
-        <a href="https://billbydab.com/settings" style="color:#4F46E5;text-decoration:none;">account settings</a>.
+        <a href="https://www.vortali.com/settings" style="color:#4F46E5;text-decoration:none;">account settings</a>.
       </p>
     </div>
   </div>

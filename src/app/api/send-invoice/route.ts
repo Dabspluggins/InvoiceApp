@@ -242,7 +242,7 @@ function buildEmailHtml(payload: InvoicePayload): string {
 
             ${shareToken ? `<div style="margin-top:24px; padding:16px; background:#F9FAFB; border-radius:8px; text-align:center;">
               <p style="margin:0 0 8px; color:#6B7280; font-size:14px;">View this invoice online</p>
-              <a href="https://www.billbydab.com/i/${shareToken}" style="display:inline-block; background:#4F46E5; color:#fff; padding:10px 24px; border-radius:6px; text-decoration:none; font-weight:600;">View Invoice →</a>
+              <a href="https://www.vortali.com/i/${shareToken}" style="display:inline-block; background:#4F46E5; color:#fff; padding:10px 24px; border-radius:6px; text-decoration:none; font-weight:600;">View Invoice →</a>
             </div>` : ''}
           </td>
         </tr>
@@ -250,7 +250,7 @@ function buildEmailHtml(payload: InvoicePayload): string {
         <!-- Footer -->
         <tr>
           <td style="background:#f9fafb;padding:20px 40px;border-radius:0 0 12px 12px;border-top:1px solid #e5e7eb;text-align:center;">
-            <p style="margin:0;color:#9ca3af;font-size:12px;">This invoice was sent via <strong style="color:#6b7280;">BillByDab</strong></p>
+            <p style="margin:0;color:#9ca3af;font-size:12px;">This invoice was sent via <strong style="color:#6b7280;">Vortali</strong></p>
           </td>
         </tr>
 
@@ -364,7 +364,7 @@ export async function POST(req: NextRequest) {
     const html = buildEmailHtml(enrichedPayload)
 
     const { error } = await resend.emails.send({
-      from: 'BillByDab <invoices@billbydab.com>',
+      from: 'Vortali <invoices@vortali.com>',
       to: [toEmail],
       subject,
       html,

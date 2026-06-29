@@ -6,6 +6,7 @@ import type { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import DashboardClient from './DashboardClient'
 import ProfileDropdown from './ProfileDropdown'
+import RebrandBanner from './RebrandBanner'
 
 export default function DashboardShell({ user }: { user: User }) {
   const [darkMode, setDarkMode] = useState<boolean>(() => {
@@ -77,6 +78,7 @@ export default function DashboardShell({ user }: { user: User }) {
           </Link>
         </div>
 
+        <RebrandBanner />
         <DashboardClient user={user} darkMode={darkMode} />
       </div>
     </div>

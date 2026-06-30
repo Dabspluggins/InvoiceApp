@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Inter, Pacifico } from 'next/font/google'
 import './globals.css'
 import Nav from '@/components/Nav'
 import DarkModeSync from '@/components/DarkModeSync'
@@ -9,6 +9,12 @@ import SessionHeartbeat from '@/components/SessionHeartbeat'
 import PostHogProvider from '@/components/PostHogProvider'
 
 const inter = Inter({ subsets: ['latin'] })
+const pacifico = Pacifico({
+  weight: '400',
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-pacifico',
+})
 
 export const metadata: Metadata = {
   title: {
@@ -28,6 +34,13 @@ export const metadata: Metadata = {
   authors: [{ name: 'Vortali' }],
   creator: 'Vortali',
   metadataBase: new URL('https://www.vortali.com'),
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: '32x32' },
+    ],
+    apple: '/apple-icon.png',
+  },
   openGraph: {
     type: 'website',
     locale: 'en_US',
@@ -36,20 +49,11 @@ export const metadata: Metadata = {
     title: 'Vortali — Free Invoice Generator for Freelancers',
     description:
       'Create and send professional invoices for free. The easiest invoice generator for freelancers and small businesses.',
-    images: [
-      {
-        url: '/og-image.png',
-        width: 1200,
-        height: 630,
-        alt: 'Vortali Free Invoice Generator',
-      },
-    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Vortali — Free Invoice Generator Online',
     description: 'Create and send professional invoices for free.',
-    images: ['/og-image.png'],
   },
   robots: {
     index: true,
@@ -78,7 +82,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className={`${inter.className} min-h-full bg-gray-50 dark:bg-gray-900 antialiased`} suppressHydrationWarning>
+      <body className={`${inter.className} ${pacifico.variable} min-h-full bg-gray-50 dark:bg-gray-900 antialiased`} suppressHydrationWarning>
         <PostHogProvider>
           <Nav />
           <DarkModeSync />

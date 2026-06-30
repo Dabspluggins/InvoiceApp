@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 258 82" fill="none">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#3730A3"/>
+    </linearGradient>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Pacifico');
+    </style>
+  </defs>
+  <!-- Badge -->
+  <rect x="1" y="14" width="54" height="54" rx="16" fill="url(#g)"/>
+  <!-- V mark -->
+  <polyline points="9,35 28,57 47,35" fill="none" stroke="#C7D2FE" stroke-width="7.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <!-- Wordmark -->
+  <text x="63" y="57" font-family="'Pacifico', cursive" font-size="48" fill="#0F172A">ortali</text>
+</svg>

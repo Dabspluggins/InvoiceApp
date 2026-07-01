@@ -19,7 +19,7 @@ const cspDirectives = [
 
   // Scripts: self + Cloudflare Turnstile (login/signup CAPTCHA) + PostHog assets CDN.
   // PostHog's npm SDK injects a <script> at runtime to fetch its remote config from
-  // the assets CDN — that host must be explicitly allowed here.
+  // the assets CDN -- that host must be explicitly allowed here.
   // 'unsafe-inline' is required for Next.js hydration scripts and the dark mode
   // inline script in layout.tsx. This will be replaced with a nonce in Phase 2.
   `script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com ${POSTHOG_ASSETS_HOST}`,
@@ -30,11 +30,13 @@ const cspDirectives = [
   // Images: self, base64 data URIs (invoice previews), Supabase Storage (logos/avatars)
   `img-src 'self' data: ${SUPABASE_HOST}`,
 
-  // Fonts: Inter is bundled at build time and served from self — no external font CDN
+  // Fonts: Inter is bundled at build time and served from self -- no external font CDN
   `font-src 'self'`,
 
-  // API / WebSocket connections: Supabase REST + Auth + Realtime (wss) + PostHog analytics
-  `connect-src 'self' ${SUPABASE_HOST} ${SUPABASE_HOST.replace('https://', 'wss://')} ${POSTHOG_HOST} ${POSTHOG_ASSETS_HOST}`,
+  // API / WebSocket connections: Supabase REST + Auth + Realtime (wss) + PostHog analytics.
+  // Cloudflare Turnstile: the widget JS (running in parent-page context) POSTs a verification
+  // request to challenges.cloudflare.com to generate the captcha token -- must be in connect-src.
+  `connect-src 'self' ${SUPABASE_HOST} ${SUPABASE_HOST.replace('https://', 'wss://')} ${POSTHOG_HOST} ${POSTHOG_ASSETS_HOST} https://challenges.cloudflare.com`,
 
   // Frames: Cloudflare Turnstile renders its challenge in an iframe
   `frame-src https://challenges.cloudflare.com`,
@@ -42,13 +44,13 @@ const cspDirectives = [
   // Block all plugins (Flash, Java, etc.)
   `object-src 'none'`,
 
-  // Restrict <base> tag to prevent base-tag hijacking
+  // Restrict base tag to prevent base-tag hijacking
   `base-uri 'self'`,
 
   // Restrict where forms can be submitted
   `form-action 'self'`,
 
-  // Prevent this app from being embedded in other sites (belt-and-suspenders with X-Frame-Options)
+  // Prevent this app from being embedded in other sites
   `frame-ancestors 'self'`,
 
   // Send violation reports to Sentry's CSP endpoint
@@ -56,19 +58,12 @@ const cspDirectives = [
 ].join('; ')
 
 const securityHeaders = [
-  // Prevent browsers from guessing the content type (MIME sniffing)
   { key: 'X-Content-Type-Options', value: 'nosniff' },
-  // Prevent the app being embedded in iframes on other sites (clickjacking)
   { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-  // Control how much referrer info is sent when navigating away
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  // Force HTTPS for 2 years, including subdomains
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
-  // Disable browser features the app doesn't use
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()' },
-  // Enable DNS prefetching for performance
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
-  // CSP in report-only mode — observe violations without blocking anything
   { key: 'Content-Security-Policy-Report-Only', value: cspDirectives },
 ]
 

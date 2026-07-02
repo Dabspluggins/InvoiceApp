@@ -45,8 +45,8 @@ export default function Nav() {
         aria-label="Vortali home"
         className="flex items-center text-gray-900 dark:text-gray-100"
       >
-        <VortaliLogo height={32} className="md:hidden lg:block" />
-        <VortaliLogo variant="badge" height={32} className="hidden md:block lg:hidden" />
+        <VortaliLogo height={32} className="md:hidden xl:block" />
+        <VortaliLogo variant="badge" height={32} className="hidden md:block xl:hidden" />
       </Link>
 
       {/* Desktop nav links */}

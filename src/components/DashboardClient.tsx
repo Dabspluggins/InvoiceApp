@@ -123,6 +123,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
   const [recordingCredit, setRecordingCredit] = useState(false)
   const [recordingPayment, setRecordingPayment] = useState(false)
   const [bulkMarkingPaid, setBulkMarkingPaid] = useState(false)
+  const [summaryStats, setSummaryStats] = useState<{ totalCount: number; paidAmount: number; outstandingAmount: number } | null>(null)
   const router = useRouter()
 
   const filteredInvoices = useMemo(() => {
@@ -172,6 +173,19 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     setLoading(false)
   }
 
+  // Fetch summary totals server-side via RPC — covers full invoice history,
+  // not just the current page. Wrapped in useCallback so mutation callbacks
+  // can list it as a stable dependency without exhaustive-deps warnings.
+  const loadSummaryStats = useCallback(async () => {
+    const { data } = await supabase.rpc('get_invoice_summary')
+    if (!data) return
+    setSummaryStats({
+      totalCount: Number(data.total_count ?? 0),
+      paidAmount: Number(data.paid_amount ?? 0),
+      outstandingAmount: Number(data.outstanding_amount ?? 0),
+    })
+  }, [supabase])
+
   // Fix 1: reset and reload when filters/search change (also handles initial load)
   useEffect(() => {
     setPage(0)
@@ -184,6 +198,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
   useEffect(() => {
     loadTemplates()
     loadUnbilledExpenses()
+    loadSummaryStats()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fix 1: load next page and append
@@ -209,7 +224,8 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     }
     await supabase.from('invoices').update({ status }).eq('id', id)
     setInvoices((prev) => prev.map((inv) => (inv.id === id ? { ...inv, status } : inv)))
-  }, [supabase, invoices])
+    loadSummaryStats()
+  }, [supabase, invoices, loadSummaryStats])
 
   async function handleConfirmPayment() {
     if (recordingPayment) return
@@ -262,6 +278,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
             : inv
         )
       )
+      loadSummaryStats()
       setRecordPaymentModal({ open: false, invoice: null, amount: '' })
   
       if (excess > 0.005) {
@@ -328,8 +345,9 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     await supabase.from('line_items').delete().eq('invoice_id', id)
     await supabase.from('invoices').delete().eq('id', id)
     setInvoices((prev) => prev.filter((inv) => inv.id !== id))
+    loadSummaryStats()
     setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next })
-  }, [supabase])
+  }, [supabase, loadSummaryStats])
 
   const handleSendReminder = useCallback(async (id: string) => {
     setRemindingIds((prev) => new Set(prev).add(id))
@@ -479,6 +497,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
         )
         setSelectedIds(new Set())
         showToast(`${settled.length} invoice${settled.length !== 1 ? 's' : ''} marked as paid ✓`, 'green')
+      loadSummaryStats()
       }
     } catch {
       showToast('Failed to mark invoices as paid. Please try again.', 'indigo')
@@ -516,22 +535,10 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     showToast(`${selected.length} invoice${selected.length !== 1 ? 's' : ''} exported ✓`, 'indigo')
   }
 
-  const totalInvoices = invoices.length
-  const paidAmount = invoices.reduce((sum, i) => {
-    if (i.status === 'paid') return sum + i.total
-    // For partial invoices, count the portion already paid (cash + credit)
-    if (i.status === 'partial') return sum + getAmountPaid(i) + Number(i.credit_applied || 0)
-    return sum
-  }, 0)
-  const outstandingAmount = invoices.reduce((sum, i) => {
-    if (i.status === 'sent' || i.status === 'pending') return sum + i.total
-    // For partial invoices, count the remaining unpaid balance
-    if (i.status === 'partial') {
-      const settled = getAmountPaid(i) + Number(i.credit_applied || 0)
-      return sum + Math.max(0, i.total - settled)
-    }
-    return sum
-  }, 0)
+  // Summary stats come from a separate all-invoices query so pagination doesn't affect them
+  const totalInvoices = summaryStats?.totalCount ?? invoices.length
+  const paidAmount = summaryStats?.paidAmount ?? 0
+  const outstandingAmount = summaryStats?.outstandingAmount ?? 0
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there'
 

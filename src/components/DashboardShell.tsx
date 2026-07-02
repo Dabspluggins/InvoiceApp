@@ -61,7 +61,7 @@ export default function DashboardShell({ user }: { user: User }) {
         <div className="flex justify-between items-center gap-3 mb-6 md:mb-8">
           <VortaliLogo
             height={32}
-            className="text-gray-900 dark:text-slate-50"
+            textColor={darkMode ? '#f8fafc' : '#0f172a'}
           />
           <div className="flex items-center gap-3">
             <ProfileDropdown

@@ -78,7 +78,9 @@ function isPartial(inv: Invoice): boolean {
 }
 
 function isOverdue(inv: Invoice): boolean {
-  return !!inv.due_date && inv.due_date < TODAY && inv.status !== 'paid'
+  // Drafts haven't been sent; paid invoices are settled — only actionable statuses can be overdue.
+  // Partial invoices with a balance still owed past due date are also overdue.
+  return !!inv.due_date && inv.due_date < TODAY && (inv.status === 'sent' || inv.status === 'pending' || inv.status === 'partial')
 }
 
 function formatDateLong(dateStr: string | null): string {
@@ -123,6 +125,8 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
   const [recordingCredit, setRecordingCredit] = useState(false)
   const [recordingPayment, setRecordingPayment] = useState(false)
   const [bulkMarkingPaid, setBulkMarkingPaid] = useState(false)
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
   const [summaryStats, setSummaryStats] = useState<{ totalCount: number; paidAmount: number; outstandingAmount: number } | null>(null)
   const router = useRouter()
 
@@ -139,11 +143,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
       if (statusFilter === 'paid') return inv.status === 'paid'
       if (statusFilter === 'unpaid') return inv.status === 'sent' || inv.status === 'pending'
       if (statusFilter === 'partial') return isPartial(inv)
-      if (statusFilter === 'overdue') {
-        const isUnpaid = inv.status === 'sent' || inv.status === 'pending'
-        const isPastDue = inv.due_date != null && inv.due_date < TODAY
-        return isUnpaid && isPastDue
-      }
+      if (statusFilter === 'overdue') return isOverdue(inv)
       return true
     })
   }, [invoices, search, statusFilter])
@@ -342,11 +342,16 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
 
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm('Delete this invoice? This cannot be undone.')) return
-    await supabase.from('line_items').delete().eq('invoice_id', id)
-    await supabase.from('invoices').delete().eq('id', id)
-    setInvoices((prev) => prev.filter((inv) => inv.id !== id))
-    loadSummaryStats()
-    setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next })
+    try {
+      // line_items and payments are removed by ON DELETE CASCADE — delete invoice only.
+      const { error } = await supabase.from('invoices').delete().eq('id', id)
+      if (error) throw error
+      setInvoices((prev) => prev.filter((inv) => inv.id !== id))
+      loadSummaryStats()
+      setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next })
+    } catch {
+      showToast('Failed to delete invoice. Please try again.', 'indigo')
+    }
   }, [supabase, loadSummaryStats])
 
   const handleSendReminder = useCallback(async (id: string) => {
@@ -419,6 +424,27 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     setTemplates((prev) => prev.filter((t) => t.id !== id))
   }
 
+  async function handleBulkDelete() {
+    if (bulkDeleting) return
+    const ids = [...selectedIds]
+    setBulkDeleting(true)
+    try {
+      // Delete invoices only — line_items/payments are removed by ON DELETE CASCADE.
+      // Checking { error } because supabase client returns errors rather than throwing.
+      const { error } = await supabase.from('invoices').delete().in('id', ids)
+      if (error) throw error
+      setInvoices((prev) => prev.filter((inv) => !ids.includes(inv.id)))
+      setSelectedIds(new Set())
+      setBulkDeleteConfirm(false)
+      loadSummaryStats()
+      showToast(`${ids.length} invoice${ids.length !== 1 ? 's' : ''} permanently deleted`, 'indigo')
+    } catch {
+      showToast('Failed to delete invoices. Please try again.', 'indigo')
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
+
   function showToast(message: string, color: 'green' | 'indigo') {
     setToast({ message, color })
     setTimeout(() => setToast(null), 3000)
@@ -434,10 +460,20 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
   }
 
   function toggleSelectAll() {
-    if (selectedIds.size === invoices.length) {
-      setSelectedIds(new Set())
+    // Operate on filteredInvoices so hidden (filtered-out) invoices are never
+    // silently selected — especially important for bulk delete.
+    if (filteredInvoices.every((inv) => selectedIds.has(inv.id))) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        filteredInvoices.forEach((inv) => next.delete(inv.id))
+        return next
+      })
     } else {
-      setSelectedIds(new Set(invoices.map((inv) => inv.id)))
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        filteredInvoices.forEach((inv) => next.add(inv.id))
+        return next
+      })
     }
   }
 
@@ -497,7 +533,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
         )
         setSelectedIds(new Set())
         showToast(`${settled.length} invoice${settled.length !== 1 ? 's' : ''} marked as paid ✓`, 'green')
-      loadSummaryStats()
+        loadSummaryStats()
       }
     } catch {
       showToast('Failed to mark invoices as paid. Please try again.', 'indigo')
@@ -546,7 +582,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
   const hasUnpaidSelected = invoices.some(
     (inv) => selectedIds.has(inv.id) && inv.status !== 'paid'
   )
-  const allSelected = invoices.length > 0 && selectedIds.size === invoices.length
+  const allSelected = filteredInvoices.length > 0 && filteredInvoices.every((inv) => selectedIds.has(inv.id))
 
   const STATUS_PILLS: { label: string; value: StatusFilter }[] = [
     { label: 'All', value: 'all' },
@@ -715,6 +751,12 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                 className="border border-indigo-600 text-indigo-600 text-sm px-3 py-1.5 rounded-md hover:bg-indigo-50 transition"
               >
                 ↓ Export CSV
+              </button>
+              <button
+                onClick={() => setBulkDeleteConfirm(true)}
+                className="border border-red-500 text-red-500 text-sm px-3 py-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+              >
+                🗑 Delete selected
               </button>
               <button
                 onClick={() => setSelectedIds(new Set())}
@@ -1126,6 +1168,42 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
           </>
         )}
       </div>
+
+      {/* Bulk delete confirmation modal */}
+      {bulkDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-red-200 dark:border-red-700 p-6 w-full max-w-md">
+            <div className="flex items-start gap-3 mb-4">
+              <span className="text-2xl">⚠️</span>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                  Delete {selectedIds.size} invoice{selectedIds.size !== 1 ? 's' : ''}?
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  This will permanently delete the selected invoice{selectedIds.size !== 1 ? 's' : ''} and all their line items.
+                  <strong className="text-red-600 dark:text-red-400"> This cannot be undone.</strong>
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={() => setBulkDeleteConfirm(false)}
+                disabled={bulkDeleting}
+                className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                {bulkDeleting ? 'Deleting…' : `Delete ${selectedIds.size} invoice${selectedIds.size !== 1 ? 's' : ''}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (

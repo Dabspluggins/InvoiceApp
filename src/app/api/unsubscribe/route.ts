@@ -105,7 +105,7 @@ function unsubscribeHtml(errorMessage?: string, isError = false): string {
       ${message}
       <p style="margin:24px 0 0;font-size:13px;color:#9ca3af;">
         Changed your mind? You can re-enable product updates in your
-        <a href="https://www.vortali.com/settings" style="color:#4F46E5;text-decoration:none;">account settings</a>.
+        <a href="https://vortali.com/settings" style="color:#4F46E5;text-decoration:none;">account settings</a>.
       </p>
     </div>
   </div>

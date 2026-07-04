@@ -8,9 +8,10 @@ export default function RebrandBanner() {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    if (!localStorage.getItem(BANNER_KEY)) {
-      setVisible(true)
-    }
+    const id = setTimeout(() => {
+      if (!localStorage.getItem(BANNER_KEY)) setVisible(true)
+    }, 0)
+    return () => clearTimeout(id)
   }, [])
 
   function dismiss() {
@@ -26,7 +27,7 @@ export default function RebrandBanner() {
         <span className="font-semibold">BillByDab is now Vortali.</span>{' '}
         Same product, same data — just a new name and a new home at{' '}
         <a
-          href="https://www.vortali.com"
+          href="https://vortali.com"
           className="underline underline-offset-2 hover:text-indigo-200 transition-colors"
         >
           vortali.com

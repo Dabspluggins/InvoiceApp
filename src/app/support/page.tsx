@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: 'Support & FAQ - Vortali',
   description: 'Get help with Vortali. Find answers to common questions about invoices, accounts, currencies, payment details, data safety, and support.',
   alternates: {
-    canonical: 'https://www.vortali.com/support',
+    canonical: 'https://vortali.com/support',
   },
 }
 

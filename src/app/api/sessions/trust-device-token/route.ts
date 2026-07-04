@@ -5,7 +5,7 @@ import { computeHmac } from '@/app/api/sessions/register/route'
 import { logAudit } from '@/lib/audit'
 import { logError } from '@/lib/logger'
 
-const BASE_URL = 'https://www.vortali.com'
+const BASE_URL = 'https://vortali.com'
 
 function htmlPage(title: string, success: boolean, body: string): NextResponse {
   const icon = success

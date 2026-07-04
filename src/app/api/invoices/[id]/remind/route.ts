@@ -35,7 +35,7 @@ function buildReminderEmail(opts: {
   const { clientName, invoiceNumber, total, currency, dueDate, shareToken, senderName } = opts
   const viewButton = shareToken
     ? `<p style="margin:24px 0;text-align:center;">
-        <a href="https://www.vortali.com/i/${shareToken}"
+        <a href="https://vortali.com/i/${shareToken}"
            style="background:#4f46e5;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:600;display:inline-block;">
           View Invoice →
         </a>

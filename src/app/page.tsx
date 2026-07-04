@@ -3,7 +3,7 @@ import Link from 'next/link'
 
 export const metadata: Metadata = {
   alternates: {
-    canonical: 'https://www.vortali.com',
+    canonical: 'https://vortali.com',
   },
 }
 
@@ -11,7 +11,7 @@ const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
   name: 'Vortali',
-  url: 'https://www.vortali.com',
+  url: 'https://vortali.com',
   description: 'Free invoice generator for freelancers and small businesses',
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',

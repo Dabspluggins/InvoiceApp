@@ -139,7 +139,7 @@ async function recordView(token: string, invoice: InvoiceRow) {
               <strong>${invoice.client_name || 'Your client'}</strong> just opened invoice <strong>${invoice.invoice_number}</strong>.
               Log in to check the status.
             </p>
-            <a href="https://www.vortali.com/dashboard" style="display:inline-block;background:#4F46E5;color:#ffffff;padding:11px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Go to Dashboard →</a>
+            <a href="https://vortali.com/dashboard" style="display:inline-block;background:#4F46E5;color:#ffffff;padding:11px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Go to Dashboard →</a>
           </td>
         </tr>
         <tr>
@@ -216,7 +216,7 @@ export default async function PublicInvoicePage({
             new link.
           </p>
           <a
-            href="https://www.vortali.com"
+            href="https://vortali.com"
             className="inline-block bg-indigo-600 text-white px-6 py-3 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
           >
             Go to Vortali
@@ -249,14 +249,14 @@ export default async function PublicInvoicePage({
 
       {/* Nav bar */}
       <nav className="no-print sticky top-0 z-10 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center justify-between">
-        <a href="https://www.vortali.com" className="flex items-center gap-2">
+        <a href="https://vortali.com" className="flex items-center gap-2">
           <span className="text-lg font-bold" style={{ color: brandColor }}>
             Vortali
           </span>
         </a>
         <div className="flex items-center gap-2">
           <a
-            href={`https://wa.me/?text=${encodeURIComponent(`View this invoice here: https://www.vortali.com/i/${token}`)}`}
+            href={`https://wa.me/?text=${encodeURIComponent(`View this invoice here: https://vortali.com/i/${token}`)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
@@ -624,7 +624,7 @@ export default async function PublicInvoicePage({
           <div className="px-8 sm:px-10 py-5 bg-gray-50 border-t border-gray-100 text-center">
             <p className="text-xs text-gray-400">
               Powered by{' '}
-              <a href="https://www.vortali.com" className="font-semibold text-gray-500 hover:text-indigo-600 transition">
+              <a href="https://vortali.com" className="font-semibold text-gray-500 hover:text-indigo-600 transition">
                 Vortali
               </a>{' '}
               — free invoice generator at vortali.com

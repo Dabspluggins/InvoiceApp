@@ -99,7 +99,7 @@ export default function ClientsClient() {
 
   async function handleCopyPortalLink(client: Client) {
     if (!client.portal_token) return
-    const url = `https://www.vortali.com/portal/${client.portal_token}`
+    const url = `https://vortali.com/portal/${client.portal_token}`
     await navigator.clipboard.writeText(url)
     setCopiedId(client.id)
     setTimeout(() => setCopiedId(null), 2000)

@@ -4,7 +4,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { logAudit } from '@/lib/audit'
 import { logError } from '@/lib/logger'
 
-const BASE_URL = 'https://www.vortali.com'
+const BASE_URL = 'https://vortali.com'
 
 async function hashToken(token: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))

@@ -150,7 +150,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
 
   async function handleCopyLink(inv: Invoice) {
     if (!inv.share_token) return
-    await navigator.clipboard.writeText(`https://www.vortali.com/i/${inv.share_token}`)
+    await navigator.clipboard.writeText(`https://vortali.com/i/${inv.share_token}`)
     setCopiedId(inv.id)
     setTimeout(() => setCopiedId(null), 2000)
   }
@@ -378,7 +378,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
 
   const handleWhatsApp = useCallback((inv: Invoice) => {
     if (!inv.share_token) return
-    const shareUrl = `https://www.vortali.com/i/${inv.share_token}`
+    const shareUrl = `https://vortali.com/i/${inv.share_token}`
     const businessName =
       inv.business_name ||
       user?.user_metadata?.business_name ||

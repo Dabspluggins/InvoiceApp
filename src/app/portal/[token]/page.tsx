@@ -362,7 +362,7 @@ export default async function PortalPage({
         <p className="text-center text-xs text-gray-400 mt-10">
           Powered by{' '}
           <a
-            href="https://www.vortali.com"
+            href="https://vortali.com"
             className="hover:text-indigo-500 transition"
             target="_blank"
             rel="noopener noreferrer"

@@ -410,7 +410,7 @@ function InvoicePageInner() {
     }
     const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
     const amountDue = Math.max(0, total - (data.creditApplied ?? 0))
-    const shareUrl = `https://www.vortali.com/i/${savedShareToken}`
+    const shareUrl = `https://vortali.com/i/${savedShareToken}`
     const businessName = data.businessName || 'Your Service Provider'
     const clientName = data.clientName || 'there'
     const dueDate = data.dueDate

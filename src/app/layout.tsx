@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: 'Vortali' }],
   creator: 'Vortali',
-  metadataBase: new URL('https://www.vortali.com'),
+  metadataBase: new URL('https://vortali.com'),
   icons: {
     icon: [
       { url: '/icon.svg', type: 'image/svg+xml' },
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://www.vortali.com',
+    url: 'https://vortali.com',
     siteName: 'Vortali',
     title: 'Vortali — Free Invoice Generator for Freelancers',
     description:
@@ -65,7 +65,7 @@ export const metadata: Metadata = {
     },
   },
   alternates: {
-    canonical: 'https://www.vortali.com',
+    canonical: 'https://vortali.com',
   },
   verification: {
     google: 'Vj2ZbW5Vaauc_l98V1ZsAVbgQnfWyeeivmzwvjY2F94',

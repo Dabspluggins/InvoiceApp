@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
               Thanks for reaching out to Vortali. We've received your message and will respond within 24 hours.
             </p>
             <p style="margin:0 0 24px;color:#6b7280;font-size:14px;line-height:1.6;">
-              In the meantime, you can visit our <a href="https://www.vortali.com/support" style="color:#4F46E5;text-decoration:none;">Help &amp; Support</a> page for answers to common questions.
+              In the meantime, you can visit our <a href="https://vortali.com/support" style="color:#4F46E5;text-decoration:none;">Help &amp; Support</a> page for answers to common questions.
             </p>
             <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">— The Vortali Team</p>
           </td>

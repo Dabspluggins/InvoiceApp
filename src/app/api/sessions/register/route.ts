@@ -277,9 +277,9 @@ async function detectAndAlertSuspiciousLogin({
   const trustExpiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24
   const hmacMessage = `${deviceFingerprint}|${label}|${userId}|${trustExpiresAt}`
   const sig = await computeHmac(hmacMessage)
-  const trustLink = `https://www.vortali.com/api/sessions/trust-device-token?fingerprint=${deviceFingerprint}&label=${encodeURIComponent(label)}&uid=${userId}&expires=${trustExpiresAt}&sig=${sig}`
+  const trustLink = `https://vortali.com/api/sessions/trust-device-token?fingerprint=${deviceFingerprint}&label=${encodeURIComponent(label)}&uid=${userId}&expires=${trustExpiresAt}&sig=${sig}`
 
-  const secureLink = `https://www.vortali.com/api/auth/secure-account?token=${rawToken}`
+  const secureLink = `https://vortali.com/api/auth/secure-account?token=${rawToken}`
   const resend = new Resend(apiKey)
 
   await resend.emails.send({

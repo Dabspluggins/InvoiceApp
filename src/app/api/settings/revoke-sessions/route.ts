@@ -43,7 +43,7 @@ export async function POST() {
   }
   const resend = new Resend(apiKey)
 
-  const revokeLink = `https://www.vortali.com/settings/revoke-sessions?token=${token}`
+  const revokeLink = `https://vortali.com/settings/revoke-sessions?token=${token}`
 
   const { error: emailError } = await resend.emails.send({
     from: 'Vortali <invoices@vortali.com>',

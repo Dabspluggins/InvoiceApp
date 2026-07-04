@@ -148,7 +148,7 @@ export default async function EstimateReviewPage({
               <p><strong>${clientDisplayName}</strong> has just opened and is reviewing your estimate <strong>${estimate.estimate_number}</strong>.</p>
               ${estimate.title ? `<p style="color: #6B7280;">${estimate.title}</p>` : ''}
               <p>They may approve, edit, or send back a revised version soon.</p>
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://www.vortali.com'}/estimates/${estimate.id}"
+              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://vortali.com'}/estimates/${estimate.id}"
                  style="display: inline-block; background: #4F46E5; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 16px;">
                 View Estimate
               </a>

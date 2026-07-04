@@ -166,7 +166,7 @@ export async function POST(
 
         if (ownerEmail) {
           const resend = new Resend(apiKey)
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.vortali.com'
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://vortali.com'
           const estimateUrl = `${appUrl}/estimates/${id}`
           const clientName = estimate.client_name || 'Your client'
           const actionLabel = action === 'approve' ? 'approved' : 'submitted revisions on'

@@ -85,7 +85,7 @@ function buildWelcomeEmailHtml(firstName: string, year: number): string {
 
       <!-- CTA Button -->
       <div style="margin:0 0 36px;">
-        <a href="https://www.vortali.com/invoice"
+        <a href="https://vortali.com/invoice"
            style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;letter-spacing:0.2px;">
           Send your first invoice &#8594;
         </a>
@@ -117,10 +117,10 @@ function buildWelcomeEmailHtml(firstName: string, year: number): string {
     <div style="padding:24px 40px;border-top:1px solid #f3f4f6;background:#f9fafb;">
       <p style="margin:0;color:#9ca3af;font-size:12px;line-height:1.7;text-align:center;">
         You&#39;re receiving this because you just created an account at
-        <a href="https://www.vortali.com" style="color:#4F46E5;text-decoration:none;">vortali.com</a>.<br>
+        <a href="https://vortali.com" style="color:#4F46E5;text-decoration:none;">vortali.com</a>.<br>
         &#169; ${year} Vortali &#183;
-        <a href="https://www.vortali.com/privacy" style="color:#9ca3af;text-decoration:none;">Privacy Policy</a> &#183;
-        <a href="https://www.vortali.com/terms" style="color:#9ca3af;text-decoration:none;">Terms</a>
+        <a href="https://vortali.com/privacy" style="color:#9ca3af;text-decoration:none;">Privacy Policy</a> &#183;
+        <a href="https://vortali.com/terms" style="color:#9ca3af;text-decoration:none;">Terms</a>
       </p>
     </div>
 

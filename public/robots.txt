@@ -7,4 +7,4 @@ Disallow: /analytics
 Disallow: /auth/
 Disallow: /portal/
 
-Sitemap: https://www.vortali.com/sitemap.xml
+Sitemap: https://vortali.com/sitemap.xml

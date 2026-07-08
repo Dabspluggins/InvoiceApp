@@ -127,7 +127,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
   const [bulkMarkingPaid, setBulkMarkingPaid] = useState(false)
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
-  const [summaryStats, setSummaryStats] = useState<{ totalCount: number; paidAmount: number; outstandingAmount: number } | null>(null)
+  const [summaryStats, setSummaryStats] = useState<{ totalCount: number; paidAmount: number; outstandingAmount: number; primaryCurrency: Currency | null; hasMixedCurrencies: boolean } | null>(null)
   const router = useRouter()
 
   const filteredInvoices = useMemo(() => {
@@ -183,6 +183,8 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
       totalCount: Number(data.total_count ?? 0),
       paidAmount: Number(data.paid_amount ?? 0),
       outstandingAmount: Number(data.outstanding_amount ?? 0),
+      primaryCurrency: (data.primary_currency as Currency) ?? null,
+      hasMixedCurrencies: Boolean(data.has_mixed_currencies ?? false),
     })
   }, [supabase])
 
@@ -576,6 +578,9 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
   const paidAmount = summaryStats?.paidAmount ?? 0
   const outstandingAmount = summaryStats?.outstandingAmount ?? 0
 
+  const primaryCurrency = summaryStats?.primaryCurrency ?? null
+  const hasMixedCurrencies = summaryStats?.hasMixedCurrencies ?? false
+
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there'
 
   const hasSelection = selectedIds.size > 0
@@ -631,11 +636,29 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
         </div>
         <div className={`rounded-xl border p-4 md:p-6 ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <p className={`text-xs md:text-sm mb-1 ${dk ? 'text-gray-400' : 'text-gray-500'}`}>Paid</p>
-          <p className="text-xl md:text-2xl font-bold text-green-500">{paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          {hasMixedCurrencies ? (
+            <div>
+              <p className="text-xl md:text-2xl font-bold text-green-500">{paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <span className={`text-xs ${dk ? 'text-gray-400' : 'text-gray-400'}`}>Multiple currencies</span>
+            </div>
+          ) : primaryCurrency ? (
+            <p className="text-xl md:text-2xl font-bold text-green-500">{formatCurrency(paidAmount, primaryCurrency)}</p>
+          ) : (
+            <p className="text-xl md:text-2xl font-bold text-green-500">{paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          )}
         </div>
         <div className={`col-span-2 md:col-span-1 rounded-xl border p-4 md:p-6 ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <p className={`text-xs md:text-sm mb-1 ${dk ? 'text-gray-400' : 'text-gray-500'}`}>Outstanding</p>
-          <p className="text-xl md:text-2xl font-bold text-orange-500">{outstandingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          {hasMixedCurrencies ? (
+            <div>
+              <p className="text-xl md:text-2xl font-bold text-orange-500">{outstandingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <span className={`text-xs ${dk ? 'text-gray-400' : 'text-gray-400'}`}>Multiple currencies</span>
+            </div>
+          ) : primaryCurrency ? (
+            <p className="text-xl md:text-2xl font-bold text-orange-500">{formatCurrency(outstandingAmount, primaryCurrency)}</p>
+          ) : (
+            <p className="text-xl md:text-2xl font-bold text-orange-500">{outstandingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          )}
         </div>
       </div>
 

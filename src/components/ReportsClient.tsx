@@ -240,28 +240,28 @@ export default function ReportsClient() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-6">
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
           <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-1">Total Invoiced</p>
-          <p className="text-xl md:text-2xl font-bold text-indigo-600">
+          <p className="text-base md:text-lg font-bold text-indigo-600 break-words">
             {fmt(totalInvoiced, primaryCurrency)}
           </p>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{filtered.length} invoice{filtered.length !== 1 ? 's' : ''}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
           <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-1">Total Collected</p>
-          <p className="text-xl md:text-2xl font-bold text-green-600">
+          <p className="text-base md:text-lg font-bold text-green-600 break-words">
             {fmt(totalCollected, primaryCurrency)}
           </p>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{filtered.filter(i => i.status === 'paid').length} paid</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
           <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-1">Outstanding</p>
-          <p className="text-xl md:text-2xl font-bold text-orange-500">
+          <p className="text-base md:text-lg font-bold text-orange-500 break-words">
             {fmt(outstanding, primaryCurrency)}
           </p>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{filtered.filter(i => i.status !== 'paid').length} unpaid</p>
         </div>
         <div className="col-span-2 md:col-span-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
           <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-1">Tax Collected</p>
-          <p className="text-xl md:text-2xl font-bold text-blue-600">
+          <p className="text-base md:text-lg font-bold text-blue-600 break-words">
             {fmt(totalTaxCollected, primaryCurrency)}
           </p>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">from paid invoices</p>

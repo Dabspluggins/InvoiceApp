@@ -280,7 +280,7 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
     setLineItems((prev) => prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item)))
   }
 
-  const { subtotal, discountAmount, taxAmount, total } = calcTotals(
+  const { subtotal: _subtotal, discountAmount: _discountAmount, taxAmount: _taxAmount, total } = calcTotals(
     lineItems,
     taxRate,
     discountType,

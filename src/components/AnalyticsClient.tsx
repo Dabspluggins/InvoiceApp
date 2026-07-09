@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { getCurrencySymbol } from '@/lib/currencies'
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts'
 
 interface Invoice {
   id: string
@@ -16,6 +19,12 @@ interface Invoice {
   issue_date: string
   due_date: string
   created_at: string
+  paid_at: string | null
+}
+
+interface Payment {
+  amount: number
+  paid_at: string
 }
 
 function fmt(amount: number) {
@@ -30,10 +39,10 @@ function monthKey(dateStr: string) {
   return dateStr?.slice(0, 7) ?? ''
 }
 
-function getLast6Months() {
+function getLast12Months() {
   const months = []
   const now = new Date()
-  for (let i = 5; i >= 0; i--) {
+  for (let i = 11; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     const label = d.toLocaleString('en-US', { month: 'short' })
@@ -54,17 +63,23 @@ function KpiCard({ label, value, color, sub }: { label: string; value: string; c
 
 export default function AnalyticsClient() {
   const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const supabase = createClient()
-    supabase
-      .from('invoices')
-      .select('id, invoice_number, client_name, client_company, total, currency, status, issue_date, due_date, created_at')
-      .then(({ data }) => {
-        setInvoices(data || [])
-        setLoading(false)
-      })
+    Promise.all([
+      supabase
+        .from('invoices')
+        .select('id, invoice_number, client_name, client_company, total, currency, status, issue_date, due_date, created_at, paid_at'),
+      supabase
+        .from('payments')
+        .select('amount, paid_at'),
+    ]).then(([{ data: invData }, { data: payData }]) => {
+      setInvoices(invData || [])
+      setPayments(payData || [])
+      setLoading(false)
+    })
   }, [])
 
   // Fix 2: skeleton loading screen matching KPI card layout
@@ -103,15 +118,18 @@ export default function AnalyticsClient() {
   )
   const overdueTotal = overdueInvoices.reduce((sum, i) => sum + (i.total || 0), 0)
 
-  // Monthly trend — last 6 months
-  const months = getLast6Months()
+  // Monthly trend — last 12 months
+  const months = getLast12Months()
   const monthlyData = months.map(({ key, label }) => {
     const created = invoices.filter(i => monthKey(i.created_at) === key)
-    const paid = invoices.filter(i => i.status === 'paid' && monthKey(i.created_at) === key)
+    // Aggregate from payment ledger so partial payments land in the month they were collected
+    const collectedInMonth = payments
+      .filter(p => monthKey(p.paid_at) === key)
+      .reduce((s, p) => s + (p.amount || 0), 0)
     return {
       label,
       invoiced: created.reduce((s, i) => s + (i.total || 0), 0),
-      paid: paid.reduce((s, i) => s + (i.total || 0), 0),
+      paid: collectedInMonth,
     }
   })
 
@@ -125,19 +143,7 @@ export default function AnalyticsClient() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
 
-  // SVG chart constants
-  const chartW = 560
-  const chartH = 200
-  const padL = 60
-  const padR = 20
-  const padT = 16
-  const padB = 30
-  const innerW = chartW - padL - padR
-  const innerH = chartH - padT - padB
-  const maxVal = Math.max(...monthlyData.flatMap(d => [d.invoiced, d.paid]), 1)
-  const barGroupW = innerW / months.length
-  const barW = Math.min(barGroupW * 0.35, 22)
-  const gap = barW * 0.4
+
 
   return (
     <div className="space-y-6">
@@ -156,82 +162,76 @@ export default function AnalyticsClient() {
 
       {/* Monthly Trend Chart */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 md:p-6">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">Monthly Trend</h2>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">Last 6 months — invoiced vs paid</p>
-        <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-400 mb-3">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">Revenue Trend</h2>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">Last 12 months — invoiced vs paid</p>
+        <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-400 mb-4">
           <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-indigo-500 inline-block" />
+            <span className="w-3 h-2 rounded-sm bg-indigo-500 inline-block" />
             Invoiced
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-green-500 inline-block" />
+            <span className="w-3 h-2 rounded-sm bg-green-500 inline-block" />
             Paid
           </span>
         </div>
-        <div className="overflow-x-auto">
-          <svg
-            viewBox={`0 0 ${chartW} ${chartH}`}
-            className="w-full max-w-2xl"
-            style={{ minWidth: 320 }}
-            aria-label="Monthly invoiced vs paid bar chart"
-          >
-            {/* Y-axis gridlines + labels */}
-            {[0, 0.25, 0.5, 0.75, 1].map(pct => {
-              const y = padT + innerH * (1 - pct)
-              const val = maxVal * pct
-              return (
-                <g key={pct}>
-                  <line
-                    x1={padL} y1={y} x2={chartW - padR} y2={y}
-                    stroke="#f3f4f6" strokeWidth="1"
-                  />
-                  <text x={padL - 6} y={y + 4} textAnchor="end" fontSize="10" fill="#9ca3af">
-                    {val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val.toFixed(0)}
-                  </text>
-                </g>
-              )
-            })}
-
-            {/* Bars */}
-            {monthlyData.map((d, i) => {
-              const groupX = padL + i * barGroupW + barGroupW / 2
-              const invoicedH = maxVal > 0 ? (d.invoiced / maxVal) * innerH : 0
-              const paidH = maxVal > 0 ? (d.paid / maxVal) * innerH : 0
-              const x1 = groupX - gap / 2 - barW
-              const x2 = groupX + gap / 2
-              return (
-                <g key={i}>
-                  {invoicedH > 0 && (
-                    <rect
-                      x={x1} y={padT + innerH - invoicedH}
-                      width={barW} height={invoicedH}
-                      rx="3" fill="#6366f1" opacity="0.85"
-                    />
-                  )}
-                  {paidH > 0 && (
-                    <rect
-                      x={x2} y={padT + innerH - paidH}
-                      width={barW} height={paidH}
-                      rx="3" fill="#22c55e" opacity="0.85"
-                    />
-                  )}
-                  <text
-                    x={groupX} y={chartH - 6}
-                    textAnchor="middle" fontSize="10" fill="#6b7280"
-                  >
-                    {d.label}
-                  </text>
-                </g>
-              )
-            })}
-
-            {/* X-axis baseline */}
-            <line
-              x1={padL} y1={padT + innerH} x2={chartW - padR} y2={padT + innerH}
-              stroke="#e5e7eb" strokeWidth="1"
+        <ResponsiveContainer width="100%" height={220}>
+          <AreaChart data={monthlyData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="gradInvoiced" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
+                <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="gradPaid" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.2} />
+                <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+            <XAxis
+              dataKey="label"
+              tick={{ fontSize: 11, fill: '#9ca3af' }}
+              axisLine={false}
+              tickLine={false}
             />
-          </svg>
-        </div>
+            <YAxis
+              tick={{ fontSize: 11, fill: '#9ca3af' }}
+              axisLine={false}
+              tickLine={false}
+              width={44}
+              tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
+            />
+            <Tooltip
+              contentStyle={{
+                borderRadius: 8,
+                border: '1px solid #e5e7eb',
+                fontSize: 12,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+              }}
+              formatter={(value, name) => [
+                fmt(Number(value)),
+                name === 'invoiced' ? 'Invoiced' : 'Paid',
+              ]}
+            />
+            <Area
+              type="monotone"
+              dataKey="invoiced"
+              stroke="#6366f1"
+              strokeWidth={2}
+              fill="url(#gradInvoiced)"
+              dot={false}
+              activeDot={{ r: 4, fill: '#6366f1' }}
+            />
+            <Area
+              type="monotone"
+              dataKey="paid"
+              stroke="#22c55e"
+              strokeWidth={2}
+              fill="url(#gradPaid)"
+              dot={false}
+              activeDot={{ r: 4, fill: '#22c55e' }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
 
       {/* Bottom row */}

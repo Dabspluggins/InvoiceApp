@@ -54,6 +54,23 @@ interface Template {
   created_at: string
 }
 
+// Tiny SVG sparkline — no Recharts needed, zero additional bundle weight
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  if (data.length < 2) return null
+  const max = Math.max(...data)
+  const min = Math.min(...data)
+  const range = max - min || 1
+  const W = 100, H = 32
+  const pts = data
+    .map((v, i) => `${(i / (data.length - 1)) * W},${H - ((v - min) / range) * (H - 4) - 2}`)
+    .join(' ')
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-8 mt-2 opacity-70" preserveAspectRatio="none">
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 const STATUS_COLORS: Record<InvoiceStatus, string> = {
   draft: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
   sent: 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300',
@@ -128,6 +145,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [summaryStats, setSummaryStats] = useState<{ totalCount: number; paidAmount: number; outstandingAmount: number; primaryCurrency: Currency | null; hasMixedCurrencies: boolean } | null>(null)
+  const [sparklineMonths, setSparklineMonths] = useState<{ invoiced: number[]; paid: number[]; outstanding: number[] }>({ invoiced: [], paid: [], outstanding: [] })
   const router = useRouter()
 
   const filteredInvoices = useMemo(() => {
@@ -188,6 +206,38 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     })
   }, [supabase])
 
+  // Sparkline data: count of invoices per month for last 6 months.
+  // Uses counts (not amounts) so it is currency-agnostic, matches the Total Invoices
+  // count card, and does not depend on partial-payment or credit logic.
+  const loadSparklines = useCallback(async () => {
+    const cutoff = new Date()
+    cutoff.setDate(1) // anchor before month arithmetic to avoid day-overflow
+    cutoff.setMonth(cutoff.getMonth() - 5)
+    const from = cutoff.toISOString().split('T')[0]
+    const months: string[] = []
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(1) // anchor to 1st before month arithmetic to avoid day-overflow
+      d.setMonth(d.getMonth() - i)
+      months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+    }
+    const { data } = await supabase
+      .from('invoices')
+      .select('issue_date, status')
+      .gte('issue_date', from)
+    if (!data) return
+    const invoicedArr: number[] = []
+    const paidArr: number[] = []
+    const outstandingArr: number[] = []
+    for (const m of months) {
+      const inMonth = data.filter(i => i.issue_date?.slice(0, 7) === m)
+      invoicedArr.push(inMonth.length)
+      paidArr.push(inMonth.filter(i => i.status === 'paid').length)
+      outstandingArr.push(inMonth.filter(i => i.status === 'sent' || i.status === 'pending' || i.status === 'partial').length)
+    }
+    setSparklineMonths({ invoiced: invoicedArr, paid: paidArr, outstanding: outstandingArr })
+  }, [supabase])
+
   // Fix 1: reset and reload when filters/search change (also handles initial load)
   useEffect(() => {
     setPage(0)
@@ -201,6 +251,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     loadTemplates()
     loadUnbilledExpenses()
     loadSummaryStats()
+    loadSparklines()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fix 1: load next page and append
@@ -227,7 +278,8 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     await supabase.from('invoices').update({ status }).eq('id', id)
     setInvoices((prev) => prev.map((inv) => (inv.id === id ? { ...inv, status } : inv)))
     loadSummaryStats()
-  }, [supabase, invoices, loadSummaryStats])
+    loadSparklines()
+  }, [supabase, invoices, loadSummaryStats, loadSparklines])
 
   async function handleConfirmPayment() {
     if (recordingPayment) return
@@ -281,6 +333,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
         )
       )
       loadSummaryStats()
+      loadSparklines()
       setRecordPaymentModal({ open: false, invoice: null, amount: '' })
   
       if (excess > 0.005) {
@@ -350,11 +403,12 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
       if (error) throw error
       setInvoices((prev) => prev.filter((inv) => inv.id !== id))
       loadSummaryStats()
+      loadSparklines()
       setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next })
     } catch {
       showToast('Failed to delete invoice. Please try again.', 'indigo')
     }
-  }, [supabase, loadSummaryStats])
+  }, [supabase, loadSummaryStats, loadSparklines])
 
   const handleSendReminder = useCallback(async (id: string) => {
     setRemindingIds((prev) => new Set(prev).add(id))
@@ -439,6 +493,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
       setSelectedIds(new Set())
       setBulkDeleteConfirm(false)
       loadSummaryStats()
+      loadSparklines()
       showToast(`${ids.length} invoice${ids.length !== 1 ? 's' : ''} permanently deleted`, 'indigo')
     } catch {
       showToast('Failed to delete invoices. Please try again.', 'indigo')
@@ -536,6 +591,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
         setSelectedIds(new Set())
         showToast(`${settled.length} invoice${settled.length !== 1 ? 's' : ''} marked as paid ✓`, 'green')
         loadSummaryStats()
+        loadSparklines()
       }
     } catch {
       showToast('Failed to mark invoices as paid. Please try again.', 'indigo')
@@ -633,6 +689,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
               ? `${filteredInvoices.length} / ${totalInvoices}`
               : totalInvoices}
           </p>
+          <Sparkline data={sparklineMonths.invoiced} color="#3b82f6" />
         </div>
         <div className={`rounded-xl border p-4 md:p-6 ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <p className={`text-xs md:text-sm mb-1 ${dk ? 'text-gray-400' : 'text-gray-500'}`}>Paid</p>
@@ -646,6 +703,8 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
           ) : (
             <p className="text-xl md:text-2xl font-bold text-green-500">{paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           )}
+          <Sparkline data={sparklineMonths.paid} color="#22c55e" />
+          {sparklineMonths.paid.some(v => v > 0) && <p className={`text-xs mt-0.5 ${dk ? 'text-gray-600' : 'text-gray-300'}`}>invoice count trend</p>}
         </div>
         <div className={`col-span-2 md:col-span-1 rounded-xl border p-4 md:p-6 ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <p className={`text-xs md:text-sm mb-1 ${dk ? 'text-gray-400' : 'text-gray-500'}`}>Outstanding</p>
@@ -659,6 +718,8 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
           ) : (
             <p className="text-xl md:text-2xl font-bold text-orange-500">{outstandingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           )}
+          <Sparkline data={sparklineMonths.outstanding} color="#f97316" />
+          {sparklineMonths.outstanding.some(v => v > 0) && <p className={`text-xs mt-0.5 ${dk ? 'text-gray-600' : 'text-gray-300'}`}>invoice count trend</p>}
         </div>
       </div>
 
@@ -1324,7 +1385,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
             </div>
             <div className="p-6 space-y-4">
               <p className="text-sm text-gray-700 dark:text-gray-300">
-                <span className="font-semibold text-green-700 dark:text-green-400">{formatCurrency(creditConfirmModal.excess, creditConfirmModal.currency)}</span> is more than the balance due. Would you like to record the excess as credit for <span className="font-medium">{creditConfirmModal.clientName}</span>?
+                <span className="font-semibold text-green-700 dark:text-green-400">{formatCurrency(creditConfirmModal.excess, creditConfirmModal.currency)}</span> is more than the balance due. Would you like to record the excess as credit for this client?
               </p>
               {!creditConfirmModal.clientId && (
                 <p className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">

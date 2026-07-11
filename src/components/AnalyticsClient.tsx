@@ -8,6 +8,7 @@ import { InvoiceStatus } from '@/lib/types'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
+  BarChart, Bar,
 } from 'recharts'
 
 interface Invoice {
@@ -144,6 +145,12 @@ export default function AnalyticsClient() {
   const topClients = Object.entries(clientMap)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
+
+  // Currency guard for paid revenue only — drafts/unpaid excluded so they
+  // don't incorrectly suppress currency formatting in the top-clients chart
+  const paidCurrencySet = new Set(invoices.filter(i => i.status === 'paid').map(i => i.currency))
+  const hasMixedPaidCurrencies = paidCurrencySet.size > 1
+  const primaryPaidCurrency = hasMixedPaidCurrencies ? 'NGN' : (invoices.find(i => i.status === 'paid')?.currency ?? 'NGN')
 
   // Invoice status breakdown for PieChart (non-overlapping segments)
   const statusSegments = [
@@ -392,16 +399,61 @@ export default function AnalyticsClient() {
           </div>
           {topClients.length === 0 ? (
             <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-10">No paid invoices yet</p>
+          ) : hasMixedPaidCurrencies ? (
+            // Fix 1: suppress chart when paid revenue spans currencies — cross-currency
+            // ranking and bar sizing would be meaningless
+            <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-10">
+              Multiple currencies — revenue ranking not available
+            </p>
           ) : (
-            <ul className="divide-y divide-gray-50 dark:divide-gray-700">
-              {topClients.map(([name, amount], i) => (
-                <li key={name} className="flex items-center gap-4 px-5 py-3.5">
-                  <span className="text-xs font-bold text-gray-300 dark:text-gray-600 w-4 shrink-0">{i + 1}</span>
-                  <span className="flex-1 text-sm text-gray-700 dark:text-gray-300 truncate">{name}</span>
-                  <span className="text-sm font-semibold text-green-600">{fmt(amount)}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="p-5">
+              <ResponsiveContainer width="100%" height={topClients.length * 48 + 16}>
+                <BarChart
+                  layout="vertical"
+                  data={topClients.map(([name, revenue]) => ({ name, revenue }))}
+                  margin={{ top: 0, right: 12, left: 0, bottom: 0 }}
+                  barSize={16}
+                >
+                  <XAxis
+                    type="number"
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) => {
+                      if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`
+                      if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K`
+                      return String(v)
+                    }}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    tick={({ x, y, payload }: { x: string | number; y: string | number; payload: { value: string } }) => {
+                      const label = payload.value.length > 18 ? payload.value.slice(0, 17) + '…' : payload.value
+                      return (
+                        <text x={Number(x)} y={Number(y)} fill="#6b7280" fontSize={11} textAnchor="end" dominantBaseline="middle">
+                          {label}
+                        </text>
+                      )
+                    }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={100}
+                  />
+                  <Tooltip
+                    formatter={(value) => [fmtWithCurrency(Number(value), primaryPaidCurrency), 'Revenue']}
+                    labelFormatter={(label) => label}
+                    contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
+                    cursor={{ fill: 'rgba(99,102,241,0.06)' }}
+                  />
+                  <Bar dataKey="revenue" radius={[0, 4, 4, 0]}>
+                    {topClients.map(([name], i) => (
+                      <Cell key={name} fill={i === 0 ? '#22c55e' : i === 1 ? '#4ade80' : '#86efac'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           )}
         </div>
       </div>

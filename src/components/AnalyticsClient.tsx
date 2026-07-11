@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { getCurrencySymbol } from '@/lib/currencies'
+import { InvoiceStatus } from '@/lib/types'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell,
 } from 'recharts'
 
 interface Invoice {
@@ -15,7 +17,7 @@ interface Invoice {
   client_company: string
   total: number
   currency: string
-  status: string
+  status: InvoiceStatus
   issue_date: string
   due_date: string
   created_at: string
@@ -143,6 +145,44 @@ export default function AnalyticsClient() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
 
+  // Invoice status breakdown for PieChart (non-overlapping segments)
+  const statusSegments = [
+    {
+      name: 'Draft',
+      color: '#9ca3af',
+      invoices: invoices.filter(i => i.status === 'draft'),
+    },
+    {
+      name: 'Paid',
+      color: '#22c55e',
+      invoices: invoices.filter(i => i.status === 'paid'),
+    },
+    {
+      name: 'Partial',
+      color: '#6366f1',
+      invoices: invoices.filter(i => i.status === 'partial' && !(i.due_date && i.due_date < today)),
+    },
+    {
+      name: 'Unpaid',
+      color: '#f97316',
+      invoices: invoices.filter(i => (i.status === 'sent' || i.status === 'pending') && !(i.due_date && i.due_date < today)),
+    },
+    {
+      name: 'Overdue',
+      color: '#ef4444',
+      invoices: invoices.filter(i => i.due_date && i.due_date < today && i.status !== 'paid' && i.status !== 'draft'),
+    },
+  ].map(s => ({
+    name: s.name,
+    color: s.color,
+    count: s.invoices.length,
+    value: s.invoices.reduce((sum, i) => sum + (i.total || 0), 0),
+  })).filter(s => s.count > 0)
+
+  // Currency guard for value totals in the donut legend
+  const hasMixedCurrencies = new Set(invoices.map(i => i.currency)).size > 1
+  const primaryCurrency = hasMixedCurrencies ? 'NGN' : (invoices[0]?.currency ?? 'NGN')
+
 
 
   return (
@@ -232,6 +272,57 @@ export default function AnalyticsClient() {
             />
           </AreaChart>
         </ResponsiveContainer>
+      </div>
+
+      {/* Invoice Status Donut */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 md:p-6">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">Invoice Status</h2>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">Breakdown by status across all invoices</p>
+        {statusSegments.length === 0 ? (
+          <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-10">No invoices yet</p>
+        ) : (
+          <div className="flex flex-col md:flex-row items-center gap-6">
+            <div className="shrink-0">
+              <PieChart width={200} height={200}>
+                <Pie
+                  data={statusSegments}
+                  cx={100}
+                  cy={100}
+                  innerRadius={60}
+                  outerRadius={90}
+                  dataKey="count"
+                  strokeWidth={2}
+                >
+                  {statusSegments.map((seg, i) => (
+                    <Cell key={i} fill={seg.color} stroke="transparent" />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value, name) => [`${value} invoice${Number(value) !== 1 ? 's' : ''}`, name]}
+                  contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
+                />
+              </PieChart>
+            </div>
+            <ul className="flex-1 space-y-3 w-full">
+              {statusSegments.map(seg => (
+                <li key={seg.name} className="flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
+                    {seg.name}
+                  </span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {seg.count} invoice{seg.count !== 1 ? 's' : ''}
+                  </span>
+                  {!hasMixedCurrencies && (
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {fmtWithCurrency(seg.value, primaryCurrency)}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {/* Bottom row */}

@@ -25,7 +25,7 @@ const cspDirectives = [
   `style-src 'self' 'unsafe-inline'`,
 
   // Images: self, base64 data URIs (invoice previews), Supabase Storage (logos/avatars)
-  `img-src 'self' data: \${SUPABASE_HOST}`,
+  'img-src \'self\' data: ' + SUPABASE_HOST,
 
   // Fonts: Inter is bundled at build time and served from self -- no external font CDN
   `font-src 'self'`,
@@ -35,7 +35,7 @@ const cspDirectives = [
   // request to challenges.cloudflare.com to generate the captcha token -- must be in connect-src.
   // https://vortali.com explicitly included: www->apex 308 redirects cause RSC prefetch requests
   // to cross origins, which the enforced CSP would otherwise block.
-  `connect-src 'self' https://vortali.com \${SUPABASE_HOST} \${SUPABASE_HOST.replace('https://', 'wss://')} \${POSTHOG_HOST} https://challenges.cloudflare.com`,
+  'connect-src \'self\' https://vortali.com ' + SUPABASE_HOST + ' ' + SUPABASE_HOST.replace('https://', 'wss://') + ' ' + POSTHOG_HOST + ' https://challenges.cloudflare.com',
 
   // Frames: Cloudflare Turnstile renders its challenge in an iframe
   `frame-src https://challenges.cloudflare.com`,

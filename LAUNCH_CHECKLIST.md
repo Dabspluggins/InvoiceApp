@@ -56,8 +56,8 @@ CSP is currently in report-only mode. Enforce it before launch so the app is har
 What first-time visitors and potential users will see.
 
 - [x] **Landing page** — Live at `vortali.com`. Hero, invoice mockup preview, 6-feature grid, how-it-works, CTA banner, and full footer with Company/Support/Legal columns. Publicly accessible (no auth required). ✓ Done.
-- [ ] **Twitter/X account** — Create the official Vortali Twitter/X account. Logo assets are ready.
-- [ ] **Add Twitter/X link to footer** — Update `src/app/page.tsx` footer once the account is live. The link block was intentionally removed during the rebrand pending account creation.
+- [x] **Twitter/X account** — @usevortali created. Done 2026-07-12.
+- [x] **Add Twitter/X link to footer** — X icon link added to footer brand column, pointing to https://x.com/usevortali. Done 2026-07-12.
 
 ---
 

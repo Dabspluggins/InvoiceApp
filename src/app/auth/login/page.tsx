@@ -290,9 +290,29 @@ export default function LoginPage() {
             </label>
             <div ref={turnstileRef} />
             {captchaError && (
-              <p className="text-sm text-red-500 text-center">
-                Security check failed. Please disable any ad blockers, refresh the page, or contact support.
-              </p>
+              <div className="text-sm text-center space-y-2">
+                <p className="text-red-500">
+                  Security check failed. Please disable any ad blockers or refresh the page.
+                </p>
+                <div className="flex flex-col items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={resetCaptcha}
+                    className="text-blue-600 dark:text-blue-400 underline hover:no-underline font-medium"
+                  >
+                    Retry security check
+                  </button>
+                  <span className="text-gray-400 dark:text-gray-500">
+                    or contact{' '}
+                    <a
+                      href="mailto:support@vortali.com"
+                      className="text-blue-600 dark:text-blue-400 underline hover:no-underline"
+                    >
+                      support@vortali.com
+                    </a>
+                  </span>
+                </div>
+              </div>
             )}
             {error && (
               <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 text-sm px-4 py-3 rounded-lg">

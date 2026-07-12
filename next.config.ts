@@ -14,17 +14,18 @@ const cspDirectives = [
   `default-src 'self'`,
 
   // Scripts: self + Cloudflare Turnstile (login/signup CAPTCHA).
-  // PostHog's assets CDN removed — disable_external_dependency_loading: true prevents
+  // PostHog assets CDN removed -- disable_external_dependency_loading: true prevents
   // the runtime <script> injection that was the source of the eval() CSP violation.
   // 'unsafe-inline' is required for Next.js hydration scripts and the dark mode
   // inline script in layout.tsx.
-  `script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com`,
+  // 'wasm-unsafe-eval' is required for Next.js / Turbopack WebAssembly modules in production.
+  `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://challenges.cloudflare.com`,
 
   // Styles: self + inline (Tailwind utility classes applied via className)
   `style-src 'self' 'unsafe-inline'`,
 
   // Images: self, base64 data URIs (invoice previews), Supabase Storage (logos/avatars)
-  `img-src 'self' data: ${SUPABASE_HOST}`,
+  `img-src 'self' data: \${SUPABASE_HOST}`,
 
   // Fonts: Inter is bundled at build time and served from self -- no external font CDN
   `font-src 'self'`,
@@ -32,7 +33,9 @@ const cspDirectives = [
   // API / WebSocket connections: Supabase REST + Auth + Realtime (wss) + PostHog analytics.
   // Cloudflare Turnstile: the widget JS (running in parent-page context) POSTs a verification
   // request to challenges.cloudflare.com to generate the captcha token -- must be in connect-src.
-  `connect-src 'self' ${SUPABASE_HOST} ${SUPABASE_HOST.replace('https://', 'wss://')} ${POSTHOG_HOST} https://challenges.cloudflare.com`,
+  // https://vortali.com explicitly included: www->apex 308 redirects cause RSC prefetch requests
+  // to cross origins, which the enforced CSP would otherwise block.
+  `connect-src 'self' https://vortali.com \${SUPABASE_HOST} \${SUPABASE_HOST.replace('https://', 'wss://')} \${POSTHOG_HOST} https://challenges.cloudflare.com`,
 
   // Frames: Cloudflare Turnstile renders its challenge in an iframe
   `frame-src https://challenges.cloudflare.com`,

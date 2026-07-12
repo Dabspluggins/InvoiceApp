@@ -1,24 +1,26 @@
 import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next'
 
-// Supabase project hostname — derived from env so preview environments work correctly
+// Supabase project hostname -- derived from env so preview environments work correctly
 const SUPABASE_HOST = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '')
 
-// PostHog ingestion host — defaults to US region; switch to https://eu.i.posthog.com for EU
+// PostHog ingestion host -- defaults to US region; switch to https://eu.i.posthog.com for EU
 const POSTHOG_HOST = (process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com').replace(/\/$/, '')
 
+// PostHog assets CDN -- used for remote config fetches (fetch() not script injection).
+// disable_external_dependency_loading: true prevents script injection but not these fetch calls.
+const POSTHOG_ASSETS_HOST = 'https://us-assets.i.posthog.com'
+
 // CSP enforced: disable_external_dependency_loading in PostHogProvider removes the
-// runtime <script> injection from the assets CDN that was the source of the eval() violation.
+// runtime script injection from the assets CDN that was the source of the eval() violation.
 const cspDirectives = [
   // By default, only load resources from our own domain
   `default-src 'self'`,
 
   // Scripts: self + Cloudflare Turnstile (login/signup CAPTCHA).
-  // PostHog assets CDN removed -- disable_external_dependency_loading: true prevents
-  // the runtime <script> injection that was the source of the eval() CSP violation.
-  // 'unsafe-inline' is required for Next.js hydration scripts and the dark mode
-  // inline script in layout.tsx.
-  // 'wasm-unsafe-eval' is required for Next.js / Turbopack WebAssembly modules in production.
+  // PostHog script injection disabled via disable_external_dependency_loading: true.
+  // 'unsafe-inline' required for Next.js hydration scripts and the dark mode inline script.
+  // 'wasm-unsafe-eval' required for Next.js / Turbopack WebAssembly modules in production.
   `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://challenges.cloudflare.com`,
 
   // Styles: self + inline (Tailwind utility classes applied via className)
@@ -31,11 +33,10 @@ const cspDirectives = [
   `font-src 'self'`,
 
   // API / WebSocket connections: Supabase REST + Auth + Realtime (wss) + PostHog analytics.
-  // Cloudflare Turnstile: the widget JS (running in parent-page context) POSTs a verification
-  // request to challenges.cloudflare.com to generate the captcha token -- must be in connect-src.
-  // https://vortali.com explicitly included: www->apex 308 redirects cause RSC prefetch requests
-  // to cross origins, which the enforced CSP would otherwise block.
-  'connect-src \'self\' https://vortali.com ' + SUPABASE_HOST + ' ' + SUPABASE_HOST.replace('https://', 'wss://') + ' ' + POSTHOG_HOST + ' https://challenges.cloudflare.com',
+  // Cloudflare Turnstile: POSTs verification requests to challenges.cloudflare.com.
+  // https://vortali.com: www->apex 308 redirects cause RSC prefetch cross-origin requests.
+  // POSTHOG_ASSETS_HOST: PostHog makes direct fetch() calls here for remote config.
+  'connect-src \'self\' https://vortali.com ' + SUPABASE_HOST + ' ' + SUPABASE_HOST.replace('https://', 'wss://') + ' ' + POSTHOG_HOST + ' ' + POSTHOG_ASSETS_HOST + ' https://challenges.cloudflare.com',
 
   // Frames: Cloudflare Turnstile renders its challenge in an iframe
   `frame-src https://challenges.cloudflare.com`,

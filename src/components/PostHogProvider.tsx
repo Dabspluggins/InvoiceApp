@@ -68,6 +68,10 @@ export default function PostHogProvider({ children }: { children: React.ReactNod
       capture_pageview: false,  // handled by PostHogPageView below
       capture_pageleave: false, // disabled — PostHog's internal URL capture can't be sanitized
       autocapture:      false,  // keep tracking explicit — don't sniff form values
+      // Prevents PostHog from injecting a remote config <script> from the assets CDN
+      // at runtime. That injected script uses eval(), which violates our CSP.
+      // We don't use Session Replay or product tours, so nothing is lost.
+      disable_external_dependency_loading: true,
     })
   }, [])
 

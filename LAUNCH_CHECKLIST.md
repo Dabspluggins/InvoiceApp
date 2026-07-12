@@ -26,9 +26,9 @@ Core product work — a dashboard with missing charts looks unfinished to new us
 - [x] Install Recharts (`npm install recharts`) ✓ Done 2026-07-08.
 
 **Analytics page (`AnalyticsClient.tsx`)**
-- [ ] Replace hand-rolled SVG bar chart with Recharts `AreaChart` — last 12 months, Invoiced vs Paid, hover tooltips, currency formatting
-- [ ] Add invoice status `PieChart` (donut) — Paid / Partial / Unpaid / Overdue with count + amount labels
-- [ ] Convert Top Clients text list into horizontal `BarChart` (top 5 by revenue paid)
+- [x] Replace hand-rolled SVG bar chart with Recharts `AreaChart` — last 12 months, Invoiced vs Paid, hover tooltips, currency formatting. Done.
+- [x] Add invoice status `PieChart` (donut) — Paid / Partial / Unpaid / Overdue with count + amount labels. Done.
+- [x] Convert Top Clients text list into horizontal `BarChart` (top 5 by revenue paid). Done.
 
 **Dashboard (`DashboardClient.tsx`)**
 - [x] Add 30-day sparklines to the 3 stat cards (mini trend line under each number) ✓ Done 2026-07-12 (commit 409c6fb).

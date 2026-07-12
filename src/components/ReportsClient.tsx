@@ -4,6 +4,9 @@ import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getCurrencySymbol } from '@/lib/currencies'
 import { InvoiceStatus, Currency } from '@/lib/types'
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from 'recharts'
 
 interface ReportInvoice {
   id: string
@@ -187,6 +190,38 @@ export default function ReportsClient() {
     if (!from || !to) return []
     return payments.filter(p => p.paid_at >= from && p.paid_at <= to)
   }, [payments, range])
+
+  // Monthly breakdown — invoiced (by issue_date) and collected (by paid_at) per calendar month
+  // within the selected date range. Only meaningful when the range spans 2+ months.
+  // Uses paymentsInPeriod (not the full ledger) so custom ranges like Mar 15–Apr 10 only
+  // count cash received within the actual window, matching the KPI cards.
+  const monthlyBreakdown = useMemo(() => {
+    const { from, to } = range
+    if (!from || !to) return []
+    const startYear = new Date(from + 'T00:00:00').getFullYear()
+    const endYear = new Date(to + 'T00:00:00').getFullYear()
+    const multiYear = startYear !== endYear
+    const months: { key: string; label: string }[] = []
+    const cur = new Date(from + 'T00:00:00')
+    cur.setDate(1)
+    const endMs = new Date(to + 'T00:00:00').getTime()
+    while (cur.getTime() <= endMs) {
+      const key = cur.getFullYear() + '-' + String(cur.getMonth() + 1).padStart(2, '0')
+      const monthName = cur.toLocaleString('en-US', { month: 'short' })
+      const label = multiYear ? monthName + " '" + String(cur.getFullYear()).slice(-2) : monthName
+      months.push({ key, label })
+      cur.setMonth(cur.getMonth() + 1)
+    }
+    return months.map(({ key, label }) => ({
+      label,
+      invoiced: filtered
+        .filter(inv => (inv.issue_date ?? '').slice(0, 7) === key)
+        .reduce((s, inv) => s + (inv.total || 0), 0),
+      collected: paymentsInPeriod
+        .filter(p => (p.paid_at ?? '').slice(0, 7) === key)
+        .reduce((s, p) => s + p.amount, 0),
+    }))
+  }, [filtered, paymentsInPeriod, range])
 
   // Dominant currency from the combined set of invoice currencies (filtered by issue_date)
   // AND payment currencies (filtered by paid_at) — so a period with only payments
@@ -395,6 +430,54 @@ export default function ReportsClient() {
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">cash received this period</p>
         </div>
       </div>
+
+      {/* Monthly Breakdown Bar Chart — only shown when range spans 2+ months */}
+      {monthlyBreakdown.length >= 2 && !hasMixedCurrencies && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 md:p-6 mb-6">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Monthly Breakdown</h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">Invoiced vs collected per month in selected period</p>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={monthlyBreakdown} margin={{ top: 4, right: 16, left: 0, bottom: 0 }} barGap={3}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: '#9ca3af' }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: '#9ca3af' }}
+                axisLine={false}
+                tickLine={false}
+                width={48}
+                tickFormatter={(v: number) => {
+                  if (v >= 1_000_000) return (v / 1_000_000).toFixed(1) + 'M'
+                  if (v >= 1_000) return (v / 1_000).toFixed(0) + 'K'
+                  return String(v)
+                }}
+              />
+              <Tooltip
+                contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+                formatter={(value, name) => [
+                  fmtShort(Number(value), primaryCurrency),
+                  name === 'invoiced' ? 'Invoiced' : 'Collected',
+                ]}
+              />
+              <Legend
+                iconType="square"
+                iconSize={10}
+                formatter={(value) => (
+                  <span style={{ fontSize: 11, color: '#9ca3af' }}>
+                    {value === 'invoiced' ? 'Invoiced' : 'Collected'}
+                  </span>
+                )}
+              />
+              <Bar dataKey="invoiced" fill="#6366f1" radius={[3, 3, 0, 0]} maxBarSize={32} />
+              <Bar dataKey="collected" fill="#22c55e" radius={[3, 3, 0, 0]} maxBarSize={32} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       {/* Breakdown table + export */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">

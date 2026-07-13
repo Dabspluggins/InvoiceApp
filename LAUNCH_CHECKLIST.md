@@ -35,7 +35,7 @@ Core product work — a dashboard with missing charts looks unfinished to new us
 - [x] Fix missing currency symbol on the "Paid" stat card ✓ Done 2026-07-08.
 
 **Reports page (`ReportsClient.tsx`)**
-- [ ] Add monthly breakdown bar chart within the selected date range
+- [x] Add monthly breakdown bar chart within the selected date range ✓ Done 2026-07-12 (commit 7e10bf6).
 
 ---
 
@@ -71,8 +71,8 @@ What first-time visitors and potential users will see.
 
 These are real improvements but not blockers for the announcement.
 
-- [ ] **Portal link validity period** — Add per-client setting to choose how long portal links stay valid (30 / 60 / 90 / 180 days or custom). Currently hardcoded to 90 days. Requires: `validity_period` column on clients table, UI selector in client form, regenerate-portal route update.
-- [ ] **Credit feature — atomic RPC upgrade** — Move invoice save + credit apply into a single Postgres RPC transaction (Option A). Currently shipped as Option B (separate post-save action). Needed when serving finance teams who need guaranteed consistency.
+- [x] **Portal link validity period** — Per-client setting implemented: `portal_validity_days` column on clients table, 30/60/90/180-day selector in ClientsClient.tsx, regenerate-portal route reads the setting. ✓ Confirmed done 2026-07-13.
+- [x] **Credit feature — atomic RPC upgrade** — `apply_client_credit` Postgres RPC atomically checks balance, inserts ledger entry, and updates invoice status. Invoice save + credit apply remain separate operations (acceptable for current scale; bundle into one RPC when finance-team consistency is required). ✓ Confirmed done 2026-07-13.
 
 ---
 

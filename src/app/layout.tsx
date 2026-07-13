@@ -81,7 +81,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: `
               if(typeof Promise.withResolvers==='undefined'){Promise.withResolvers=function(){var a,b;var p=new Promise(function(r,j){a=r;b=j;});return{promise:p,resolve:a,reject:b};};}
               try{var t=localStorage.getItem('theme');if(t==='dark'||(t===null&&localStorage.getItem('dashboard_dark_mode')==='true'))document.documentElement.classList.add('dark')}catch(e){}
-              window.addEventListener('error',function(e){try{var d=document.getElementById('__jserr');if(!d){d=document.createElement('div');d.id='__jserr';d.style.cssText='position:fixed;bottom:0;left:0;right:0;background:#b91c1c;color:#fff;padding:12px 16px;font:11px/1.5 monospace;z-index:99999;word-break:break-all;white-space:pre-wrap;max-height:40vh;overflow:auto';document.body?document.body.appendChild(d):document.addEventListener("DOMContentLoaded",function(){document.body.appendChild(d)});}d.textContent+=(e.message||'unknown error')+' @ '+(e.filename||'?').split('/').pop()+':'+(e.lineno||'?')+'\n';}catch(_){}},true);
+              (function(){
+                function showErr(msg){
+                  try{
+                    var d=document.getElementById('__jserr');
+                    if(!d){
+                      d=document.createElement('div');
+                      d.id='__jserr';
+                      d.style.cssText='position:fixed;bottom:0;left:0;right:0;background:#b91c1c;color:#fff;padding:12px 16px;font:11px/1.5 monospace;z-index:99999;word-break:break-all;white-space:pre-wrap;max-height:40vh;overflow:auto';
+                      if(document.body){document.body.appendChild(d);}
+                      else{document.addEventListener('DOMContentLoaded',function(){if(document.body)document.body.appendChild(d);});}
+                    }
+                    d.textContent+=msg+'\n';
+                  }catch(_){}
+                }
+                window.addEventListener('error',function(e){
+                  showErr((e.message||'unknown error')+' @ '+(e.filename||'?').split('/').pop()+':'+(e.lineno||'?'));
+                },true);
+                window.addEventListener('unhandledrejection',function(e){
+                  var r=e.reason;
+                  var msg=r?(r.stack||r.message||String(r)):'unhandled rejection';
+                  showErr('Promise rejection: '+msg);
+                });
+              })();
             `,
           }}
         />

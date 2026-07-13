@@ -5,7 +5,11 @@
  * (PostHogProvider, Nav, etc.). This replaces the entire document, so it must
  * include its own <html> and <body> tags. Inline styles are used because
  * Tailwind / global CSS may not be available when the root layout fails.
+ *
+ * Plain <a> tags are intentional here — Next.js <Link> requires the router
+ * context which is unavailable when the root layout itself has crashed.
  */
+/* eslint-disable @next/next/no-html-link-for-pages */
 export default function GlobalError({
   error,
   reset,

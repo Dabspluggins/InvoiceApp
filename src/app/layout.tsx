@@ -78,7 +78,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('theme');if(t==='dark'||(t===null&&localStorage.getItem('dashboard_dark_mode')==='true'))document.documentElement.classList.add('dark')}catch(e){}`,
+            __html: `
+              if(typeof Promise.withResolvers==='undefined'){Promise.withResolvers=function(){var a,b;var p=new Promise(function(r,j){a=r;b=j;});return{promise:p,resolve:a,reject:b};};}
+              try{var t=localStorage.getItem('theme');if(t==='dark'||(t===null&&localStorage.getItem('dashboard_dark_mode')==='true'))document.documentElement.classList.add('dark')}catch(e){}
+            `,
           }}
         />
       </head>

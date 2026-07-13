@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import Link from 'next/link'
 
 /**
  * Route-level error boundary for the Next.js App Router.
@@ -63,12 +64,12 @@ export default function Error({
           >
             Try again
           </button>
-          <a
+          <Link
             href="/"
             className="w-full border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-3 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors block"
           >
             Back to home
-          </a>
+          </Link>
         </div>
 
         <p className="mt-6 text-xs text-gray-400 dark:text-gray-500">

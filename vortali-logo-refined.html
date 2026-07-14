@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vortali — Refined Concept B</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: #f1f5f9;
+      padding: 48px 24px 80px;
+      color: #0f172a;
+    }
+
+    .container { max-width: 700px; margin: 0 auto; }
+
+    .page-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .page-sub { font-size: 13.5px; color: #64748b; margin-bottom: 48px; line-height: 1.6; }
+
+    .section { margin-bottom: 48px; }
+    .section-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.3px;
+      text-transform: uppercase; color: #94a3b8; margin-bottom: 16px;
+    }
+
+    /* Icon isolation row */
+    .icon-row {
+      background: white;
+      border-radius: 16px;
+      padding: 36px 32px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.05);
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+
+    .icon-group {
+      flex: 1;
+      display: flex;
+      gap: 28px;
+      align-items: center;
+      justify-content: center;
+    }
+    .icon-group.on-dark {
+      background: #0f172a;
+      border-radius: 12px;
+      padding: 24px 28px;
+    }
+
+    .icon-item { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .icon-item span {
+      font-size: 10.5px; color: #94a3b8; font-weight: 500; letter-spacing: 0.3px;
+    }
+    .icon-item span.dark-label { color: #475569; }
+
+    .icon-divider {
+      width: 1px; background: #e2e8f0; align-self: stretch; margin: 0 28px;
+    }
+
+    /* Lockup previews */
+    .lockup-card {
+      background: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+    }
+
+    .lockup-meta {
+      padding: 14px 22px;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748b;
+      letter-spacing: 0.1px;
+    }
+    .lockup-meta em {
+      font-style: normal;
+      background: #e0e7ff;
+      color: #4338ca;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 20px;
+      margin-left: 8px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .previews { display: flex; }
+    .pv {
+      flex: 1;
+      padding: 44px 20px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+    }
+    .pv.light { background: #f8fafc; }
+    .pv.dark  { background: #0f172a; }
+    .pvdivider { width: 1px; background: #e2e8f0; }
+    .pvlabel {
+      font-size: 10.5px; color: #94a3b8; font-weight: 500; letter-spacing: 0.4px;
+    }
+
+    /* Change log */
+    .changelog {
+      background: white;
+      border-radius: 14px;
+      padding: 24px 26px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.05);
+    }
+    .changelog-title {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; color: #94a3b8; margin-bottom: 14px;
+    }
+    .change-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 24px;
+    }
+    .change-item {
+      font-size: 12.5px; color: #475569; line-height: 1.55;
+      display: flex; gap: 8px; align-items: baseline;
+    }
+    .change-num {
+      font-size: 10px; font-weight: 700; color: #c7d2fe;
+      background: #312e81; padding: 1px 5px; border-radius: 4px;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <p class="page-title">Vortali — Refined Concept B</p>
+  <p class="page-sub">All 8 refinements applied + darker V (indigo-200 instead of white).<br>Review this before anything goes near the codebase.</p>
+
+  <!-- ===================== ICON ISOLATION ===================== -->
+  <div class="section">
+    <div class="section-label">Badge Icon — Isolated</div>
+    <div class="icon-row">
+
+      <!-- Light bg icons -->
+      <div class="icon-group">
+        <!-- Gradient -->
+        <div class="icon-item">
+          <svg viewBox="0 0 46 46" width="76" height="76" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#5B50F5"/>
+                <stop offset="100%" stop-color="#4338CA"/>
+              </linearGradient>
+            </defs>
+            <rect x="1" y="1" width="44" height="44" rx="13" fill="url(#g1)"/>
+            <polyline points="8,14 23,32 38,14" fill="none" stroke="#C7D2FE" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round"/>
+          </svg>
+          <span>Gradient</span>
+        </div>
+        <!-- Flat -->
+        <div class="icon-item">
+          <svg viewBox="0 0 46 46" width="76" height="76" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1" y="1" width="44" height="44" rx="13" fill="#4F46E5"/>
+            <polyline points="8,14 23,32 38,14" fill="none" stroke="#C7D2FE" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round"/>
+          </svg>
+          <span>Flat</span>
+        </div>
+      </div>
+
+      <div class="icon-divider"></div>
+
+      <!-- Dark bg icons -->
+      <div class="icon-group on-dark">
+        <!-- Gradient -->
+        <div class="icon-item">
+          <svg viewBox="0 0 46 46" width="76" height="76" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#5B50F5"/>
+                <stop offset="100%" stop-color="#4338CA"/>
+              </linearGradient>
+            </defs>
+            <rect x="1" y="1" width="44" height="44" rx="13" fill="url(#g2)"/>
+            <polyline points="8,14 23,32 38,14" fill="none" stroke="#C7D2FE" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round"/>
+          </svg>
+          <span class="dark-label">Gradient</span>
+        </div>
+        <!-- Flat -->
+        <div class="icon-item">
+          <svg viewBox="0 0 46 46" width="76" height="76" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1" y="1" width="44" height="44" rx="13" fill="#4F46E5"/>
+            <polyline points="8,14 23,32 38,14" fill="none" stroke="#C7D2FE" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round"/>
+          </svg>
+          <span class="dark-label">Flat</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===================== LOCKUP: GRADIENT ===================== -->
+  <div class="section">
+    <div class="section-label">Full Lockup</div>
+
+    <!-- Gradient -->
+    <div class="lockup-card">
+      <div class="lockup-meta">Gradient badge <em>recommended</em></div>
+      <div class="previews">
+        <div class="pv light">
+          <svg viewBox="0 0 152 46" style="width:100%;max-width:240px;height:auto" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="g3" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#5B50F5"/>
+                <stop offset="100%" stop-color="#4338CA"/>
+              </linearGradient>
+            </defs>
+            <rect x="1" y="1" width="44" height="44" rx="13" fill="url(#g3)"/>
+            <polyline points="8,14 23,32 38,14" fill="none" stroke="#C7D2FE" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round"/>
+            <text x="59" y="32" font-family="'Inter', system-ui, -apple-system, sans-serif" font-size="26" font-weight="700" fill="#0f172a" letter-spacing="-0.7">Vortali</text>
+          </svg>
+          <div class="pvlabel">Light background</div>
+        </div>
+        <div class="pvdivider"></div>
+        <div class="pv dark">
+          <svg viewBox="0 0 152 46" style="width:100%;max-width:240px;height:auto" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="g4" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#5B50F5"/>
+                <stop offset="100%" stop-color="#4338CA"/>
+              </linearGradient>
+            </defs>
+            <rect x="1" y="1" width="44" height="44" rx="13" fill="url(#g4)"/>
+            <polyline points="8,14 23,32 38,14" fill="none" stroke="#C7D2FE" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round"/>
+            <text x="59" y="32" font-family="'Inter', system-ui, -apple-system, sans-serif" font-size="26" font-weight="700" fill="#f8fafc" letter-spacing="-0.7">Vortali</text>
+          </svg>
+          <div class="pvlabel">Dark background</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Flat comparison -->
+    <div class="lockup-card">
+      <div class="lockup-meta">Flat badge — comparison</div>
+      <div class="previews">
+        <div class="pv light">
+          <svg viewBox="0 0 152 46" style="width:100%;max-width:240px;height:auto" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1" y="1" width="44" height="44" rx="13" fill="#4F46E5"/>
+            <polyline points="8,14 23,32 38,14" fill="none" stroke="#C7D2FE" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round"/>
+            <text x="59" y="32" font-family="'Inter', system-ui, -apple-system, sans-serif" font-size="26" font-weight="700" fill="#0f172a" letter-spacing="-0.7">Vortali</text>
+          </svg>
+          <div class="pvlabel">Light background</div>
+        </div>
+        <div class="pvdivider"></div>
+        <div class="pv dark">
+          <svg viewBox="0 0 152 46" style="width:100%;max-width:240px;height:auto" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1" y="1" width="44" height="44" rx="13" fill="#4F46E5"/>
+            <polyline points="8,14 23,32 38,14" fill="none" stroke="#C7D2FE" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round"/>
+            <text x="59" y="32" font-family="'Inter', system-ui, -apple-system, sans-serif" font-size="26" font-weight="700" fill="#f8fafc" letter-spacing="-0.7">Vortali</text>
+          </svg>
+          <div class="pvlabel">Dark background</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== WHAT CHANGED ===================== -->
+  <div class="changelog">
+    <div class="changelog-title">What changed from the original</div>
+    <div class="change-list">
+      <div class="change-item"><span class="change-num">1</span> Corner radius: 11 → 13 (more rounded)</div>
+      <div class="change-item"><span class="change-num">2</span> V optically centered — 11px all sides</div>
+      <div class="change-item"><span class="change-num">3</span> V wider + shallower (more open angle)</div>
+      <div class="change-item"><span class="change-num">4</span> Stroke weight: 6 → 5.5 (more refined)</div>
+      <div class="change-item"><span class="change-num">5</span> Badge–wordmark gap: 11 → 14px</div>
+      <div class="change-item"><span class="change-num">6</span> Wordmark size: 24 → 26px</div>
+      <div class="change-item"><span class="change-num">7</span> Letter spacing: −0.5 → −0.7</div>
+      <div class="change-item"><span class="change-num">8</span> Gradient badge option added</div>
+      <div class="change-item"><span class="change-num">+</span> V color: white → #C7D2FE (indigo-200)</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -20,8 +20,9 @@ const cspDirectives = [
   // Scripts: self + Cloudflare Turnstile (login/signup CAPTCHA).
   // PostHog script injection disabled via disable_external_dependency_loading: true.
   // 'unsafe-inline' required for Next.js hydration scripts and the dark mode inline script.
-  // 'wasm-unsafe-eval' required for Next.js / Turbopack WebAssembly modules in production.
-  `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://challenges.cloudflare.com`,
+  // 'wasm-unsafe-eval' removed — production bundles do not use WebAssembly eval at runtime,
+  // and Safari 16.1 may mishandle this CSP Level 3 keyword, silently blocking all scripts.
+  `script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com`,
 
   // Styles: self + inline (Tailwind utility classes applied via className)
   `style-src 'self' 'unsafe-inline'`,

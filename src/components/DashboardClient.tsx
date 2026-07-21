@@ -398,6 +398,14 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm('Delete this invoice? This cannot be undone.')) return
     try {
+      // Notify StockBook to release inventory BEFORE cascade-deleting line_items.
+      if (user?.id) {
+        await fetch('/api/webhooks/cancel-stockbook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ invoice_ids: [id], user_id: user.id }),
+        }).catch(console.error)
+      }
       // line_items and payments are removed by ON DELETE CASCADE — delete invoice only.
       const { error } = await supabase.from('invoices').delete().eq('id', id)
       if (error) throw error
@@ -408,7 +416,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     } catch {
       showToast('Failed to delete invoice. Please try again.', 'indigo')
     }
-  }, [supabase, loadSummaryStats, loadSparklines])
+  }, [supabase, loadSummaryStats, loadSparklines, user])
 
   const handleSendReminder = useCallback(async (id: string) => {
     setRemindingIds((prev) => new Set(prev).add(id))
@@ -485,6 +493,14 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     const ids = [...selectedIds]
     setBulkDeleting(true)
     try {
+      // Notify StockBook to release inventory BEFORE cascade-deleting line_items.
+      if (user?.id) {
+        await fetch('/api/webhooks/cancel-stockbook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ invoice_ids: ids, user_id: user.id }),
+        }).catch(console.error)
+      }
       // Delete invoices only — line_items/payments are removed by ON DELETE CASCADE.
       // Checking { error } because supabase client returns errors rather than throwing.
       const { error } = await supabase.from('invoices').delete().in('id', ids)

@@ -65,6 +65,7 @@ export interface LineItem {
   quantity: number
   rate: number
   amount: number
+  stockbook_product_id?: string | null
 }
 
 export interface EstimateTemplate {

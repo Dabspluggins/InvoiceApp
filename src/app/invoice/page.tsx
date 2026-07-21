@@ -212,6 +212,7 @@ function InvoicePageInner() {
             quantity: item.quantity,
             rate: item.rate,
             amount: item.amount,
+            stockbook_product_id: item.stockbook_product_id ?? null,
           })),
           taxRate: inv.tax_rate || 0,
           discount: inv.discount || 0,
@@ -278,6 +279,7 @@ function InvoicePageInner() {
             quantity: item.quantity,
             rate: item.rate,
             amount: item.amount,
+            stockbook_product_id: item.stockbook_product_id ?? null,
           })),
           taxRate: inv.tax_rate || 0,
           discount: inv.discount || 0,
@@ -619,6 +621,7 @@ function InvoicePageInner() {
       }
 
       let currentId = savedInvoiceId
+      let isNewInvoice = false
 
       if (currentId) {
         const { error } = await supabase
@@ -639,6 +642,7 @@ function InvoicePageInner() {
         if (error) throw error
 
         currentId = inserted.id
+        isNewInvoice = true
         setSavedInvoiceId(currentId)
         setSavedShareToken(inserted.share_token)
         window.history.replaceState(null, '', `/invoice?id=${currentId}`)
@@ -652,9 +656,21 @@ function InvoicePageInner() {
           rate: item.rate,
           amount: item.amount,
           sort_order: idx,
+          stockbook_product_id: item.stockbook_product_id ?? null,
         }))
         const { error } = await supabase.from('line_items').insert(lineItemsPayload)
         if (error) throw error
+      }
+
+      // Fire-and-forget: notify StockBook to reserve inventory for new invoices.
+      // Only fires when at least one line item has stockbook_product_id set.
+      // Failure is intentionally non-blocking — invoice save succeeds regardless.
+      if (isNewInvoice && currentId) {
+        fetch('/api/webhooks/notify-stockbook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ invoice_id: currentId, user_id: user.id }),
+        }).catch(console.error)
       }
 
       showToast('Invoice saved!', 'success')

@@ -673,6 +673,21 @@ function InvoicePageInner() {
         }).catch(console.error)
       }
 
+      // Fire-and-forget: notify StockBook to reconcile inventory reservations
+      // when an existing invoice is edited. The route reads the new line items
+      // from DB (just inserted above) and fires invoice.updated so StockBook
+      // can adjust its reservations to match the new state.
+      // An empty StockBook-linked items result signals "release all" — handled
+      // correctly on the StockBook side by reconcile_invoice_items().
+      // (Temporary scaffolding — will be replaced by outbox + QStash in next sprint.)
+      if (!isNewInvoice && currentId) {
+        fetch('/api/webhooks/notify-stockbook-update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ invoice_id: currentId, user_id: user.id }),
+        }).catch(console.error)
+      }
+
       showToast('Invoice saved!', 'success')
     } catch (err) {
       console.error(err)

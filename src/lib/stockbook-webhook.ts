@@ -24,6 +24,17 @@ type WebhookPayload =
       }
     }
   | {
+      type: 'invoice.updated'
+      data: {
+        invoice_id: string
+        user_id: string
+        // Full new desired state — may be empty (signals "release all reservations").
+        line_items: LineItem[]
+        // Per-event UUID for operation-level idempotency on the StockBook side.
+        event_key: string
+      }
+    }
+  | {
       type: 'invoice.cancelled'
       data: {
         invoice_id: string

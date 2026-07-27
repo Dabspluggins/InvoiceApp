@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { fireStockbookWebhook } from '@/lib/stockbook-webhook'
+import { Client } from '@upstash/qstash'
 import { logError } from '@/lib/logger'
 
 /**
@@ -9,20 +9,23 @@ import { logError } from '@/lib/logger'
  *
  * Called by the invoice page after an existing invoice is saved (edit path).
  * Reads the current line_items from DB (just re-inserted by handleSave), builds
- * the full new state, and fires a signed `invoice.updated` event to StockBook
- * so it can reconcile its inventory reservations.
+ * the full new state, and publishes an `invoice.updated` event to QStash.
+ *
+ * QStash delivers the event to StockBook with automatic retries (up to 3).
+ * A stable event_key UUID is baked into the message body so every retry
+ * carries the same key — StockBook's reconcile_invoice_items() uses it for
+ * operation-level idempotency via the webhook_events table.
  *
  * An empty line_items result is intentionally forwarded — it signals StockBook
- * to release all reservations for this invoice (all linked products were removed).
+ * to release all reservations for this invoice (all linked products removed).
  *
- * A per-event UUID (event_key) is generated here and used by StockBook's
- * reconcile_invoice_items() as an operation-level idempotency key.
- *
- * Webhook failures are logged but never surface as errors to the caller —
+ * Publish failures are logged but never surface as errors to the caller —
  * invoice saving must succeed regardless of StockBook availability.
- *
- * (Temporary scaffolding — will be replaced by outbox + QStash in next sprint.)
  */
+
+// QStash client — initialised once per cold start.
+const qstash = new Client({ token: process.env.QSTASH_TOKEN! })
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -70,26 +73,35 @@ export async function POST(req: NextRequest) {
       }))
       .filter((item) => Number.isFinite(item.quantity) && item.quantity > 0)
 
-    const result = await fireStockbookWebhook({
-      type: 'invoice.updated',
-      data: {
-        invoice_id,
-        user_id,
-        line_items: sanitizedItems,
-        event_key: randomUUID(),
-      },
-    })
-
-    if (!result.ok) {
+    const stockbookWebhookUrl = process.env.STOCKBOOK_WEBHOOK_URL
+    if (!stockbookWebhookUrl) {
       logError(
         'webhooks/notify-stockbook-update',
-        'StockBook webhook delivery failed',
-        { invoice_id, status: result.status },
-        result.body,
+        'STOCKBOOK_WEBHOOK_URL is not set — endpoint disabled',
+        { invoice_id },
       )
+      return NextResponse.json({ error: 'Webhook endpoint not configured' }, { status: 503 })
     }
 
-    return NextResponse.json({ ok: true, delivered: result.ok })
+    // Publish to QStash. The event_key UUID is baked into the body here so
+    // all retries deliver the same key — safe for StockBook's idempotency guard.
+    const event_key = randomUUID()
+
+    const result = await qstash.publishJSON({
+      url: stockbookWebhookUrl,
+      body: {
+        type: 'invoice.updated',
+        data: {
+          invoice_id,
+          user_id,
+          line_items: sanitizedItems,
+          event_key,
+        },
+      },
+      retries: 3,
+    })
+
+    return NextResponse.json({ ok: true, messageId: result.messageId })
   } catch (err) {
     logError('webhooks/notify-stockbook-update', 'Unhandled error', {}, err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

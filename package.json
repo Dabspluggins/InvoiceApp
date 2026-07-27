@@ -12,6 +12,7 @@
     "@sentry/nextjs": "^10.52.0",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.101.1",
+    "@upstash/qstash": "^2.11.3",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.37.0",
     "html2pdf.js": "^0.14.0",

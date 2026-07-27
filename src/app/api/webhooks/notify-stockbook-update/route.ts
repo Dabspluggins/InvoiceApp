@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
         'webhooks/notify-stockbook-update',
         'STOCKBOOK_WEBHOOK_URL is not set — endpoint disabled',
         { invoice_id },
+        new Error('STOCKBOOK_WEBHOOK_URL missing'),
       )
       return NextResponse.json({ error: 'Webhook endpoint not configured' }, { status: 503 })
     }

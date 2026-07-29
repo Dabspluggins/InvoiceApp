@@ -1,4 +1,4 @@
-export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'pending' | 'partial'
+export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'pending' | 'partial' | 'cancelled'
 export type EstimateStatus = 'draft' | 'sent' | 'client_reviewing' | 'revised' | 'approved' | 'rejected' | 'converted'
 
 export type SavedPaymentMethod = {

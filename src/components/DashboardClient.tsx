@@ -46,7 +46,7 @@ interface CreditConfirmModal {
   currency: Currency
 }
 
-type StatusFilter = 'all' | 'unpaid' | 'paid' | 'overdue' | 'partial'
+type StatusFilter = 'all' | 'unpaid' | 'paid' | 'overdue' | 'partial' | 'cancelled'
 
 interface Template {
   id: string
@@ -77,6 +77,7 @@ const STATUS_COLORS: Record<InvoiceStatus, string> = {
   paid: 'bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300',
   pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/60 dark:text-yellow-300',
   partial: 'bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300',
+  cancelled: 'bg-red-100 text-red-600 dark:bg-red-900/60 dark:text-red-300',
 }
 
 const TODAY = new Date().toISOString().split('T')[0]
@@ -162,7 +163,9 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
       if (statusFilter === 'unpaid') return inv.status === 'sent' || inv.status === 'pending'
       if (statusFilter === 'partial') return isPartial(inv)
       if (statusFilter === 'overdue') return isOverdue(inv)
-      return true
+      if (statusFilter === 'cancelled') return inv.status === 'cancelled'
+      // 'all' excludes cancelled — use the Cancelled filter to see them
+      return inv.status !== 'cancelled'
     })
   }, [invoices, search, statusFilter])
 
@@ -418,6 +421,28 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     }
   }, [supabase, loadSummaryStats, loadSparklines, user])
 
+  const handleCancel = useCallback(async (id: string) => {
+    if (!confirm('Cancel this invoice? The stock reservations will be released. The invoice will remain on record as cancelled.')) return
+    try {
+      // Release StockBook inventory reservations before marking as cancelled.
+      if (user?.id) {
+        await fetch('/api/webhooks/cancel-stockbook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ invoice_ids: [id], user_id: user.id }),
+        }).catch(console.error)
+      }
+      const { error } = await supabase.from('invoices').update({ status: 'cancelled' as InvoiceStatus, is_recurring: false }).eq('id', id)
+      if (error) throw error
+      setInvoices((prev) => prev.map((inv) => (inv.id === id ? { ...inv, status: 'cancelled' as InvoiceStatus, is_recurring: false } : inv)))
+      loadSummaryStats()
+      loadSparklines()
+      showToast('Invoice cancelled.', 'indigo')
+    } catch {
+      showToast('Failed to cancel invoice. Please try again.', 'indigo')
+    }
+  }, [supabase, loadSummaryStats, loadSparklines, user, showToast])
+
   const handleSendReminder = useCallback(async (id: string) => {
     setRemindingIds((prev) => new Set(prev).add(id))
     try {
@@ -553,7 +578,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
   async function handleBulkMarkPaid() {
     if (bulkMarkingPaid) return
     const unpaidSelected = invoices.filter(
-      (inv) => selectedIds.has(inv.id) && inv.status !== 'paid'
+      (inv) => selectedIds.has(inv.id) && inv.status !== 'paid' && inv.status !== 'cancelled'
     )
     if (unpaidSelected.length === 0) return
     setBulkMarkingPaid(true)
@@ -657,7 +682,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
 
   const hasSelection = selectedIds.size > 0
   const hasUnpaidSelected = invoices.some(
-    (inv) => selectedIds.has(inv.id) && inv.status !== 'paid'
+    (inv) => selectedIds.has(inv.id) && inv.status !== 'paid' && inv.status !== 'cancelled'
   )
   const allSelected = filteredInvoices.length > 0 && filteredInvoices.every((inv) => selectedIds.has(inv.id))
 
@@ -667,6 +692,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     { label: 'Partial', value: 'partial' },
     { label: 'Paid', value: 'paid' },
     { label: 'Overdue', value: 'overdue' },
+    { label: 'Cancelled', value: 'cancelled' },
   ]
 
   const dk = darkMode
@@ -924,7 +950,11 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                 <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs text-gray-400">{formatDateLong(inv.issue_date)}</span>
-                    {inv.status === 'partial' ? (
+                    {inv.status === 'cancelled' ? (
+                      <span className="bg-red-100 text-red-600 dark:bg-red-900/60 dark:text-red-300 text-xs font-semibold px-2 py-1 rounded-full">
+                        CANCELLED
+                      </span>
+                    ) : inv.status === 'partial' ? (
                       <button
                         type="button"
                         onClick={() => {
@@ -952,7 +982,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    {inv.share_token && (
+                    {inv.share_token && inv.status !== 'cancelled' && (
                       <button
                         onClick={() => handleCopyLink(inv)}
                         className="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1"
@@ -970,7 +1000,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                         {remindingIds.has(inv.id) ? 'Sending…' : 'Send Reminder'}
                       </button>
                     )}
-                    {inv.share_token && inv.status !== 'paid' && (
+                    {inv.share_token && inv.status !== 'paid' && inv.status !== 'cancelled' && (
                       <button
                         onClick={() => handleWhatsApp(inv)}
                         className="inline-flex items-center gap-1 text-xs bg-green-500 hover:bg-green-600 text-white font-medium px-2 py-1 rounded-md transition"
@@ -988,6 +1018,14 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                     >
                       ⧉ Duplicate
                     </button>
+                    {inv.status !== 'cancelled' && inv.status !== 'paid' && inv.status !== 'partial' && (
+                      <button
+                        onClick={() => handleCancel(inv.id)}
+                        className="text-xs text-orange-500 hover:text-orange-700 font-medium px-2 py-1"
+                      >
+                        Cancel
+                      </button>
+                    )}
                     <button
                       onClick={() => handleDelete(inv.id)}
                       className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1"
@@ -1080,7 +1118,11 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                       className="px-6 py-4 text-center"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {inv.status === 'paid' ? (
+                      {inv.status === 'cancelled' ? (
+                        <span className="bg-red-100 text-red-600 dark:bg-red-900/60 dark:text-red-300 text-xs font-semibold px-2 py-0.5 rounded-full">
+                          CANCELLED
+                        </span>
+                      ) : inv.status === 'paid' ? (
                         <span className="bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300 text-xs font-semibold px-2 py-0.5 rounded-full">
                           PAID
                         </span>
@@ -1118,7 +1160,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="flex items-center justify-end gap-3">
-                        {inv.share_token && (
+                        {inv.share_token && inv.status !== 'cancelled' && (
                           <button
                             onClick={() => handleCopyLink(inv)}
                             className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
@@ -1136,7 +1178,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                             {remindingIds.has(inv.id) ? 'Sending…' : 'Send Reminder'}
                           </button>
                         )}
-                        {inv.share_token && inv.status !== 'paid' && (
+                        {inv.share_token && inv.status !== 'paid' && inv.status !== 'cancelled' && (
                           <button
                             onClick={() => handleWhatsApp(inv)}
                             className="inline-flex items-center gap-1.5 text-xs bg-green-500 hover:bg-green-600 text-white font-medium px-2 py-1 rounded-md transition"
@@ -1154,6 +1196,14 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                         >
                           ⧉ Duplicate
                         </button>
+                        {inv.status !== 'cancelled' && inv.status !== 'paid' && inv.status !== 'partial' && (
+                          <button
+                            onClick={() => handleCancel(inv.id)}
+                            className="text-xs text-orange-500 hover:text-orange-700 font-medium"
+                          >
+                            Cancel
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDelete(inv.id)}
                           className="text-xs text-red-500 hover:text-red-700 font-medium"

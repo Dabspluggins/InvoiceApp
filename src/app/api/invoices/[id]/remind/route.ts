@@ -103,13 +103,17 @@ export async function POST(
 
   const { data: inv, error: fetchError } = await adminSupabase
     .from('invoices')
-    .select('id, user_id, invoice_number, client_name, client_email, total, currency, due_date, share_token, business_name, reminders_sent')
+    .select('id, user_id, invoice_number, client_name, client_email, total, currency, due_date, share_token, business_name, reminders_sent, status')
     .eq('id', id)
     .eq('user_id', user.id)
     .single()
 
   if (fetchError || !inv) {
     return Response.json({ error: 'Invoice not found' }, { status: 404 })
+  }
+
+  if (inv.status === 'cancelled') {
+    return Response.json({ error: 'Cannot send a reminder for a cancelled invoice' }, { status: 409 })
   }
 
   const { data: userData } = await adminSupabase.auth.admin.getUserById(user.id)

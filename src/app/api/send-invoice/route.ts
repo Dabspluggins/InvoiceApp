@@ -308,6 +308,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
     }
 
+    if (invoice.status === 'cancelled') {
+      return NextResponse.json({ error: 'Cannot send a cancelled invoice' }, { status: 409 })
+    }
+
     const { data: lineItems } = await supabase
       .from('line_items')
       .select('description, quantity, rate, amount')

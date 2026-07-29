@@ -109,7 +109,7 @@ export default function AnalyticsClient() {
   const today = new Date().toISOString().slice(0, 10)
 
   // KPIs
-  const totalInvoiced = invoices.reduce((sum, i) => sum + (i.total || 0), 0)
+  const totalInvoiced = invoices.filter(i => i.status !== 'cancelled').reduce((sum, i) => sum + (i.total || 0), 0)
   const totalPaid = invoices
     .filter(i => i.status === 'paid')
     .reduce((sum, i) => sum + (i.total || 0), 0)
@@ -117,7 +117,7 @@ export default function AnalyticsClient() {
     .filter(i => i.status === 'sent' || i.status === 'pending')
     .reduce((sum, i) => sum + (i.total || 0), 0)
   const overdueInvoices = invoices.filter(
-    i => i.due_date && i.due_date < today && i.status !== 'paid'
+    i => i.due_date && i.due_date < today && i.status !== 'paid' && i.status !== 'cancelled'
   )
   const overdueTotal = overdueInvoices.reduce((sum, i) => sum + (i.total || 0), 0)
 
@@ -177,7 +177,12 @@ export default function AnalyticsClient() {
     {
       name: 'Overdue',
       color: '#ef4444',
-      invoices: invoices.filter(i => i.due_date && i.due_date < today && i.status !== 'paid' && i.status !== 'draft'),
+      invoices: invoices.filter(i => i.due_date && i.due_date < today && i.status !== 'paid' && i.status !== 'draft' && i.status !== 'cancelled'),
+    },
+    {
+      name: 'Cancelled',
+      color: '#9ca3af',
+      invoices: invoices.filter(i => i.status === 'cancelled'),
     },
   ].map(s => ({
     name: s.name,

@@ -39,6 +39,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Cannot apply credit to a fully paid invoice' }, { status: 422 })
   }
 
+  if (invoice.status === 'cancelled') {
+    return NextResponse.json({ error: 'Cannot apply credit to a cancelled invoice' }, { status: 409 })
+  }
+
   const invoiceTotal = Number(invoice.total || 0)
   const alreadyApplied = Number(invoice.credit_applied || 0)
   if (parsedAmount > (invoiceTotal - alreadyApplied)) {

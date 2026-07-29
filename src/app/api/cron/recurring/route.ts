@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 import type { NextRequest } from 'next/server'
-import { fireStockbookWebhook } from '@/lib/stockbook-webhook'
+import { Client } from '@upstash/qstash'
+
+const qstash = new Client({ token: process.env.QSTASH_TOKEN! })
 
 export const dynamic = 'force-dynamic'
 
@@ -121,9 +123,8 @@ export async function GET(request: NextRequest) {
       .update({ recurring_next_date: newNextDate })
       .eq('id', inv.id)
 
-    // Fire-and-forget: notify StockBook of the newly generated recurring invoice.
+    // Notify StockBook of the newly generated recurring invoice via QStash.
     // Use the already-copied line items — no extra DB query needed.
-    // (Temporary scaffolding — will be replaced by outbox + QStash in next sprint.)
     const sbItems = (lineItems ?? [])
       .filter((item) => item.stockbook_product_id != null)
       .map((item) => ({
@@ -133,10 +134,17 @@ export async function GET(request: NextRequest) {
       .filter((item) => Number.isFinite(item.quantity) && item.quantity > 0)
 
     if (sbItems.length > 0) {
-      fireStockbookWebhook({
-        type: 'invoice.created',
-        data: { invoice_id: newInv.id, user_id: inv.user_id, line_items: sbItems },
-      }).catch(() => {})
+      const stockbookWebhookUrl = process.env.STOCKBOOK_WEBHOOK_URL
+      if (stockbookWebhookUrl) {
+        await qstash.publishJSON({
+          url: stockbookWebhookUrl,
+          body: {
+            type: 'invoice.created',
+            data: { invoice_id: newInv.id, user_id: inv.user_id, line_items: sbItems },
+          },
+          retries: 3,
+        }).catch(() => {})
+      }
     }
 
     generated.push(newInv.id)

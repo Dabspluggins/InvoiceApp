@@ -2,6 +2,9 @@ import { randomBytes } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { logError } from '@/lib/logger'
+import { Client } from '@upstash/qstash'
+
+const qstash = new Client({ token: process.env.QSTASH_TOKEN! })
 
 export async function POST(
   _req: NextRequest,
@@ -180,6 +183,44 @@ export async function POST(
       actor: 'owner',
       details: { invoice_id: invoice.id, invoice_number: invoiceNumber },
     })
+
+    // Notify StockBook of invoice created from estimate via QStash.
+    // Awaited so the enqueue reaches QStash before the response is sent.
+    // Failures are non-fatal — invoice creation has already succeeded.
+    await (async () => {
+      try {
+        const { data: sbItems } = await supabase
+          .from('line_items')
+          .select('stockbook_product_id, quantity')
+          .eq('invoice_id', invoice.id)
+          .not('stockbook_product_id', 'is', null)
+
+        if (!sbItems || sbItems.length === 0) return
+
+        const sanitized = sbItems
+          .map((item) => ({
+            product_id: item.stockbook_product_id as string,
+            quantity: Math.round(Number(item.quantity)),
+          }))
+          .filter((item) => Number.isFinite(item.quantity) && item.quantity > 0)
+
+        if (sanitized.length === 0) return
+
+        const stockbookWebhookUrl = process.env.STOCKBOOK_WEBHOOK_URL
+        if (stockbookWebhookUrl) {
+          await qstash.publishJSON({
+            url: stockbookWebhookUrl,
+            body: {
+              type: 'invoice.created',
+              data: { invoice_id: invoice.id, user_id: user.id, line_items: sanitized },
+            },
+            retries: 3,
+          })
+        }
+      } catch {
+        // non-fatal
+      }
+    })()
 
     return NextResponse.json({ success: true, invoiceId: invoice.id })
   } catch (err) {

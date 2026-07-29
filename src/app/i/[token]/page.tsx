@@ -60,6 +60,7 @@ interface InvoiceRow {
   notes: string | null
   brand_color: string | null
   payment_details: PaymentDetails | null
+  status: string
   view_count: number | null
   viewed_at: string | null
   template: string | null
@@ -193,7 +194,7 @@ export default async function PublicInvoicePage({
   const language = (result?.invoice.language ?? 'en') as InvoiceLanguage
   const t = getInvoiceTranslations(language)
 
-  if (result) {
+  if (result && result.invoice.status !== 'cancelled') {
     const headersList = await headers()
     const ua = headersList.get('user-agent')
     if (!isKnownBot(ua)) {
@@ -227,6 +228,22 @@ export default async function PublicInvoicePage({
   }
 
   const { invoice, lineItems } = result
+
+  if (invoice.status === 'cancelled') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <div className="text-6xl mb-6">🚫</div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">Invoice cancelled</h1>
+          <p className="text-gray-500 mb-4">
+            Invoice <strong>{invoice.invoice_number}</strong>
+            {invoice.business_name ? ` from ${invoice.business_name}` : ''} has been cancelled and is no longer active.
+          </p>
+          <p className="text-gray-400 text-sm">Please contact the sender if you believe this is an error.</p>
+        </div>
+      </div>
+    )
+  }
 
   const pd = invoice.payment_details
   const bt = pd?.bankTransfer

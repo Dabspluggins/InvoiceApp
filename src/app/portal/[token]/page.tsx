@@ -43,9 +43,10 @@ function formatDate(dateStr: string | null): string {
   })
 }
 
-type DisplayStatus = 'PAID' | 'OVERDUE' | 'PENDING'
+type DisplayStatus = 'PAID' | 'OVERDUE' | 'PENDING' | 'CANCELLED'
 
 function getDisplayStatus(invoice: Invoice): DisplayStatus {
+  if (invoice.status === 'cancelled') return 'CANCELLED'
   if (invoice.status === 'paid') return 'PAID'
   if (
     invoice.due_date &&
@@ -60,6 +61,7 @@ const STATUS_STYLES: Record<DisplayStatus, string> = {
   PAID: 'bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300',
   OVERDUE: 'bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-300',
   PENDING: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/60 dark:text-yellow-300',
+  CANCELLED: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400',
 }
 
 function formatCurrency(amount: number, currency: string): string {
@@ -78,6 +80,7 @@ function buildSummaries(invoices: Invoice[]): CurrencySummary[] {
   for (const inv of invoices) {
     const c = inv.currency
     if (!map[c]) map[c] = { currency: c, total: 0, paid: 0, outstanding: 0 }
+    if (inv.status === 'cancelled') continue
     map[c].total += inv.total
     if (inv.status === 'paid') {
       map[c].paid += inv.total

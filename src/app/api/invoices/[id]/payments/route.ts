@@ -35,6 +35,10 @@ export async function POST(
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
     }
 
+    if (invoice.status === 'cancelled') {
+      return NextResponse.json({ error: 'Cannot record a payment on a cancelled invoice' }, { status: 409 })
+    }
+
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
       .insert({
@@ -94,6 +98,10 @@ export async function DELETE(
 
     if (invoiceError || !invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+    }
+
+    if (invoice.status === 'cancelled') {
+      return NextResponse.json({ error: 'Cannot delete a payment on a cancelled invoice' }, { status: 409 })
     }
 
     const { error: deleteError } = await supabase

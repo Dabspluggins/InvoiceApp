@@ -35,6 +35,10 @@ export async function POST(
       return NextResponse.json({ error: 'Invoice is already paid' }, { status: 409 })
     }
 
+    if (invoice.status === 'cancelled') {
+      return NextResponse.json({ error: 'Cannot mark a cancelled invoice as paid' }, { status: 409 })
+    }
+
     const { error: updateError } = await supabase
       .from('invoices')
       .update({ status: 'paid', paid_at: new Date().toISOString() })

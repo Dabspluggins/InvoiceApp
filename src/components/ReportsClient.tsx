@@ -259,7 +259,7 @@ export default function ReportsClient() {
     return map
   }, [payments])
 
-  const totalInvoiced = useMemo(() => filtered.reduce((s, i) => s + (i.total || 0), 0), [filtered])
+  const totalInvoiced = useMemo(() => filtered.filter(i => i.status !== 'cancelled').reduce((s, i) => s + (i.total || 0), 0), [filtered])
 
   // Cash-basis: sum payments received in the period
   const totalCollected = useMemo(() =>
@@ -269,7 +269,7 @@ export default function ReportsClient() {
 
   const totalOutstanding = useMemo(() =>
     filtered
-      .filter(i => i.status !== 'paid')
+      .filter(i => i.status !== 'paid' && i.status !== 'cancelled')
       .reduce((s, i) => s + Math.max(0, (i.total || 0) - getAmountPaid(i, paymentsByInvoice)), 0),
     [filtered, paymentsByInvoice]
   )
@@ -286,8 +286,8 @@ export default function ReportsClient() {
     [paymentsInPeriod, invoiceMap]
   )
 
-  const subtotalInvoiceTotal = useMemo(() => filtered.reduce((s, i) => s + (i.total || 0), 0), [filtered])
-  const subtotalTax = useMemo(() => filtered.reduce((s, i) => s + calcTaxAmount(i.total || 0, i.tax_rate || 0), 0), [filtered])
+  const subtotalInvoiceTotal = useMemo(() => filtered.filter(i => i.status !== 'cancelled').reduce((s, i) => s + (i.total || 0), 0), [filtered])
+  const subtotalTax = useMemo(() => filtered.filter(i => i.status !== 'cancelled').reduce((s, i) => s + calcTaxAmount(i.total || 0, i.tax_rate || 0), 0), [filtered])
   const subtotalAmountPaid = useMemo(() =>
     filtered.reduce((s, i) => s + getAmountPaid(i, paymentsByInvoice), 0),
     [filtered, paymentsByInvoice]
@@ -416,7 +416,7 @@ export default function ReportsClient() {
               {fmtShort(totalOutstanding, primaryCurrency)}
             </p>
           )}
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{filtered.filter(i => i.status !== 'paid').length} unpaid</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{filtered.filter(i => i.status !== 'paid' && i.status !== 'cancelled').length} unpaid</p>
         </div>
         <div className="col-span-2 md:col-span-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
           <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-1">Tax Collected</p>

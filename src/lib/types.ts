@@ -1,4 +1,4 @@
-export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'pending' | 'partial'
+export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'pending' | 'partial' | 'cancelled'
 export type EstimateStatus = 'draft' | 'sent' | 'client_reviewing' | 'revised' | 'approved' | 'rejected' | 'converted'
 
 export type SavedPaymentMethod = {
@@ -65,6 +65,7 @@ export interface LineItem {
   quantity: number
   rate: number
   amount: number
+  stockbook_product_id?: string | null
 }
 
 export interface EstimateTemplate {

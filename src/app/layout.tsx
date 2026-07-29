@@ -103,17 +103,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   var msg=r?(r.stack||r.message||String(r)):'unhandled rejection';
                   showErr('Promise rejection: '+msg);
                 });
-                // JS-alive pulse: green badge top-right, ticks every second to confirm JS is running
-                document.addEventListener('DOMContentLoaded',function(){
-                  try{
-                    var p=document.createElement('div');
-                    p.id='__jsalive';
-                    p.style.cssText='position:fixed;top:8px;right:8px;background:rgba(22,163,74,0.9);color:#fff;padding:3px 7px;border-radius:4px;font:bold 10px monospace;z-index:99998;pointer-events:none';
-                    p.textContent='JS:0';
-                    document.body.appendChild(p);
-                    var n=0;setInterval(function(){p.textContent='JS:'+(++n);},1000);
-                  }catch(_){}
-                });
+                // JS-alive: create immediately (body not ready yet in <head>; attach to <html>).
+                // position:fixed works regardless of parent element — counter appears top-right.
+                // Ticks every second. Moved to body once DOMContentLoaded fires.
+                try{
+                  var p=document.createElement('div');
+                  p.id='__jsalive';
+                  p.style.cssText='position:fixed;top:8px;right:8px;background:rgba(22,163,74,0.9);color:#fff;padding:3px 7px;border-radius:4px;font:bold 10px monospace;z-index:99998;pointer-events:none';
+                  p.textContent='JS:INIT';
+                  document.documentElement.appendChild(p);
+                  var n=0;setInterval(function(){p.textContent='JS:'+(++n);},1000);
+                  document.addEventListener('DOMContentLoaded',function(){try{if(document.body)document.body.appendChild(p);}catch(_){}});
+                }catch(_){}
               })();
             `,
           }}

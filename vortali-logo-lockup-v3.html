@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vortali — Lockup v3</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700&family=DM+Sans:wght@300&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: #f1f5f9;
+      padding: 48px 24px 80px;
+      color: #0f172a;
+    }
+
+    .container { max-width: 700px; margin: 0 auto; }
+
+    .page-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .page-sub { font-size: 13px; color: #64748b; margin-bottom: 36px; line-height: 1.6; }
+
+    .cards { display: flex; flex-direction: column; gap: 20px; }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.05);
+    }
+
+    .meta { padding: 17px 22px; border-bottom: 1px solid #f1f5f9; }
+    .tag {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; color: #94a3b8; margin-bottom: 3px;
+    }
+    .ctitle { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 2px; }
+    .cdesc { font-size: 12px; color: #64748b; line-height: 1.5; }
+
+    .rec-pill {
+      display: inline-block;
+      background: #ede9fe; color: #6d28d9;
+      font-size: 9px; font-weight: 700;
+      letter-spacing: 0.8px; text-transform: uppercase;
+      padding: 2px 7px; border-radius: 20px; margin-left: 7px;
+      vertical-align: middle;
+    }
+
+    .previews { display: flex; }
+    .pv {
+      flex: 1;
+      padding: 48px 20px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+    }
+    .pv.light { background: #f8fafc; }
+    .pv.dark  { background: #0f172a; }
+    .pvdivider { width: 1px; background: #e2e8f0; }
+    .pvlabel {
+      font-size: 10.5px; color: #94a3b8; font-weight: 500; letter-spacing: 0.3px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <p class="page-title">Vortali — New Lockup v3</p>
+  <p class="page-sub">
+    Fix: "ortali" is now sized so the cap tops align with the V arms inside the badge —
+    the text runs from the base of the badge and visually connects with the V mark.
+  </p>
+
+  <div class="cards">
+
+    <!-- OPTION 1: Inter Bold -->
+    <div class="card">
+      <div class="meta">
+        <div class="tag">Option 1 · Inter Bold 700</div>
+        <div class="ctitle">Strong and punchy</div>
+        <div class="cdesc">Both elements carry equal weight. Confident, direct.</div>
+      </div>
+      <div class="previews">
+        <div class="pv light">
+          <svg viewBox="0 0 186 60" style="width:100%;max-width:280px;height:auto" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="g1a" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#5B50F5"/>
+                <stop offset="100%" stop-color="#4338CA"/>
+              </linearGradient>
+            </defs>
+            <rect x="1" y="8" width="44" height="44" rx="13" fill="url(#g1a)"/>
+            <polyline points="8,21 23,39 38,21" fill="none" stroke="#C7D2FE" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round"/>
+            <text x="53" y="52" font-family="'Inter', system-ui, sans-serif" font-size="44" font-weight="700" fill="#0f172a" letter-spacing="-0.9">ortali</text>
+          </svg>
+          <div class="pvlabel">Light</div>
+        </div>
+        <div class="pvdivider"></div>
+        <div class="pv dark">
+          <svg viewBox="0 0 186 60" style="width:100%;max-width:280px;height:auto" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="g1b" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#5B50F5"/>
+                <stop offset="100%" stop-color="#4338CA"/>
+              </linearGradient>
+            </defs>
+            <rect x="1" y="8" width="44" height="44" rx="13" fill="url(#g1b)"/>
+            <polyline points="8,21 23,39 38,21" fill="none" stroke="#C7D2FE" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round"/>
+            <text x="53" y="52" font-family="'Inter', system-ui, sans-serif" font-size="44" font-weight="700" fill="#f8fafc" letter-spacing="-0.9">ortali</text>
+          </svg>
+          <div class="pvlabel">Dark</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OPTION 2: Inter Medium (recommended) -->
+    <div class="card">
+      <div class="meta">
+        <div class="tag">Option 2 · Inter Medium 500 <span class="rec-pill">Recommended</span></div>
+        <div class="ctitle">Elegant hierarchy</div>
+        <div class="cdesc">Badge anchors the eye, "ortali" follows cleanly. The contrast in weight feels refined.</div>
+      </div>
+      <div class="previews">
+        <div class="pv light">
+          <svg viewBox="0 0 186 60" style="width:100%;max-width:280px;height:auto" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="g2a" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#5B50F5"/>
+                <stop offset="100%" stop-color="#4338CA"/>
+              </linearGradient>
+            </defs>
+            <rect x="1" y="8" width="44" height="44" rx="13" fill="url(#g2a)"/>
+            <polyline points="8,21 23,39 38,21" fill="none" stroke="#C7D2FE" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round"/>
+            <text x="53" y="52" font-family="'Inter', system-ui, sans-serif" font-size="44" font-weight="500" fill="#0f172a" letter-spacing="-0.7">ortali</text>
+          </svg>
+          <div class="pvlabel">Light</div>
+        </div>
+        <div class="pvdivider"></div>
+        <div class="pv dark">
+          <svg viewBox="0 0 186 60" style="width:100%;max-width:280px;height:auto" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="g2b" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#5B50F5"/>
+                <stop offset="100%" stop-color="#4338CA"/>
+              </linearGradient>
+            </defs>
+            <rect x="1" y="8" width="44" height="44" rx="13" fill="url(#g2b)"/>
+            <polyline points="8,21 23,39 38,21" fill="none" stroke="#C7D2FE" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round"/>
+            <text x="53" y="52" font-family="'Inter', system-ui, sans-serif" font-size="44" font-weight="500" fill="#f8fafc" letter-spacing="-0.7">ortali</text>
+          </svg>
+          <div class="pvlabel">Dark</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OPTION 3: DM Sans Light -->
+    <div class="card">
+      <div class="meta">
+        <div class="tag">Option 3 · DM Sans Light 300</div>
+        <div class="ctitle">Most distinctive</div>
+        <div class="cdesc">Bold geometric badge, delicate letterforms. More brand identity, less generic SaaS.</div>
+      </div>
+      <div class="previews">
+        <div class="pv light">
+          <svg viewBox="0 0 186 60" style="width:100%;max-width:280px;height:auto" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="g3a" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#5B50F5"/>
+                <stop offset="100%" stop-color="#4338CA"/>
+              </linearGradient>
+            </defs>
+            <rect x="1" y="8" width="44" height="44" rx="13" fill="url(#g3a)"/>
+            <polyline points="8,21 23,39 38,21" fill="none" stroke="#C7D2FE" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round"/>
+            <text x="53" y="52" font-family="'DM Sans', system-ui, sans-serif" font-size="44" font-weight="300" fill="#0f172a" letter-spacing="-0.4">ortali</text>
+          </svg>
+          <div class="pvlabel">Light</div>
+        </div>
+        <div class="pvdivider"></div>
+        <div class="pv dark">
+          <svg viewBox="0 0 186 60" style="width:100%;max-width:280px;height:auto" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="g3b" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#5B50F5"/>
+                <stop offset="100%" stop-color="#4338CA"/>
+              </linearGradient>
+            </defs>
+            <rect x="1" y="8" width="44" height="44" rx="13" fill="url(#g3b)"/>
+            <polyline points="8,21 23,39 38,21" fill="none" stroke="#C7D2FE" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round"/>
+            <text x="53" y="52" font-family="'DM Sans', system-ui, sans-serif" font-size="44" font-weight="300" fill="#f8fafc" letter-spacing="-0.4">ortali</text>
+          </svg>
+          <div class="pvlabel">Dark</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

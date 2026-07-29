@@ -212,6 +212,7 @@ function InvoicePageInner() {
             quantity: item.quantity,
             rate: item.rate,
             amount: item.amount,
+            stockbook_product_id: item.stockbook_product_id ?? null,
           })),
           taxRate: inv.tax_rate || 0,
           discount: inv.discount || 0,
@@ -278,6 +279,7 @@ function InvoicePageInner() {
             quantity: item.quantity,
             rate: item.rate,
             amount: item.amount,
+            stockbook_product_id: item.stockbook_product_id ?? null,
           })),
           taxRate: inv.tax_rate || 0,
           discount: inv.discount || 0,
@@ -619,6 +621,7 @@ function InvoicePageInner() {
       }
 
       let currentId = savedInvoiceId
+      let isNewInvoice = false
 
       if (currentId) {
         const { error } = await supabase
@@ -639,6 +642,7 @@ function InvoicePageInner() {
         if (error) throw error
 
         currentId = inserted.id
+        isNewInvoice = true
         setSavedInvoiceId(currentId)
         setSavedShareToken(inserted.share_token)
         window.history.replaceState(null, '', `/invoice?id=${currentId}`)
@@ -652,9 +656,36 @@ function InvoicePageInner() {
           rate: item.rate,
           amount: item.amount,
           sort_order: idx,
+          stockbook_product_id: item.stockbook_product_id ?? null,
         }))
         const { error } = await supabase.from('line_items').insert(lineItemsPayload)
         if (error) throw error
+      }
+
+      // Fire-and-forget: notify StockBook to reserve inventory for new invoices.
+      // Only fires when at least one line item has stockbook_product_id set.
+      // Failure is intentionally non-blocking — invoice save succeeds regardless.
+      if (isNewInvoice && currentId) {
+        fetch('/api/webhooks/notify-stockbook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ invoice_id: currentId, user_id: user.id }),
+        }).catch(console.error)
+      }
+
+      // Fire-and-forget: notify StockBook to reconcile inventory reservations
+      // when an existing invoice is edited. The route reads the new line items
+      // from DB (just inserted above) and fires invoice.updated so StockBook
+      // can adjust its reservations to match the new state.
+      // An empty StockBook-linked items result signals "release all" — handled
+      // correctly on the StockBook side by reconcile_invoice_items().
+      // (Temporary scaffolding — will be replaced by outbox + QStash in next sprint.)
+      if (!isNewInvoice && currentId) {
+        fetch('/api/webhooks/notify-stockbook-update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ invoice_id: currentId, user_id: user.id }),
+        }).catch(console.error)
       }
 
       showToast('Invoice saved!', 'success')
@@ -839,6 +870,8 @@ function InvoicePageInner() {
     setImportExpensesModal({ open: false, expenses: [], selected: new Set(), loading: false, importing: false })
     showToast(`${toAdd.length} expense${toAdd.length !== 1 ? 's' : ''} added as line items`, 'success')
   }
+
+  const isCancelled = data.status === 'cancelled'
 
   return (
     <div className="flex flex-col md:flex-row md:h-[calc(100vh-64px)] md:overflow-hidden relative print:block print:h-auto print:overflow-visible">
@@ -1100,22 +1133,40 @@ function InvoicePageInner() {
             </button>
           </div>
         )}
-        <div className="mx-4 mt-4">
-          <LockedFeature isLocked={!isSignedIn}>
-            <button
-              onClick={openImportExpenses}
-              className="w-full flex items-center justify-center gap-2 border border-dashed border-indigo-300 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-400 px-4 py-2.5 rounded-lg text-sm font-semibold transition"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
-              </svg>
-              Import Expenses as Line Items
-            </button>
-          </LockedFeature>
+        {isCancelled && (
+          <div className="mx-4 mt-4 px-4 py-3 bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-300 flex items-center gap-3">
+            <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            <span>This invoice has been <strong>cancelled</strong>. It is read-only and cannot be edited or sent.</span>
+          </div>
+        )}
+        {!isCancelled && (
+          <div className="mx-4 mt-4">
+            <LockedFeature isLocked={!isSignedIn}>
+              <button
+                onClick={openImportExpenses}
+                className="w-full flex items-center justify-center gap-2 border border-dashed border-indigo-300 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-400 px-4 py-2.5 rounded-lg text-sm font-semibold transition"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+                </svg>
+                Import Expenses as Line Items
+              </button>
+            </LockedFeature>
+          </div>
+        )}
+        <div className={isCancelled ? 'pointer-events-none select-none opacity-60' : ''}>
+          <InvoiceForm
+            data={data}
+            onChange={isCancelled ? () => {} : setData}
+            isSignedIn={isSignedIn}
+            onClientSelect={isCancelled ? () => {} : handleClientSelect}
+            hasCreditApplied={(data.creditApplied ?? 0) > 0}
+          />
         </div>
-        <InvoiceForm data={data} onChange={setData} isSignedIn={isSignedIn} onClientSelect={handleClientSelect} hasCreditApplied={(data.creditApplied ?? 0) > 0} />
 
-        {savedInvoiceId && selectedClientId && clientCreditBalance > 0 && (() => {
+        {savedInvoiceId && selectedClientId && clientCreditBalance > 0 && !isCancelled && (() => {
           const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
           const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
           const remaining = Math.max(0, total - (data.creditApplied ?? 0) - totalPaid)
@@ -1155,7 +1206,7 @@ function InvoicePageInner() {
           )
         })()}
 
-        {savedInvoiceId && (() => {
+        {savedInvoiceId && !isCancelled && (() => {
           const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
           const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
           const outstanding = total - (data.creditApplied ?? 0) - totalPaid
@@ -1279,7 +1330,7 @@ function InvoicePageInner() {
               {(['minimal', 'classic', 'bold'] as const).map((t) => (
                 <button
                   key={t}
-                  onClick={() => setData((prev) => ({ ...prev, template: t }))}
+                  onClick={() => { if (!isCancelled) setData((prev) => ({ ...prev, template: t })) }}
                   className={`flex flex-col items-center gap-1.5 p-2 rounded-lg border-2 transition-all ${
                     (data.template || 'classic') === t
                       ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
@@ -1345,24 +1396,27 @@ function InvoicePageInner() {
         <div className="hidden md:flex p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 gap-3 print:hidden">
           <button
             onClick={handleSave}
-            disabled={saving}
-            className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition"
+            disabled={saving || isCancelled}
+            className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            title={isCancelled ? 'Cancelled invoices cannot be edited' : undefined}
           >
             {saving ? 'Saving...' : savedInvoiceId ? 'Update Invoice' : 'Save Invoice'}
           </button>
-          <button
-            onClick={() => setTemplateModal({ open: true, name: '', saving: false })}
-            className="border border-indigo-600 text-indigo-600 px-5 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-50 transition"
-          >
-            Save as Template
-          </button>
+          {!isCancelled && (
+            <button
+              onClick={() => setTemplateModal({ open: true, name: '', saving: false })}
+              className="border border-indigo-600 text-indigo-600 px-5 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-50 transition"
+            >
+              Save as Template
+            </button>
+          )}
           <button
             onClick={handleDownloadPDF}
             className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
           >
             Download PDF
           </button>
-          {isSignedIn && (
+          {isSignedIn && !isCancelled && (
             <button
               onClick={openSendModal}
               className="bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition"
@@ -1370,7 +1424,7 @@ function InvoicePageInner() {
               Send to Client
             </button>
           )}
-          {isSignedIn && (
+          {isSignedIn && !isCancelled && (
             <button
               onClick={handleWhatsApp}
               className="bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-semibold transition inline-flex items-center gap-2"
@@ -1389,24 +1443,27 @@ function InvoicePageInner() {
       <div className="md:hidden fixed bottom-0 inset-x-0 p-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 z-10 flex gap-2 print:hidden">
         <button
           onClick={handleSave}
-          disabled={saving}
-          className="flex-1 bg-indigo-600 text-white px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-indigo-700 disabled:opacity-50 transition"
+          disabled={saving || isCancelled}
+          className="flex-1 bg-indigo-600 text-white px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          title={isCancelled ? 'Cancelled invoices cannot be edited' : undefined}
         >
           {saving ? 'Saving...' : savedInvoiceId ? 'Update' : 'Save'}
         </button>
-        <button
-          onClick={() => setTemplateModal({ open: true, name: '', saving: false })}
-          className="flex-1 border border-indigo-600 text-indigo-600 px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-indigo-50 transition"
-        >
-          Template
-        </button>
+        {!isCancelled && (
+          <button
+            onClick={() => setTemplateModal({ open: true, name: '', saving: false })}
+            className="flex-1 border border-indigo-600 text-indigo-600 px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-indigo-50 transition"
+          >
+            Template
+          </button>
+        )}
         <button
           onClick={handleDownloadPDF}
           className="flex-1 bg-indigo-600 text-white px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-indigo-700 transition"
         >
           PDF
         </button>
-        {isSignedIn && (
+        {isSignedIn && !isCancelled && (
           <button
             onClick={openSendModal}
             className="flex-1 bg-emerald-600 text-white px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-emerald-700 transition"
@@ -1414,7 +1471,7 @@ function InvoicePageInner() {
             Send
           </button>
         )}
-        {isSignedIn && (
+        {isSignedIn && !isCancelled && (
           <button
             onClick={handleWhatsApp}
             className="flex-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2.5 rounded-lg text-xs font-semibold transition inline-flex items-center justify-center gap-1"

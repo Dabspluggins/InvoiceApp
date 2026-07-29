@@ -35,6 +35,7 @@ export default function SignupPage() {
           callback:           (token: string) => { setCaptchaToken(token); setCaptchaError(false) },
           'expired-callback': () => setCaptchaToken(null),
           'error-callback':   () => { setCaptchaToken(null); setCaptchaError(true) },
+          retry:              'auto',
         }
       )
     }

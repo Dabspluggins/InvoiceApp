@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { fireStockbookWebhook } from '@/lib/stockbook-webhook'
+import { Client } from '@upstash/qstash'
 import { logError } from '@/lib/logger'
 
 /**
@@ -8,13 +8,16 @@ import { logError } from '@/lib/logger'
  *
  * Called by the invoice page after a new invoice is saved.
  * Fetches any line items that are linked to a StockBook product
- * (stockbook_product_id IS NOT NULL) and fires a signed `invoice.created`
- * event to StockBook so it can reserve the inventory.
+ * (stockbook_product_id IS NOT NULL) and publishes an `invoice.created`
+ * event to QStash so StockBook can reserve the inventory with delivery retries.
  *
  * If no line items are linked, this is a no-op (returns { ok: true, skipped: true }).
- * Webhook failures are logged but never surface as errors to the caller —
+ * Publish failures are logged but never surface as errors to the caller —
  * invoice saving must succeed regardless of StockBook availability.
  */
+
+const qstash = new Client({ token: process.env.QSTASH_TOKEN! })
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -66,26 +69,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, skipped: true })
     }
 
-    const result = await fireStockbookWebhook({
-      type: 'invoice.created',
-      data: {
-        invoice_id,
-        user_id,
-        line_items: sanitizedItems,
-      },
-    })
-
-    if (!result.ok) {
-      // Log but return 200 — caller (handleSave) must not retry or fail
+    const stockbookWebhookUrl = process.env.STOCKBOOK_WEBHOOK_URL
+    if (!stockbookWebhookUrl) {
       logError(
         'webhooks/notify-stockbook',
-        'StockBook webhook delivery failed',
-        { invoice_id, status: result.status },
-        result.body,
+        'STOCKBOOK_WEBHOOK_URL is not set — skipping',
+        { invoice_id },
+        new Error('STOCKBOOK_WEBHOOK_URL missing'),
       )
+      return NextResponse.json({ ok: true, delivered: false })
     }
 
-    return NextResponse.json({ ok: true, delivered: result.ok })
+    try {
+      await qstash.publishJSON({
+        url: stockbookWebhookUrl,
+        body: {
+          type: 'invoice.created',
+          data: { invoice_id, user_id, line_items: sanitizedItems },
+        },
+        retries: 3,
+      })
+    } catch (err) {
+      // Log but return 200 — caller (handleSave) must not retry or fail
+      logError('webhooks/notify-stockbook', 'QStash publish failed', { invoice_id }, err)
+      return NextResponse.json({ ok: true, delivered: false })
+    }
+
+    return NextResponse.json({ ok: true, delivered: true })
   } catch (err) {
     logError('webhooks/notify-stockbook', 'Unhandled error', {}, err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

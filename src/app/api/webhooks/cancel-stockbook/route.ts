@@ -1,21 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { fireStockbookWebhook } from '@/lib/stockbook-webhook'
+import { Client } from '@upstash/qstash'
 import { logError } from '@/lib/logger'
 
 /**
  * POST /api/webhooks/cancel-stockbook
  *
- * Called BEFORE an invoice (or batch of invoices) is deleted from Vortali.
- * Must run while line_items still exist in the DB (before CASCADE delete fires).
+ * Called in two situations:
+ *   1. BEFORE an invoice is deleted — releases stock and then the invoice is removed from DB.
+ *   2. When a user explicitly cancels an invoice — releases stock, invoice stays in DB as 'cancelled'.
+ *
+ * Must run while line_items still exist in the DB (before CASCADE delete fires on deletes).
  *
  * Finds any line items in the given invoices that are linked to a StockBook
- * product (stockbook_product_id IS NOT NULL) and fires a signed `invoice.cancelled`
- * event to StockBook so it can release the inventory reservation.
+ * product (stockbook_product_id IS NOT NULL) and publishes an `invoice.cancelled`
+ * event to QStash so it can release the inventory reservation with retries.
  *
  * Returns { ok: true, skipped: true } if no linked products are found.
- * Webhook failures are logged but always return 200 — delete must proceed regardless.
+ * Publish failures are logged but always return 200 — the calling action must proceed regardless.
  */
+
+const qstash = new Client({ token: process.env.QSTASH_TOKEN! })
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -64,21 +70,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, skipped: true })
     }
 
-    // Fire invoice.cancelled for each linked invoice in parallel.
-    const results = await Promise.all(
+    const stockbookWebhookUrl = process.env.STOCKBOOK_WEBHOOK_URL
+    if (!stockbookWebhookUrl) {
+      logError(
+        'webhooks/cancel-stockbook',
+        'STOCKBOOK_WEBHOOK_URL is not set — endpoint disabled',
+        { invoice_ids },
+        new Error('STOCKBOOK_WEBHOOK_URL missing'),
+      )
+      return NextResponse.json({ error: 'Webhook endpoint not configured' }, { status: 503 })
+    }
+
+    // Publish invoice.cancelled to QStash for each linked invoice in parallel.
+    // QStash handles delivery + retries; StockBook's release_invoice_items() is idempotent.
+    const results = await Promise.allSettled(
       linkedInvoiceIds.map((invoice_id) =>
-        fireStockbookWebhook({
-          type: 'invoice.cancelled',
-          data: { invoice_id, user_id },
+        qstash.publishJSON({
+          url: stockbookWebhookUrl,
+          body: {
+            type: 'invoice.cancelled',
+            data: { invoice_id, user_id },
+          },
+          retries: 3,
         }),
       ),
     )
 
-    const failed = results.filter((r) => !r.ok)
+    const failed = results.filter((r) => r.status === 'rejected')
     if (failed.length > 0) {
       logError(
         'webhooks/cancel-stockbook',
-        'Some cancellation webhooks failed',
+        'Some cancellation publishes to QStash failed',
         { linkedInvoiceIds, failCount: failed.length },
         failed,
       )

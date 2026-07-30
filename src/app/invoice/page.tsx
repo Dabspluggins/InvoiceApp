@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { InvoiceData, Payment } from '@/lib/types'
 import { newLineItem, calcTotals } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrencySymbol } from '@/lib/currencies'
 import InvoiceForm from '@/components/InvoiceForm'
 import InvoicePreview from '@/components/InvoicePreview'
 import LockedFeature from '@/components/LockedFeature'
@@ -53,15 +54,6 @@ function nextRecurringDate(fromDate: string, frequency: string): string {
   return d.toISOString().split('T')[0]
 }
 
-function parseNextInvoiceNumber(last: string): string {
-  const match = last.match(/^(.*?)(\d+)$/)
-  if (!match) return 'INV-001'
-  const prefix = match[1]
-  const numStr = match[2]
-  const next = parseInt(numStr, 10) + 1
-  return prefix + String(next).padStart(numStr.length, '0')
-}
-
 // To add the currency column to Supabase, run:
 // ALTER TABLE invoices ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'NGN';
 
@@ -90,6 +82,8 @@ const defaultData: InvoiceData = {
   recurringFrequency: null,
   paymentDetails: undefined,
   template: 'classic',
+  language: 'en',
+  creditApplied: 0,
 }
 
 function InvoicePageInner() {
@@ -110,8 +104,9 @@ function InvoicePageInner() {
   const [watermarkLogoUrl, setWatermarkLogoUrl] = useState<string | null>(null)
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [clientCreditBalance, setClientCreditBalance] = useState<number>(0)
-  const [creditDismissed, setCreditDismissed] = useState(false)
-  const [creditApplied, setCreditApplied] = useState<number>(0)
+  const [applyingCredit, setApplyingCredit] = useState(false)
+  const [creditApplyAmount, setCreditApplyAmount] = useState('')
+  const [creditApplyMsg, setCreditApplyMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [sendModal, setSendModal] = useState<SendModalState>({
     open: false,
     toEmail: '',
@@ -188,6 +183,14 @@ function InvoicePageInner() {
 
         setPayments(pmts || [])
 
+        const loadedCreditApplied = Number(inv.credit_applied || 0)
+        if (inv.client_id) {
+          setSelectedClientId(inv.client_id)
+          fetch(`/api/credits/balance?clientId=${inv.client_id}&currency=${encodeURIComponent(inv.currency || 'NGN')}`)
+            .then((r) => r.ok ? r.json() : null)
+            .then((json) => { if (json) setClientCreditBalance(json.balance ?? 0) })
+        }
+
         setData({
           invoiceNumber: inv.invoice_number,
           status: inv.status,
@@ -209,6 +212,7 @@ function InvoicePageInner() {
             quantity: item.quantity,
             rate: item.rate,
             amount: item.amount,
+            stockbook_product_id: item.stockbook_product_id ?? null,
           })),
           taxRate: inv.tax_rate || 0,
           discount: inv.discount || 0,
@@ -219,6 +223,8 @@ function InvoicePageInner() {
           recurringFrequency: inv.recurring_frequency || null,
           paymentDetails: inv.payment_details || undefined,
           template: (inv.template as InvoiceData['template']) || 'classic',
+          language: (inv.language as InvoiceData['language']) || 'en',
+          creditApplied: loadedCreditApplied,
         })
       }
 
@@ -247,16 +253,10 @@ function InvoicePageInner() {
           .eq('invoice_id', duplicateId)
           .order('sort_order')
 
-        const { data: latestForDup } = await supabase
-          .from('invoices')
-          .select('invoice_number')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-        const nextInvoiceNumber = latestForDup?.invoice_number
-          ? parseNextInvoiceNumber(latestForDup.invoice_number)
-          : 'INV-001'
+        const nextNumRes = await fetch('/api/invoices/next-number').then((r) =>
+          r.ok ? r.json() : null
+        )
+        const nextInvoiceNumber: string = nextNumRes?.invoiceNumber ?? 'INV-0001'
 
         setData({
           invoiceNumber: nextInvoiceNumber,
@@ -279,12 +279,14 @@ function InvoicePageInner() {
             quantity: item.quantity,
             rate: item.rate,
             amount: item.amount,
+            stockbook_product_id: item.stockbook_product_id ?? null,
           })),
           taxRate: inv.tax_rate || 0,
           discount: inv.discount || 0,
           discountType: (inv.discount_type as InvoiceData['discountType']) || 'percent',
           notes: inv.notes || '',
           brandColor: inv.brand_color || '#4F46E5',
+          language: (inv.language as InvoiceData['language']) || 'en',
           isRecurring: inv.is_recurring || false,
           recurringFrequency: inv.recurring_frequency || null,
         })
@@ -302,29 +304,23 @@ function InvoicePageInner() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
 
-      let nextNumber = 'INV-001'
+      let nextNumber = 'INV-0001'
       let defaultTaxRate = 0
       let defaultNotes = ''
       let profileBrandColor: string | null = null
       let profileLogoUrl: string | null = null
 
       if (user) {
-        const [{ data: latest }, { data: profile }] = await Promise.all([
-          supabase
-            .from('invoices')
-            .select('invoice_number')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle(),
+        const [nextNumRes, { data: profile }] = await Promise.all([
+          fetch('/api/invoices/next-number').then((r) => (r.ok ? r.json() : null)),
           supabase
             .from('profiles')
             .select('default_tax_rate, default_notes, default_terms, brand_color, logo_url')
             .eq('id', user.id)
             .maybeSingle(),
         ])
-        if (latest?.invoice_number) {
-          nextNumber = parseNextInvoiceNumber(latest.invoice_number)
+        if (nextNumRes?.invoiceNumber) {
+          nextNumber = nextNumRes.invoiceNumber
         }
         if (profile?.default_tax_rate != null) {
           defaultTaxRate = Number(profile.default_tax_rate)
@@ -360,6 +356,7 @@ function InvoicePageInner() {
           taxRate: d.taxRate ?? prev.taxRate,
           notes: d.notes ?? prev.notes,
           brandColor: d.brandColor ?? profileBrandColor ?? prev.brandColor,
+          language: (d.language as InvoiceData['language']) ?? prev.language,
         }))
         return
       }
@@ -400,7 +397,7 @@ function InvoicePageInner() {
   function handleDownloadPDF() {
     const invoiceNumber = data.invoiceNumber
     const clientName = data.clientName
-    const parts = ['BillByDab', 'Invoice', invoiceNumber, clientName].filter(Boolean)
+    const parts = ['Vortali', 'Invoice', invoiceNumber, clientName].filter(Boolean)
     const title = parts.join(' - ')
     const prev = document.title
     document.title = title
@@ -414,7 +411,8 @@ function InvoicePageInner() {
       return
     }
     const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
-    const shareUrl = `https://www.billbydab.com/i/${savedShareToken}`
+    const amountDue = Math.max(0, total - (data.creditApplied ?? 0))
+    const shareUrl = `https://vortali.com/i/${savedShareToken}`
     const businessName = data.businessName || 'Your Service Provider'
     const clientName = data.clientName || 'there'
     const dueDate = data.dueDate
@@ -426,32 +424,68 @@ function InvoicePageInner() {
       : 'N/A'
     const message =
       `Hi ${clientName},\n\nPlease find your invoice from ${businessName} below:\n\n` +
-      `Invoice No: ${data.invoiceNumber}\nAmount Due: ${data.currency}${total.toLocaleString()}\nDue Date: ${dueDate}\n\n` +
+      `Invoice No: ${data.invoiceNumber}\nAmount Due: ${data.currency}${amountDue.toLocaleString()}\nDue Date: ${dueDate}\n\n` +
       `View & download your invoice here:\n${shareUrl}\n\nThank you for your business.`
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
   }
 
-  async function handleClientSelect(clientId: string) {
+  async function handleClientSelect(clientId: string, clientCurrency: string) {
+    if ((data.creditApplied ?? 0) > 0) {
+      showToast('Clear the applied deposit before changing client.', 'error')
+      return
+    }
     setSelectedClientId(clientId)
-    setCreditDismissed(false)
-    setCreditApplied(0)
+    setCreditApplyMsg(null)
+    setCreditApplyAmount('')
 
-    const supabase = createClient()
-    const { data: rows } = await supabase
-      .from('client_credits')
-      .select('amount, type')
-      .eq('client_id', clientId)
-
-    const credited = rows?.filter((r) => r.type === 'credited').reduce((s, r) => s + Number(r.amount), 0) ?? 0
-    const applied = rows?.filter((r) => r.type === 'applied').reduce((s, r) => s + Number(r.amount), 0) ?? 0
-    setClientCreditBalance(credited - applied)
+    const res = await fetch(`/api/credits/balance?clientId=${clientId}&currency=${encodeURIComponent(clientCurrency || 'NGN')}`)
+    if (res.ok) {
+      const json = await res.json()
+      setClientCreditBalance(json.balance ?? 0)
+    }
   }
 
-  function handleApplyCredit() {
+  async function handleApplyCreditAction() {
+    if (!savedInvoiceId || !selectedClientId) return
+    const parsedAmount = parseFloat(creditApplyAmount)
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) return
+
     const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
-    const toApply = Math.min(clientCreditBalance, total)
-    setCreditApplied(toApply)
-    setCreditDismissed(true)
+    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
+    const remaining = Math.max(0, total - (data.creditApplied ?? 0) - totalPaid)
+    const maxApply = Math.min(clientCreditBalance, remaining)
+    if (parsedAmount > maxApply) {
+      setCreditApplyMsg({ text: `Amount exceeds the maximum applicable deposit (${getCurrencySymbol(data.currency)}${maxApply.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}).`, type: 'error' })
+      return
+    }
+
+    setApplyingCredit(true)
+    setCreditApplyMsg(null)
+    try {
+      const res = await fetch('/api/credits/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoiceId: savedInvoiceId,
+          clientId: selectedClientId,
+          creditAmount: parsedAmount,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setCreditApplyMsg({ text: json.error || 'Failed to apply deposit.', type: 'error' })
+        return
+      }
+      setClientCreditBalance(json.newBalance ?? 0)
+      setData((prev) => ({ ...prev, creditApplied: (prev.creditApplied ?? 0) + parsedAmount }))
+      setCreditApplyAmount('')
+      setCreditApplyMsg({
+        text: `${getCurrencySymbol(data.currency)}${parsedAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} applied. New balance: ${getCurrencySymbol(data.currency)}${(json.newBalance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        type: 'success',
+      })
+    } finally {
+      setApplyingCredit(false)
+    }
   }
 
   function openSendModal() {
@@ -459,16 +493,21 @@ function InvoicePageInner() {
       open: true,
       toEmail: data.clientEmail || '',
       toName: data.clientName || '',
-      subject: `Invoice ${data.invoiceNumber} from ${data.businessName || 'BillByDab'}`,
+      subject: `Invoice ${data.invoiceNumber} from ${data.businessName || 'Vortali'}`,
       message: `Hi ${data.clientName || 'there'},\n\nPlease find attached your invoice ${data.invoiceNumber}${data.dueDate ? `, due on ${new Date(data.dueDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}.\n\nThank you for your business!`,
       sending: false,
     })
   }
 
   async function handleSend() {
+    if (!savedInvoiceId) {
+      showToast('Save your invoice before sending it to a client.', 'error')
+      return
+    }
     setSendModal((s) => ({ ...s, sending: true }))
     try {
-      const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
+      const { subtotal, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
+      const amountDue = Math.max(0, total - (data.creditApplied ?? 0))
 
       const res = await fetch('/api/send-invoice', {
         method: 'POST',
@@ -494,16 +533,18 @@ function InvoicePageInner() {
             taxRate: data.taxRate,
             subtotal,
             taxAmount,
-            total,
+            total: amountDue,
             notes: data.notes,
             brandColor: data.brandColor,
             paymentDetails: data.paymentDetails,
+            language: data.language || 'en',
           },
         }),
       })
 
       const result = await res.json()
       if (!res.ok) throw new Error(result.error || 'Failed to send')
+      if (result.shareToken) setSavedShareToken(result.shareToken)
 
       // Update status to 'sent' in Supabase if invoice is saved
       if (savedInvoiceId) {
@@ -537,6 +578,11 @@ function InvoicePageInner() {
 
       const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
 
+      if ((data.creditApplied ?? 0) > 0 && total < (data.creditApplied ?? 0)) {
+        showToast('Cannot reduce invoice total below the deposit already applied. Remove the deposit first.', 'error')
+        return
+      }
+
       const invoicePayload = {
         user_id: user.id,
         invoice_number: data.invoiceNumber,
@@ -566,6 +612,8 @@ function InvoicePageInner() {
         recurring_frequency: data.isRecurring ? data.recurringFrequency : null,
         payment_details: data.paymentDetails ?? null,
         template: data.template || 'classic',
+        language: data.language || 'en',
+        client_id: selectedClientId ?? null,
         recurring_next_date:
           data.isRecurring && data.recurringFrequency && data.dueDate
             ? nextRecurringDate(data.dueDate, data.recurringFrequency)
@@ -573,6 +621,7 @@ function InvoicePageInner() {
       }
 
       let currentId = savedInvoiceId
+      let isNewInvoice = false
 
       if (currentId) {
         const { error } = await supabase
@@ -582,7 +631,9 @@ function InvoicePageInner() {
         if (error) throw error
         await supabase.from('line_items').delete().eq('invoice_id', currentId)
       } else {
-        const shareToken = crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+        const tokenRes = await fetch('/api/invoices/share-token', { method: 'POST' })
+        if (!tokenRes.ok) throw new Error('Failed to generate share token')
+        const { token: shareToken } = await tokenRes.json()
         const { data: inserted, error } = await supabase
           .from('invoices')
           .insert({ ...invoicePayload, share_token: shareToken })
@@ -591,6 +642,7 @@ function InvoicePageInner() {
         if (error) throw error
 
         currentId = inserted.id
+        isNewInvoice = true
         setSavedInvoiceId(currentId)
         setSavedShareToken(inserted.share_token)
         window.history.replaceState(null, '', `/invoice?id=${currentId}`)
@@ -604,26 +656,36 @@ function InvoicePageInner() {
           rate: item.rate,
           amount: item.amount,
           sort_order: idx,
+          stockbook_product_id: item.stockbook_product_id ?? null,
         }))
         const { error } = await supabase.from('line_items').insert(lineItemsPayload)
         if (error) throw error
       }
 
-      // Record applied credit if any
-      if (creditApplied > 0 && selectedClientId && currentId) {
-        await fetch('/api/credits', {
+      // Fire-and-forget: notify StockBook to reserve inventory for new invoices.
+      // Only fires when at least one line item has stockbook_product_id set.
+      // Failure is intentionally non-blocking — invoice save succeeds regardless.
+      if (isNewInvoice && currentId) {
+        fetch('/api/webhooks/notify-stockbook', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            client_id: selectedClientId,
-            amount: creditApplied,
-            type: 'applied',
-            reference_invoice_id: currentId,
-            description: `Credit applied to ${data.invoiceNumber}`,
-          }),
-        })
-        setClientCreditBalance((prev) => prev - creditApplied)
-        setCreditApplied(0)
+          body: JSON.stringify({ invoice_id: currentId, user_id: user.id }),
+        }).catch(console.error)
+      }
+
+      // Fire-and-forget: notify StockBook to reconcile inventory reservations
+      // when an existing invoice is edited. The route reads the new line items
+      // from DB (just inserted above) and fires invoice.updated so StockBook
+      // can adjust its reservations to match the new state.
+      // An empty StockBook-linked items result signals "release all" — handled
+      // correctly on the StockBook side by reconcile_invoice_items().
+      // (Temporary scaffolding — will be replaced by outbox + QStash in next sprint.)
+      if (!isNewInvoice && currentId) {
+        fetch('/api/webhooks/notify-stockbook-update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ invoice_id: currentId, user_id: user.id }),
+        }).catch(console.error)
       }
 
       showToast('Invoice saved!', 'success')
@@ -656,6 +718,7 @@ function InvoicePageInner() {
         taxRate: data.taxRate,
         notes: data.notes,
         brandColor: data.brandColor,
+        language: data.language || 'en',
       }
 
       const { error } = await supabase.from('templates').insert({
@@ -685,30 +748,22 @@ function InvoicePageInner() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: inserted, error } = await supabase
-        .from('payments')
-        .insert({
-          invoice_id: savedInvoiceId,
-          user_id: user.id,
+      const res = await fetch(`/api/invoices/${savedInvoiceId}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           amount: amt,
           paid_at: paymentForm.paid_at,
           note: paymentForm.note.trim() || null,
-        })
-        .select('*')
-        .single()
+        }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Failed to record payment')
 
-      if (error) throw error
-
-      const newPayments = [...payments, inserted]
+      const newPayments = [...payments, result.payment]
       setPayments(newPayments)
 
-      const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
-      const totalPaid = newPayments.reduce((sum, p) => sum + p.amount, 0)
-      const newStatus = totalPaid >= total ? 'paid' : totalPaid > 0 ? 'partial' : data.status
-      if (newStatus !== data.status) {
-        await supabase.from('invoices').update({ status: newStatus }).eq('id', savedInvoiceId)
-        setData((prev) => ({ ...prev, status: newStatus as typeof prev.status }))
-      }
+      setData((prev) => ({ ...prev, status: result.status as typeof prev.status }))
 
       setPaymentForm({ amount: '', paid_at: todayStr(), note: '' })
       setShowPaymentForm(false)
@@ -724,19 +779,17 @@ function InvoicePageInner() {
   async function handleDeletePayment(paymentId: string) {
     if (!savedInvoiceId) return
     try {
-      const supabase = createClient()
-      await supabase.from('payments').delete().eq('id', paymentId)
+      const res = await fetch(`/api/invoices/${savedInvoiceId}/payments`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Failed to delete payment')
 
       const newPayments = payments.filter((p) => p.id !== paymentId)
       setPayments(newPayments)
-
-      const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
-      const totalPaid = newPayments.reduce((sum, p) => sum + p.amount, 0)
-      const newStatus = totalPaid >= total ? 'paid' : totalPaid > 0 ? 'partial' : 'sent'
-      if (newStatus !== data.status) {
-        await supabase.from('invoices').update({ status: newStatus }).eq('id', savedInvoiceId)
-        setData((prev) => ({ ...prev, status: newStatus as typeof prev.status }))
-      }
+      setData((prev) => ({ ...prev, status: result.status as typeof prev.status }))
     } catch (err) {
       console.error(err)
       showToast('Failed to delete payment.', 'error')
@@ -817,6 +870,8 @@ function InvoicePageInner() {
     setImportExpensesModal({ open: false, expenses: [], selected: new Set(), loading: false, importing: false })
     showToast(`${toAdd.length} expense${toAdd.length !== 1 ? 's' : ''} added as line items`, 'success')
   }
+
+  const isCancelled = data.status === 'cancelled'
 
   return (
     <div className="flex flex-col md:flex-row md:h-[calc(100vh-64px)] md:overflow-hidden relative print:block print:h-auto print:overflow-visible">
@@ -1078,57 +1133,83 @@ function InvoicePageInner() {
             </button>
           </div>
         )}
-        <div className="mx-4 mt-4">
-          <LockedFeature isLocked={!isSignedIn}>
-            <button
-              onClick={openImportExpenses}
-              className="w-full flex items-center justify-center gap-2 border border-dashed border-indigo-300 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-400 px-4 py-2.5 rounded-lg text-sm font-semibold transition"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
-              </svg>
-              Import Expenses as Line Items
-            </button>
-          </LockedFeature>
+        {isCancelled && (
+          <div className="mx-4 mt-4 px-4 py-3 bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-300 flex items-center gap-3">
+            <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            <span>This invoice has been <strong>cancelled</strong>. It is read-only and cannot be edited or sent.</span>
+          </div>
+        )}
+        {!isCancelled && (
+          <div className="mx-4 mt-4">
+            <LockedFeature isLocked={!isSignedIn}>
+              <button
+                onClick={openImportExpenses}
+                className="w-full flex items-center justify-center gap-2 border border-dashed border-indigo-300 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-400 px-4 py-2.5 rounded-lg text-sm font-semibold transition"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+                </svg>
+                Import Expenses as Line Items
+              </button>
+            </LockedFeature>
+          </div>
+        )}
+        <div className={isCancelled ? 'pointer-events-none select-none opacity-60' : ''}>
+          <InvoiceForm
+            data={data}
+            onChange={isCancelled ? () => {} : setData}
+            isSignedIn={isSignedIn}
+            onClientSelect={isCancelled ? () => {} : handleClientSelect}
+            hasCreditApplied={(data.creditApplied ?? 0) > 0}
+          />
         </div>
-        {clientCreditBalance > 0 && !creditDismissed && (
-          <div className="mx-4 mt-4 px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <span>
-              This client has <strong>₦{clientCreditBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> in credit. Apply credit to this invoice?
-            </span>
-            <div className="flex gap-2 shrink-0">
-              <button
-                onClick={handleApplyCredit}
-                className="text-xs font-semibold bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition"
-              >
-                Apply ₦{Math.min(clientCreditBalance, calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType).total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit
-              </button>
-              <button
-                onClick={() => setCreditDismissed(true)}
-                className="text-xs font-medium text-green-700 hover:text-green-900 px-2 py-1.5"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        )}
-        {creditApplied > 0 && (
-          <div className="mx-4 mt-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700 flex items-center justify-between gap-3">
-            <span>Credit applied: −₦{creditApplied.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-            <button
-              onClick={() => { setCreditApplied(0); setCreditDismissed(false) }}
-              className="text-green-500 hover:text-green-700"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-        <InvoiceForm data={data} onChange={setData} isSignedIn={isSignedIn} onClientSelect={handleClientSelect} />
 
-        {savedInvoiceId && (() => {
+        {savedInvoiceId && selectedClientId && clientCreditBalance > 0 && !isCancelled && (() => {
           const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
           const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
-          const outstanding = total - totalPaid
+          const remaining = Math.max(0, total - (data.creditApplied ?? 0) - totalPaid)
+          const maxApply = Math.min(clientCreditBalance, remaining)
+          return (
+            <div className="mx-4 mt-4 mb-2 border border-green-200 dark:border-green-800 rounded-xl bg-green-50 dark:bg-green-900/20 p-4">
+              <h3 className="text-sm font-bold text-green-800 dark:text-green-200 mb-1">Apply Deposit</h3>
+              <p className="text-xs text-green-700 dark:text-green-400 mb-3">
+                Available balance: <span className="font-semibold">{getCurrencySymbol(data.currency)}{clientCreditBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={maxApply}
+                  value={creditApplyAmount}
+                  onChange={(e) => setCreditApplyAmount(e.target.value)}
+                  placeholder={maxApply > 0 ? maxApply.toFixed(2) : '0.00'}
+                  disabled={maxApply <= 0}
+                  className="flex-1 border border-green-300 dark:border-green-700 bg-white dark:bg-gray-700 text-green-900 dark:text-green-100 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-green-400 disabled:opacity-50"
+                />
+                <button
+                  onClick={handleApplyCreditAction}
+                  disabled={applyingCredit || maxApply <= 0 || !creditApplyAmount}
+                  className="text-sm font-semibold bg-green-600 text-white px-4 py-1.5 rounded-lg hover:bg-green-700 disabled:opacity-50 transition shrink-0"
+                >
+                  {applyingCredit ? 'Applying...' : 'Apply Deposit'}
+                </button>
+              </div>
+              {creditApplyMsg && (
+                <p className={`text-xs mt-2 ${creditApplyMsg.type === 'success' ? 'text-green-700 dark:text-green-300' : 'text-red-600 dark:text-red-400'}`}>
+                  {creditApplyMsg.text}
+                </p>
+              )}
+            </div>
+          )
+        })()}
+
+        {savedInvoiceId && !isCancelled && (() => {
+          const { total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
+          const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
+          const outstanding = total - (data.creditApplied ?? 0) - totalPaid
           return (
             <div className="mx-4 mb-6 mt-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-700 p-4">
               <div className="flex items-center justify-between mb-3">
@@ -1249,7 +1330,7 @@ function InvoicePageInner() {
               {(['minimal', 'classic', 'bold'] as const).map((t) => (
                 <button
                   key={t}
-                  onClick={() => setData((prev) => ({ ...prev, template: t }))}
+                  onClick={() => { if (!isCancelled) setData((prev) => ({ ...prev, template: t })) }}
                   className={`flex flex-col items-center gap-1.5 p-2 rounded-lg border-2 transition-all ${
                     (data.template || 'classic') === t
                       ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
@@ -1315,24 +1396,27 @@ function InvoicePageInner() {
         <div className="hidden md:flex p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 gap-3 print:hidden">
           <button
             onClick={handleSave}
-            disabled={saving}
-            className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition"
+            disabled={saving || isCancelled}
+            className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            title={isCancelled ? 'Cancelled invoices cannot be edited' : undefined}
           >
             {saving ? 'Saving...' : savedInvoiceId ? 'Update Invoice' : 'Save Invoice'}
           </button>
-          <button
-            onClick={() => setTemplateModal({ open: true, name: '', saving: false })}
-            className="border border-indigo-600 text-indigo-600 px-5 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-50 transition"
-          >
-            Save as Template
-          </button>
+          {!isCancelled && (
+            <button
+              onClick={() => setTemplateModal({ open: true, name: '', saving: false })}
+              className="border border-indigo-600 text-indigo-600 px-5 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-50 transition"
+            >
+              Save as Template
+            </button>
+          )}
           <button
             onClick={handleDownloadPDF}
             className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
           >
             Download PDF
           </button>
-          {isSignedIn && (
+          {isSignedIn && !isCancelled && (
             <button
               onClick={openSendModal}
               className="bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition"
@@ -1340,7 +1424,7 @@ function InvoicePageInner() {
               Send to Client
             </button>
           )}
-          {isSignedIn && (
+          {isSignedIn && !isCancelled && (
             <button
               onClick={handleWhatsApp}
               className="bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-semibold transition inline-flex items-center gap-2"
@@ -1359,24 +1443,27 @@ function InvoicePageInner() {
       <div className="md:hidden fixed bottom-0 inset-x-0 p-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 z-10 flex gap-2 print:hidden">
         <button
           onClick={handleSave}
-          disabled={saving}
-          className="flex-1 bg-indigo-600 text-white px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-indigo-700 disabled:opacity-50 transition"
+          disabled={saving || isCancelled}
+          className="flex-1 bg-indigo-600 text-white px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          title={isCancelled ? 'Cancelled invoices cannot be edited' : undefined}
         >
           {saving ? 'Saving...' : savedInvoiceId ? 'Update' : 'Save'}
         </button>
-        <button
-          onClick={() => setTemplateModal({ open: true, name: '', saving: false })}
-          className="flex-1 border border-indigo-600 text-indigo-600 px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-indigo-50 transition"
-        >
-          Template
-        </button>
+        {!isCancelled && (
+          <button
+            onClick={() => setTemplateModal({ open: true, name: '', saving: false })}
+            className="flex-1 border border-indigo-600 text-indigo-600 px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-indigo-50 transition"
+          >
+            Template
+          </button>
+        )}
         <button
           onClick={handleDownloadPDF}
           className="flex-1 bg-indigo-600 text-white px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-indigo-700 transition"
         >
           PDF
         </button>
-        {isSignedIn && (
+        {isSignedIn && !isCancelled && (
           <button
             onClick={openSendModal}
             className="flex-1 bg-emerald-600 text-white px-3 py-2.5 rounded-lg text-xs font-semibold hover:bg-emerald-700 transition"
@@ -1384,7 +1471,7 @@ function InvoicePageInner() {
             Send
           </button>
         )}
-        {isSignedIn && (
+        {isSignedIn && !isCancelled && (
           <button
             onClick={handleWhatsApp}
             className="flex-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2.5 rounded-lg text-xs font-semibold transition inline-flex items-center justify-center gap-1"

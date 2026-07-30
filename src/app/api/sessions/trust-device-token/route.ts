@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { timingSafeEqual } from 'crypto'
 import { computeHmac } from '@/app/api/sessions/register/route'
 import { logAudit } from '@/lib/audit'
+import { logError } from '@/lib/logger'
 
-const BASE_URL = 'https://billbydab.com'
+const BASE_URL = 'https://vortali.com'
 
 function htmlPage(title: string, success: boolean, body: string): NextResponse {
   const icon = success
@@ -16,7 +18,7 @@ function htmlPage(title: string, success: boolean, body: string): NextResponse {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>${title} — BillByDab</title>
+  <title>${title} — Vortali</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f3f4f6;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
@@ -50,8 +52,9 @@ export async function GET(request: NextRequest) {
   const label = searchParams.get('label')
   const uid = searchParams.get('uid')
   const sig = searchParams.get('sig')
+  const expiresStr = searchParams.get('expires')
 
-  if (!fingerprint || !label || !uid || !sig) {
+  if (!fingerprint || !label || !uid || !sig || !expiresStr) {
     return htmlPage(
       'Invalid link',
       false,
@@ -59,9 +62,24 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // Verify HMAC — reconstruct message exactly as it was signed
-  const expectedSig = await computeHmac(`${fingerprint}|${label}|${uid}`)
-  if (expectedSig !== sig) {
+  const expiresAt = parseInt(expiresStr, 10)
+  if (isNaN(expiresAt) || Math.floor(Date.now() / 1000) > expiresAt) {
+    return htmlPage(
+      'Link expired',
+      false,
+      `<p>This trust link has expired. Please sign in again to receive a new one.</p><a class="btn" href="${BASE_URL}/dashboard">Go to Dashboard</a>`,
+    )
+  }
+
+  // Verify HMAC with timing-safe comparison
+  const expectedSig = await computeHmac(`${fingerprint}|${label}|${uid}|${expiresAt}`)
+  let sigMatch = false
+  try {
+    sigMatch = timingSafeEqual(Buffer.from(expectedSig, 'hex'), Buffer.from(sig, 'hex'))
+  } catch {
+    sigMatch = false
+  }
+  if (!sigMatch) {
     return htmlPage(
       'Invalid link',
       false,
@@ -75,6 +93,37 @@ export async function GET(request: NextRequest) {
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
+  // Verify the uid corresponds to a real user before trusting any device
+  const { data: userExists } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('id', uid)
+    .maybeSingle()
+
+  if (!userExists) {
+    return htmlPage(
+      'Invalid link',
+      false,
+      `<p>This link is invalid or has expired.</p><a class="btn" href="${BASE_URL}/dashboard">Go to Dashboard</a>`,
+    )
+  }
+
+  // Idempotent replay guard: if this fingerprint is already trusted, return success without re-upserting
+  const { data: alreadyTrusted } = await admin
+    .from('trusted_devices')
+    .select('created_at')
+    .eq('user_id', uid)
+    .eq('device_fingerprint', fingerprint)
+    .maybeSingle()
+
+  if (alreadyTrusted) {
+    return htmlPage(
+      'Device trusted',
+      true,
+      `<p>Device trusted successfully. You won't receive alerts from this device again.</p><a class="btn" href="${BASE_URL}/dashboard">Go to Dashboard</a>`,
+    )
+  }
+
   const { error } = await admin
     .from('trusted_devices')
     .upsert(
@@ -83,7 +132,7 @@ export async function GET(request: NextRequest) {
     )
 
   if (error) {
-    console.error('trust-device-token upsert error:', error)
+    logError('sessions/trust-device-token', 'Device upsert failed', { userId: uid }, error)
     return htmlPage(
       'Something went wrong',
       false,

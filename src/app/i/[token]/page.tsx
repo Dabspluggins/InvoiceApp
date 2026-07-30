@@ -1,9 +1,31 @@
 import { createClient } from '@supabase/supabase-js'
 import { Metadata } from 'next'
 import { Resend } from 'resend'
+import { headers } from 'next/headers'
 import PrintButton from './PrintButton'
 import InvoiceWatermark from '@/components/InvoiceWatermark'
-import { PaymentDetails } from '@/lib/types'
+import { PaymentDetails, InvoiceLanguage } from '@/lib/types'
+import { getInvoiceTranslations } from '@/lib/invoice-i18n'
+
+// Known bot/scanner patterns — case-insensitive substring match.
+// These requests are ignored entirely: no view_count increment, no email.
+// Keeps the "Viewed" dashboard badge meaningful (human opens only).
+const BOT_UA_PATTERNS = [
+  'facebookexternalhit', 'facebookbot',
+  'twitterbot', 'linkedinbot', 'slackbot',
+  'googlebot', 'adsbot-google', 'google-inspectiontool', 'google-read-aloud',
+  'bingbot', 'yandexbot',
+  'barracuda', 'proofpoint', 'mimecast', 'ironport', 'symantec',
+  'emailauditor', 'emailsecuritychecks', 'scanmail',
+  'curl/', 'wget/', 'python-requests', 'go-http-client',
+  'preview', 'prerender', 'crawler', 'spider', 'bot/',
+]
+
+function isKnownBot(ua: string | null): boolean {
+  if (!ua) return false
+  const lower = ua.toLowerCase()
+  return BOT_UA_PATTERNS.some((pattern) => lower.includes(pattern))
+}
 
 interface LineItem {
   description: string
@@ -33,13 +55,16 @@ interface InvoiceRow {
   discount_amount: number | null
   tax_rate: number
   tax_amount: number
+  credit_applied: number | null
   total: number
   notes: string | null
   brand_color: string | null
   payment_details: PaymentDetails | null
+  status: string
   view_count: number | null
   viewed_at: string | null
   template: string | null
+  language: string | null
 }
 
 function getServiceClient() {
@@ -83,21 +108,17 @@ async function getOwnerWatermark(userId: string) {
 
 async function recordView(token: string, invoice: InvoiceRow) {
   const supabase = getServiceClient()
-  const isFirstView = (invoice.view_count || 0) === 0
 
-  await supabase
-    .from('invoices')
-    .update({
-      viewed_at: new Date().toISOString(),
-      view_count: (invoice.view_count || 0) + 1,
-    })
-    .eq('share_token', token)
+  // Single atomic DB call: increments view_count and returns true only for
+  // the first view. PostgreSQL row-locking ensures two concurrent opens
+  // never both see view_count = 0, so exactly one notification is sent.
+  const { data: isFirstView } = await supabase.rpc('record_invoice_view', { p_token: token })
 
   if (isFirstView && invoice.business_email && process.env.RESEND_API_KEY) {
     try {
       const resend = new Resend(process.env.RESEND_API_KEY)
       await resend.emails.send({
-        from: 'BillByDab <invoices@billbydab.com>',
+        from: 'Vortali <invoices@vortali.com>',
         to: [invoice.business_email],
         subject: `Your invoice ${invoice.invoice_number} was viewed by ${invoice.client_name || 'your client'}`,
         html: `<!DOCTYPE html>
@@ -109,7 +130,7 @@ async function recordView(token: string, invoice: InvoiceRow) {
       <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
         <tr>
           <td style="background:#4F46E5;padding:28px 36px;">
-            <p style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">BillByDab</p>
+            <p style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">Vortali</p>
           </td>
         </tr>
         <tr>
@@ -119,12 +140,12 @@ async function recordView(token: string, invoice: InvoiceRow) {
               <strong>${invoice.client_name || 'Your client'}</strong> just opened invoice <strong>${invoice.invoice_number}</strong>.
               Log in to check the status.
             </p>
-            <a href="https://www.billbydab.com/dashboard" style="display:inline-block;background:#4F46E5;color:#ffffff;padding:11px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Go to Dashboard →</a>
+            <a href="https://vortali.com/dashboard" style="display:inline-block;background:#4F46E5;color:#ffffff;padding:11px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Go to Dashboard →</a>
           </td>
         </tr>
         <tr>
           <td style="background:#f9fafb;padding:16px 36px;border-top:1px solid #e5e7eb;text-align:center;">
-            <p style="margin:0;color:#9ca3af;font-size:12px;">Sent via <strong style="color:#6b7280;">BillByDab</strong></p>
+            <p style="margin:0;color:#9ca3af;font-size:12px;">Sent via <strong style="color:#6b7280;">Vortali</strong></p>
           </td>
         </tr>
       </table>
@@ -140,7 +161,11 @@ async function recordView(token: string, invoice: InvoiceRow) {
 }
 
 function fmt(amount: number, currency: string) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)
+  } catch {
+    return `${amount.toFixed(2)} ${currency}`
+  }
 }
 
 export async function generateMetadata({
@@ -150,10 +175,10 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { token } = await params
   const result = await getInvoice(token)
-  if (!result) return { title: 'Invoice not found — BillByDab' }
+  if (!result) return { title: 'Invoice not found — Vortali' }
   const { invoice } = result
   return {
-    title: `Invoice ${invoice.invoice_number}${invoice.business_name ? ` from ${invoice.business_name}` : ''} — BillByDab`,
+    title: `Invoice ${invoice.invoice_number}${invoice.business_name ? ` from ${invoice.business_name}` : ''} — Vortali`,
   }
 }
 
@@ -166,9 +191,15 @@ export default async function PublicInvoicePage({
   const result = await getInvoice(token)
   const brandColor = result?.invoice.brand_color || '#4F46E5'
   const template = result?.invoice.template || 'classic'
+  const language = (result?.invoice.language ?? 'en') as InvoiceLanguage
+  const t = getInvoiceTranslations(language)
 
-  if (result) {
-    await recordView(token, result.invoice)
+  if (result && result.invoice.status !== 'cancelled') {
+    const headersList = await headers()
+    const ua = headersList.get('user-agent')
+    if (!isKnownBot(ua)) {
+      await recordView(token, result.invoice)
+    }
   }
 
   const watermark = result
@@ -186,10 +217,10 @@ export default async function PublicInvoicePage({
             new link.
           </p>
           <a
-            href="https://www.billbydab.com"
+            href="https://vortali.com"
             className="inline-block bg-indigo-600 text-white px-6 py-3 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
           >
-            Go to BillByDab
+            Go to Vortali
           </a>
         </div>
       </div>
@@ -197,6 +228,22 @@ export default async function PublicInvoicePage({
   }
 
   const { invoice, lineItems } = result
+
+  if (invoice.status === 'cancelled') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <div className="text-6xl mb-6">🚫</div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">Invoice cancelled</h1>
+          <p className="text-gray-500 mb-4">
+            Invoice <strong>{invoice.invoice_number}</strong>
+            {invoice.business_name ? ` from ${invoice.business_name}` : ''} has been cancelled and is no longer active.
+          </p>
+          <p className="text-gray-400 text-sm">Please contact the sender if you believe this is an error.</p>
+        </div>
+      </div>
+    )
+  }
 
   const pd = invoice.payment_details
   const bt = pd?.bankTransfer
@@ -219,14 +266,14 @@ export default async function PublicInvoicePage({
 
       {/* Nav bar */}
       <nav className="no-print sticky top-0 z-10 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center justify-between">
-        <a href="https://www.billbydab.com" className="flex items-center gap-2">
+        <a href="https://vortali.com" className="flex items-center gap-2">
           <span className="text-lg font-bold" style={{ color: brandColor }}>
-            BillByDab
+            Vortali
           </span>
         </a>
         <div className="flex items-center gap-2">
           <a
-            href={`https://wa.me/?text=${encodeURIComponent(`View this invoice here: https://www.billbydab.com/i/${token}`)}`}
+            href={`https://wa.me/?text=${encodeURIComponent(`View this invoice here: https://vortali.com/i/${token}`)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
@@ -253,6 +300,7 @@ export default async function PublicInvoicePage({
               <div className="px-8 sm:px-10 pt-10 pb-6 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                 <div>
                   {invoice.logo_url && (
+                    // eslint-disable-next-line @next/next/no-img-element -- logo rendered in printable invoice; Next.js Image breaks PDF export
                     <img src={invoice.logo_url} alt="Logo" className="mb-3 max-h-12 max-w-[160px] object-contain" />
                   )}
                   <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{invoice.business_name || 'Business'}</h1>
@@ -261,16 +309,16 @@ export default async function PublicInvoicePage({
                   {invoice.business_phone && <p className="text-xs text-gray-400 mt-0.5">{invoice.business_phone}</p>}
                 </div>
                 <div className="sm:text-right">
-                  <div className="text-3xl font-light text-gray-200 uppercase tracking-widest">Invoice</div>
+                  <div className="text-3xl font-light text-gray-200 uppercase tracking-widest">{t.invoice}</div>
                   <div className="text-base font-semibold text-gray-700 mt-1">{invoice.invoice_number}</div>
                   <div className="text-xs text-gray-400 mt-2">
-                    <span className="font-medium text-gray-500">Issued: </span>
-                    {new Date(invoice.issue_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    <span className="font-medium text-gray-500">{t.issued}: </span>
+                    {new Date(invoice.issue_date + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}
                   </div>
                   {invoice.due_date && (
                     <div className="text-xs text-gray-400 mt-0.5">
-                      <span className="font-medium text-gray-500">Due: </span>
-                      {new Date(invoice.due_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      <span className="font-medium text-gray-500">{t.due}: </span>
+                      {new Date(invoice.due_date + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}
                     </div>
                   )}
                 </div>
@@ -280,7 +328,7 @@ export default async function PublicInvoicePage({
 
               {/* Bill To */}
               <div className="px-8 sm:px-10 py-6">
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Bill To</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">{t.billTo}</p>
                 <p className="font-semibold text-gray-800">{invoice.client_name || '—'}</p>
                 {invoice.client_company && <p className="text-sm text-gray-500">{invoice.client_company}</p>}
                 {invoice.client_address && <p className="text-sm text-gray-400 whitespace-pre-line mt-0.5">{invoice.client_address}</p>}
@@ -294,10 +342,10 @@ export default async function PublicInvoicePage({
                   <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
-                        <th className="text-left pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Description</th>
-                        <th className="text-center pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Qty</th>
-                        <th className="text-right pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Rate</th>
-                        <th className="text-right pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Amount</th>
+                        <th className="text-left pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">{t.description}</th>
+                        <th className="text-center pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">{t.qty}</th>
+                        <th className="text-right pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">{t.rate}</th>
+                        <th className="text-right pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">{t.amount}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -317,36 +365,42 @@ export default async function PublicInvoicePage({
                 <div className="mt-4 flex justify-end">
                   <div className="w-full sm:w-64 text-sm space-y-1">
                     <div className="flex justify-between text-gray-500">
-                      <span>Subtotal</span>
+                      <span>{t.subtotal}</span>
                       <span>{fmt(invoice.subtotal, invoice.currency)}</span>
                     </div>
                     {(invoice.discount ?? 0) > 0 && (
                       <div className="flex justify-between text-gray-500">
-                        <span>Discount{invoice.discount_type === 'percent' ? ` (${invoice.discount}%)` : ''}</span>
+                        <span>{t.discount}{invoice.discount_type === 'percent' ? ` (${invoice.discount}%)` : ''}</span>
                         <span className="text-red-500">-{fmt(invoice.discount_amount ?? 0, invoice.currency)}</span>
                       </div>
                     )}
                     {invoice.tax_rate > 0 && (
                       <div className="flex justify-between text-gray-500">
-                        <span>Tax ({invoice.tax_rate}%)</span>
+                        <span>{t.tax} ({invoice.tax_rate}%)</span>
                         <span>{fmt(invoice.tax_amount, invoice.currency)}</span>
                       </div>
                     )}
+                    {(invoice.credit_applied ?? 0) > 0 && (
+                      <div className="flex justify-between text-green-600">
+                        <span>{t.creditApplied}</span>
+                        <span>-{fmt(invoice.credit_applied ?? 0, invoice.currency)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between font-bold text-gray-900 pt-2 border-t border-gray-300">
-                      <span>Total</span>
-                      <span>{fmt(invoice.total, invoice.currency)}</span>
+                      <span>{t.total}</span>
+                      <span>{fmt(Math.max(0, invoice.total - (invoice.credit_applied ?? 0)), invoice.currency)}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Payment Details */}
-              {hasPayment && <SharePaymentBlock invoice={invoice} accentColor="#6b7280" />}
+              {hasPayment && <SharePaymentBlock invoice={invoice} accentColor="#6b7280" t={t} />}
 
               {/* Notes */}
               {invoice.notes && (
                 <div className="px-8 sm:px-10 pb-6">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Notes</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">{t.notes}</p>
                   <p className="text-sm text-gray-500 whitespace-pre-line">{invoice.notes}</p>
                 </div>
               )}
@@ -359,7 +413,8 @@ export default async function PublicInvoicePage({
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                   <div>
                     {invoice.logo_url && (
-                      <img src={invoice.logo_url} alt="Logo" className="mb-3 max-h-14 max-w-[180px] object-contain rounded" style={{ background: 'rgba(255,255,255,0.15)', padding: '4px' }} />
+                      // eslint-disable-next-line @next/next/no-img-element -- logo rendered in printable invoice; Next.js Image breaks PDF export
+                      <img src={invoice.logo_url} alt="Logo" className="mb-3 max-h-14 max-w-[180px] object-contain" style={{ mixBlendMode: 'multiply' }} />
                     )}
                     <h1 className="text-3xl font-black text-white tracking-tight leading-none">{invoice.business_name || 'Business'}</h1>
                     {invoice.business_address && <p className="text-sm text-white/70 mt-1.5 whitespace-pre-line">{invoice.business_address}</p>}
@@ -367,17 +422,17 @@ export default async function PublicInvoicePage({
                     {invoice.business_phone && <p className="text-sm text-white/70 mt-0.5">{invoice.business_phone}</p>}
                   </div>
                   <div className="sm:text-right">
-                    <div className="text-5xl font-black text-white/20 uppercase tracking-widest leading-none">INV</div>
+                    <div className="text-5xl font-black text-white/20 uppercase tracking-widest leading-none">{t.invoice.substring(0, 3).toUpperCase()}</div>
                     <div className="text-xl font-bold text-white mt-1">{invoice.invoice_number}</div>
                     <div className="mt-3 space-y-1 text-sm text-white/75">
                       <div>
-                        <span className="font-semibold text-white/90">Issued: </span>
-                        {new Date(invoice.issue_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        <span className="font-semibold text-white/90">{t.issued}: </span>
+                        {new Date(invoice.issue_date + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'short', year: 'numeric' })}
                       </div>
                       {invoice.due_date && (
                         <div>
-                          <span className="font-semibold text-white/90">Due: </span>
-                          {new Date(invoice.due_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          <span className="font-semibold text-white/90">{t.due}: </span>
+                          {new Date(invoice.due_date + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'short', year: 'numeric' })}
                         </div>
                       )}
                     </div>
@@ -387,7 +442,7 @@ export default async function PublicInvoicePage({
 
               {/* Bill To */}
               <div className="px-8 sm:px-10 py-6 border-b border-gray-100">
-                <p className="text-xs font-black uppercase tracking-widest mb-2" style={{ color: brandColor }}>Bill To</p>
+                <p className="text-xs font-black uppercase tracking-widest mb-2" style={{ color: brandColor }}>{t.billTo}</p>
                 <p className="text-lg font-bold text-gray-900">{invoice.client_name || '—'}</p>
                 {invoice.client_company && <p className="text-sm font-semibold text-gray-500">{invoice.client_company}</p>}
                 {invoice.client_address && <p className="text-sm text-gray-400 whitespace-pre-line mt-0.5">{invoice.client_address}</p>}
@@ -399,10 +454,10 @@ export default async function PublicInvoicePage({
                   <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ backgroundColor: brandColor }}>
-                        <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-white">Description</th>
-                        <th className="text-center px-4 py-3 text-xs font-black uppercase tracking-wider text-white">Qty</th>
-                        <th className="text-right px-4 py-3 text-xs font-black uppercase tracking-wider text-white">Rate</th>
-                        <th className="text-right px-4 py-3 text-xs font-black uppercase tracking-wider text-white">Amount</th>
+                        <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-white">{t.description}</th>
+                        <th className="text-center px-4 py-3 text-xs font-black uppercase tracking-wider text-white">{t.qty}</th>
+                        <th className="text-right px-4 py-3 text-xs font-black uppercase tracking-wider text-white">{t.rate}</th>
+                        <th className="text-right px-4 py-3 text-xs font-black uppercase tracking-wider text-white">{t.amount}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -422,26 +477,32 @@ export default async function PublicInvoicePage({
                 <div className="mt-4 flex justify-end">
                   <div className="w-full sm:w-72 text-sm space-y-1.5">
                     <div className="flex justify-between text-gray-500 border-b border-gray-100 pb-1.5">
-                      <span>Subtotal</span>
+                      <span>{t.subtotal}</span>
                       <span>{fmt(invoice.subtotal, invoice.currency)}</span>
                     </div>
                     {(invoice.discount ?? 0) > 0 && (
                       <div className="flex justify-between text-gray-500 border-b border-gray-100 pb-1.5">
-                        <span>Discount{invoice.discount_type === 'percent' ? ` (${invoice.discount}%)` : ''}</span>
+                        <span>{t.discount}{invoice.discount_type === 'percent' ? ` (${invoice.discount}%)` : ''}</span>
                         <span className="text-red-500">-{fmt(invoice.discount_amount ?? 0, invoice.currency)}</span>
                       </div>
                     )}
                     {invoice.tax_rate > 0 && (
                       <div className="flex justify-between text-gray-500 border-b border-gray-100 pb-1.5">
-                        <span>Tax ({invoice.tax_rate}%)</span>
+                        <span>{t.tax} ({invoice.tax_rate}%)</span>
                         <span>{fmt(invoice.tax_amount, invoice.currency)}</span>
+                      </div>
+                    )}
+                    {(invoice.credit_applied ?? 0) > 0 && (
+                      <div className="flex justify-between text-green-600 border-b border-gray-100 pb-1.5">
+                        <span>{t.creditApplied}</span>
+                        <span>-{fmt(invoice.credit_applied ?? 0, invoice.currency)}</span>
                       </div>
                     )}
                     <div className="flex items-center mt-2 rounded overflow-hidden">
                       <div className="w-1.5 self-stretch rounded-l" style={{ backgroundColor: brandColor }} />
                       <div className="flex justify-between flex-1 px-3 py-2.5 bg-gray-900">
-                        <span className="font-black text-white text-sm uppercase tracking-wide">Total Due</span>
-                        <span className="font-black text-white text-sm">{fmt(invoice.total, invoice.currency)}</span>
+                        <span className="font-black text-white text-sm uppercase tracking-wide">{t.totalDue}</span>
+                        <span className="font-black text-white text-sm">{fmt(Math.max(0, invoice.total - (invoice.credit_applied ?? 0)), invoice.currency)}</span>
                       </div>
                     </div>
                   </div>
@@ -449,13 +510,13 @@ export default async function PublicInvoicePage({
               </div>
 
               {/* Payment Details */}
-              {hasPayment && <SharePaymentBlock invoice={invoice} accentColor={brandColor} />}
+              {hasPayment && <SharePaymentBlock invoice={invoice} accentColor={brandColor} t={t} />}
 
               {/* Notes */}
               {invoice.notes && (
                 <div className="px-8 sm:px-10 pb-6">
                   <div className="rounded-lg p-4" style={{ borderLeft: `4px solid ${brandColor}`, background: '#f9fafb' }}>
-                    <p className="text-xs font-black uppercase tracking-widest mb-1" style={{ color: brandColor }}>Notes</p>
+                    <p className="text-xs font-black uppercase tracking-widest mb-1" style={{ color: brandColor }}>{t.notes}</p>
                     <p className="text-sm text-gray-600 whitespace-pre-line">{invoice.notes}</p>
                   </div>
                 </div>
@@ -467,7 +528,8 @@ export default async function PublicInvoicePage({
               {/* Brand color header stripe */}
               <div className="px-8 py-8 sm:px-10" style={{ backgroundColor: brandColor }}>
                 {invoice.logo_url && (
-                  <img src={invoice.logo_url} alt="Logo" className="mb-4 max-h-16 max-w-[180px] object-contain rounded" style={{ background: 'rgba(255,255,255,0.15)', padding: '4px' }} />
+                  // eslint-disable-next-line @next/next/no-img-element -- logo rendered in printable invoice; Next.js Image breaks PDF export
+                  <img src={invoice.logo_url} alt="Logo" className="mb-4 max-h-16 max-w-[180px] object-contain" style={{ mixBlendMode: 'multiply' }} />
                 )}
                 <p className="text-xs font-semibold uppercase tracking-widest text-white/70 mb-1">Invoice from</p>
                 <h1 className="text-2xl sm:text-3xl font-bold text-white">{invoice.business_name || 'Business'}</h1>
@@ -479,24 +541,24 @@ export default async function PublicInvoicePage({
               {/* Invoice meta */}
               <div className="px-8 sm:px-10 py-6 border-b border-gray-100 flex flex-col sm:flex-row sm:justify-between gap-6">
                 <div>
-                  <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-1">Bill To</p>
+                  <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-1">{t.billTo}</p>
                   <p className="text-base font-semibold text-gray-900">{invoice.client_name || '—'}</p>
                   {invoice.client_company && <p className="text-sm text-gray-500">{invoice.client_company}</p>}
                   {invoice.client_address && <p className="text-sm text-gray-500 whitespace-pre-line mt-0.5">{invoice.client_address}</p>}
                 </div>
                 <div className="sm:text-right">
                   <div className="mb-3">
-                    <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-0.5">Invoice #</p>
+                    <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-0.5">{t.invoiceNumber}</p>
                     <p className="text-base font-bold text-gray-900">{invoice.invoice_number}</p>
                   </div>
                   <div className="mb-3">
-                    <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-0.5">Issue Date</p>
-                    <p className="text-sm text-gray-700">{new Date(invoice.issue_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                    <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-0.5">{t.issued}</p>
+                    <p className="text-sm text-gray-700">{new Date(invoice.issue_date + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                   </div>
                   {invoice.due_date && (
                     <div>
-                      <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-0.5">Due Date</p>
-                      <p className="text-sm font-semibold text-gray-900">{new Date(invoice.due_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                      <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-0.5">{t.due}</p>
+                      <p className="text-sm font-semibold text-gray-900">{new Date(invoice.due_date + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                     </div>
                   )}
                 </div>
@@ -508,10 +570,10 @@ export default async function PublicInvoicePage({
                   <table className="w-full text-sm">
                     <thead>
                       <tr style={{ backgroundColor: brandColor }}>
-                        <th className="text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-white rounded-tl-lg">Description</th>
-                        <th className="text-center px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">Qty</th>
-                        <th className="text-right px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">Rate</th>
-                        <th className="text-right px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-white rounded-tr-lg">Amount</th>
+                        <th className="text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-white rounded-tl-lg">{t.description}</th>
+                        <th className="text-center px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">{t.qty}</th>
+                        <th className="text-right px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">{t.rate}</th>
+                        <th className="text-right px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-white rounded-tr-lg">{t.amount}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -531,37 +593,43 @@ export default async function PublicInvoicePage({
                 <div className="mt-4 flex justify-end">
                   <div className="w-full sm:w-72 space-y-2">
                     <div className="flex justify-between text-sm text-gray-500">
-                      <span>Subtotal</span>
+                      <span>{t.subtotal}</span>
                       <span>{fmt(invoice.subtotal, invoice.currency)}</span>
                     </div>
                     {(invoice.discount ?? 0) > 0 && (
                       <div className="flex justify-between text-sm text-gray-500">
-                        <span>Discount{invoice.discount_type === 'percent' ? ` (${invoice.discount}%)` : ''}</span>
+                        <span>{t.discount}{invoice.discount_type === 'percent' ? ` (${invoice.discount}%)` : ''}</span>
                         <span className="text-red-500">-{fmt(invoice.discount_amount ?? 0, invoice.currency)}</span>
                       </div>
                     )}
                     {invoice.tax_rate > 0 && (
                       <div className="flex justify-between text-sm text-gray-500">
-                        <span>Tax ({invoice.tax_rate}%)</span>
+                        <span>{t.tax} ({invoice.tax_rate}%)</span>
                         <span>{fmt(invoice.tax_amount, invoice.currency)}</span>
                       </div>
                     )}
+                    {(invoice.credit_applied ?? 0) > 0 && (
+                      <div className="flex justify-between text-sm text-green-600">
+                        <span>{t.creditApplied}</span>
+                        <span>-{fmt(invoice.credit_applied ?? 0, invoice.currency)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-base font-bold pt-2 border-t-2" style={{ borderColor: brandColor, color: brandColor }}>
-                      <span>Total Due</span>
-                      <span>{fmt(invoice.total, invoice.currency)}</span>
+                      <span>{t.totalDue}</span>
+                      <span>{fmt(Math.max(0, invoice.total - (invoice.credit_applied ?? 0)), invoice.currency)}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Payment Details */}
-              {hasPayment && <SharePaymentBlock invoice={invoice} accentColor={brandColor} />}
+              {hasPayment && <SharePaymentBlock invoice={invoice} accentColor={brandColor} t={t} />}
 
               {/* Notes */}
               {invoice.notes && (
                 <div className="px-8 sm:px-10 pb-6">
                   <div className="rounded-lg p-4" style={{ borderLeft: `3px solid ${brandColor}`, background: '#F9FAFB' }}>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Notes</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">{t.notes}</p>
                     <p className="text-sm text-gray-600 whitespace-pre-line">{invoice.notes}</p>
                   </div>
                 </div>
@@ -573,10 +641,10 @@ export default async function PublicInvoicePage({
           <div className="px-8 sm:px-10 py-5 bg-gray-50 border-t border-gray-100 text-center">
             <p className="text-xs text-gray-400">
               Powered by{' '}
-              <a href="https://www.billbydab.com" className="font-semibold text-gray-500 hover:text-indigo-600 transition">
-                BillByDab
+              <a href="https://vortali.com" className="font-semibold text-gray-500 hover:text-indigo-600 transition">
+                Vortali
               </a>{' '}
-              — free invoice generator at billbydab.com
+              — free invoice generator at vortali.com
             </p>
           </div>
         </div>
@@ -585,7 +653,7 @@ export default async function PublicInvoicePage({
   )
 }
 
-function SharePaymentBlock({ invoice, accentColor }: { invoice: InvoiceRow; accentColor: string }) {
+function SharePaymentBlock({ invoice, accentColor, t }: { invoice: InvoiceRow; accentColor: string; t: ReturnType<typeof getInvoiceTranslations> }) {
   const pd = invoice.payment_details
   if (!pd) return null
   const bt = pd.bankTransfer
@@ -600,34 +668,39 @@ function SharePaymentBlock({ invoice, accentColor }: { invoice: InvoiceRow; acce
     <div className="px-8 sm:px-10 pb-6">
       <div className="rounded-lg border border-gray-200 overflow-hidden" style={{ background: '#F9FAFB' }}>
         <div className="px-4 py-2.5 border-b border-gray-200">
-          <p className="text-xs font-bold uppercase tracking-wider" style={{ color: accentColor }}>Payment Details</p>
+          <p className="text-xs font-bold uppercase tracking-wider" style={{ color: accentColor }}>{t.paymentDetails}</p>
         </div>
         <div className="px-4 py-3 text-xs space-y-3">
           {hasBT && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 mb-1">Bank Transfer</p>
+              <p className="text-xs font-semibold text-gray-500 mb-1">{t.bankTransfer}</p>
               <div className="space-y-0.5">
-                {bt?.accountName && <PayRow label="Account Name" value={bt.accountName} />}
-                {bt?.bankName && <PayRow label="Bank Name" value={bt.bankName} />}
-                {bt?.accountNumber && <PayRow label="Account Number" value={bt.accountNumber} />}
-                {bt?.routingNumber && <PayRow label="Sort Code / Routing" value={bt.routingNumber} />}
-                {bt?.swiftIban && <PayRow label="SWIFT / IBAN" value={bt.swiftIban} />}
+                {bt?.accountName && <PayRow label={t.accountName} value={bt.accountName} />}
+                {bt?.bankName && <PayRow label={t.bankName} value={bt.bankName} />}
+                {bt?.accountNumber && <PayRow label={t.accountNumber} value={bt.accountNumber} />}
+                {bt?.routingNumber && <PayRow label={t.sortCodeRouting} value={bt.routingNumber} />}
+                {bt?.swiftIban && <PayRow label={t.swiftIban} value={bt.swiftIban} />}
               </div>
             </div>
           )}
+
           {hasMM && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 mb-1">Mobile Money</p>
+              <p className="text-xs font-semibold text-gray-500 mb-1">{t.mobileMoney}</p>
               <div className="space-y-0.5">
-                {mm?.provider && <PayRow label="Provider" value={mm.provider} />}
-                {mm?.phoneNumber && <PayRow label="Phone / Account" value={mm.phoneNumber} />}
+                {mm?.provider && <PayRow label={t.provider} value={mm.provider} />}
+                {mm?.phoneNumber && <PayRow label={t.phoneNumber} value={mm.phoneNumber} />}
               </div>
             </div>
           )}
+
           {hasOT && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 mb-1">{ot?.paymentMethod || 'Other'}</p>
-              {ot?.details && <p className="text-gray-700 whitespace-pre-line">{ot.details}</p>}
+              <p className="text-xs font-semibold text-gray-500 mb-1">Other</p>
+              <div className="space-y-0.5">
+                {ot?.paymentMethod && <PayRow label="Payment Method" value={ot.paymentMethod} />}
+                {ot?.details && <PayRow label="Details" value={ot.details} />}
+              </div>
             </div>
           )}
         </div>
@@ -638,9 +711,9 @@ function SharePaymentBlock({ invoice, accentColor }: { invoice: InvoiceRow; acce
 
 function PayRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex gap-4">
-      <span className="w-36 flex-shrink-0 text-gray-400 sm:w-40">{label}</span>
-      <span className="text-gray-800 break-all">{value}</span>
+    <div className="flex justify-between gap-4">
+      <span className="text-gray-400 shrink-0">{label}</span>
+      <span className="text-gray-700 font-medium text-right">{value}</span>
     </div>
   )
 }

@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { logAudit } from '@/lib/audit'
+import { getTrustedIp } from '@/lib/utils'
+import { sessionRegisterLimiter } from '@/lib/ratelimit'
+import { logError } from '@/lib/logger'
 
 function parseUserAgent(ua: string): { deviceType: string; browser: string } {
   const deviceType = /Mobile/i.test(ua) ? 'Mobile' : /Tablet|iPad/i.test(ua) ? 'Tablet' : 'Desktop'
@@ -21,7 +24,7 @@ async function hashToken(token: string): Promise<string> {
 }
 
 export async function computeHmac(message: string): Promise<string> {
-  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  const secret = process.env.TRUST_DEVICE_HMAC_SECRET!
   const key = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(secret),
@@ -57,14 +60,14 @@ function buildSuspiciousLoginEmail({
   })
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>New sign-in to your BillByDab account</title></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>New sign-in to your Vortali account</title></head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:40px 0;">
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
         <tr>
           <td style="background:#DC2626;padding:32px 40px;border-radius:12px 12px 0 0;">
-            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">BillByDab</h1>
+            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">Vortali</h1>
             <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">Security Alert</p>
           </td>
         </tr>
@@ -72,7 +75,7 @@ function buildSuspiciousLoginEmail({
           <td style="background:#ffffff;padding:32px 40px;">
             <h2 style="margin:0 0 16px;color:#111827;font-size:18px;font-weight:600;">New sign-in to your account</h2>
             <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6;">
-              We detected a sign-in to your BillByDab account from a new device and location.
+              We detected a sign-in to your Vortali account from a new device and location.
             </p>
             <table cellpadding="0" cellspacing="0" style="width:100%;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:24px;">
               <tr>
@@ -115,7 +118,7 @@ function buildSuspiciousLoginEmail({
         </tr>
         <tr>
           <td style="background:#f9fafb;padding:20px 40px;border-radius:0 0 12px 12px;border-top:1px solid #e5e7eb;text-align:center;">
-            <p style="margin:0;color:#9ca3af;font-size:12px;">Sent via <strong style="color:#6b7280;">BillByDab</strong></p>
+            <p style="margin:0;color:#9ca3af;font-size:12px;">Sent via <strong style="color:#6b7280;">Vortali</strong></p>
           </td>
         </tr>
       </table>
@@ -126,6 +129,9 @@ function buildSuspiciousLoginEmail({
 }
 
 export async function POST(request: NextRequest) {
+  const { success } = await sessionRegisterLimiter.limit(getTrustedIp(request))
+  if (!success) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -136,14 +142,13 @@ export async function POST(request: NextRequest) {
   const tokenHash = await hashToken(session.access_token)
   const ua = request.headers.get('user-agent') ?? ''
   const { deviceType, browser } = parseUserAgent(ua)
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim()
-    ?? request.headers.get('x-real-ip')
-    ?? null
+  const rawIp = getTrustedIp(request)
+  const ip: string | null = (rawIp === '127.0.0.1' || rawIp === '::1') ? null : rawIp
 
   let location: string | null = null
   if (ip && ip !== '::1' && ip !== '127.0.0.1') {
     try {
-      const geo = await fetch(`http://ip-api.com/json/${ip}?fields=city,country`, { signal: AbortSignal.timeout(3000) })
+      const geo = await fetch(`https://ip-api.com/json/${ip}?fields=city,country`, { signal: AbortSignal.timeout(3000) })
       if (geo.ok) {
         const data = await geo.json()
         if (data.city && data.country) location = `${data.city}, ${data.country}`
@@ -180,7 +185,7 @@ export async function POST(request: NextRequest) {
     location,
     ip,
     ua,
-  }).catch(console.error)
+  }).catch((e) => logError('sessions/register', 'Suspicious login detection failed', { userId: user.id }, e))
 
   return NextResponse.json({ ok: true })
 }
@@ -239,7 +244,7 @@ async function detectAndAlertSuspiciousLogin({
       .eq('user_id', userId)
       .eq('location', location)
 
-    if ((count ?? 0) > 1) return // location seen before
+    if ((count ?? 0) > 0) return // location seen before
   } else {
     // No location info — treat IP as location proxy
     if (ip) {
@@ -249,7 +254,7 @@ async function detectAndAlertSuspiciousLogin({
         .eq('user_id', userId)
         .eq('ip_address', ip)
 
-      if ((count ?? 0) > 1) return
+      if ((count ?? 0) > 0) return
     } else {
       return // no location or IP — can't determine novelty, skip
     }
@@ -269,17 +274,18 @@ async function detectAndAlertSuspiciousLogin({
     .eq('id', userId)
 
   const label = `${browser} on ${deviceType}`
-  const hmacMessage = `${deviceFingerprint}|${label}|${userId}`
+  const trustExpiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24
+  const hmacMessage = `${deviceFingerprint}|${label}|${userId}|${trustExpiresAt}`
   const sig = await computeHmac(hmacMessage)
-  const trustLink = `https://billbydab.com/api/sessions/trust-device-token?fingerprint=${deviceFingerprint}&label=${encodeURIComponent(label)}&uid=${userId}&sig=${sig}`
+  const trustLink = `https://vortali.com/api/sessions/trust-device-token?fingerprint=${deviceFingerprint}&label=${encodeURIComponent(label)}&uid=${userId}&expires=${trustExpiresAt}&sig=${sig}`
 
-  const secureLink = `https://billbydab.com/api/auth/secure-account?token=${rawToken}`
+  const secureLink = `https://vortali.com/api/auth/secure-account?token=${rawToken}`
   const resend = new Resend(apiKey)
 
   await resend.emails.send({
-    from: 'BillByDab Security <security@billbydab.com>',
+    from: 'Vortali Security <security@vortali.com>',
     to: [userEmail],
-    subject: 'New sign-in to your BillByDab account',
+    subject: 'New sign-in to your Vortali account',
     html: buildSuspiciousLoginEmail({
       browser,
       deviceType,

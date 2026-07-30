@@ -4,7 +4,8 @@
 'use client'
 
 import { useRef, useEffect, useState } from 'react'
-import { InvoiceData, Currency, RecurringFrequency, PaymentDetails, SavedPaymentMethod } from '@/lib/types'
+import { InvoiceData, Currency, RecurringFrequency, PaymentDetails, SavedPaymentMethod, InvoiceLanguage } from '@/lib/types'
+import { LANGUAGE_OPTIONS } from '@/lib/invoice-i18n'
 import { calcTotals } from '@/lib/utils'
 import { CURRENCIES } from '@/lib/currencies'
 import LineItemsTable from './LineItemsTable'
@@ -16,7 +17,8 @@ interface Props {
   data: InvoiceData
   onChange: (data: InvoiceData) => void
   isSignedIn: boolean
-  onClientSelect?: (clientId: string) => void
+  onClientSelect?: (clientId: string, clientCurrency: string) => void
+  hasCreditApplied?: boolean
 }
 
 interface SavedClient {
@@ -26,6 +28,7 @@ interface SavedClient {
   email: string | null
   phone: string | null
   address: string | null
+  currency: string | null
 }
 
 
@@ -36,7 +39,7 @@ const MOBILE_MONEY_PROVIDERS = [
 
 type PaymentTab = 'bankTransfer' | 'mobileMoney' | 'other'
 
-export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect }: Props) {
+export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect, hasCreditApplied }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [savedClients, setSavedClients] = useState<SavedClient[]>([])
   const [savingClient, setSavingClient] = useState(false)
@@ -51,7 +54,7 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
       if (!user) return
       supabase
         .from('clients')
-        .select('id, name, company, email, phone, address')
+        .select('id, name, company, email, phone, address, currency')
         .order('name')
         .then(({ data }) => {
           if (data) setSavedClients(data)
@@ -121,53 +124,46 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    console.log('[BillByDab] handleLogoUpload fired, file:', file.name, file.size)
 
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    console.log('[BillByDab] user:', user ? user.id : 'null (guest)')
 
     if (!user) {
-      console.log('[BillByDab] guest path — starting FileReader')
       const reader = new FileReader()
       reader.onload = () => {
-        console.log('[BillByDab] FileReader done, dataUrl length:', (reader.result as string)?.length)
         set('logoUrl', reader.result as string)
-        console.log('[BillByDab] set called with logoUrl')
       }
-      reader.onerror = (e) => console.error('[BillByDab] FileReader error', e)
       reader.readAsDataURL(file)
       return
     }
 
     // signed-in path
-    console.log('[BillByDab] signed-in path — uploading to Supabase storage')
     const ext = file.name.split('.').pop()
     const path = `${user.id}/${Date.now()}.${ext}`
 
     const { error } = await supabase.storage.from('logos').upload(path, file, { upsert: true })
     if (error) {
-      console.error('[BillByDab] Logo upload failed:', error.message)
       return
     }
 
     const { data: urlData } = supabase.storage.from('logos').getPublicUrl(path)
     set('logoUrl', urlData.publicUrl)
-    console.log('[BillByDab] signed-in upload complete, url:', urlData.publicUrl)
   }
 
   function handleSelectClient(id: string) {
     if (!id) return
     const client = savedClients.find((c) => c.id === id)
     if (!client) return
+    const clientCurrency = client.currency || 'NGN'
     onChange({
       ...data,
       clientName: client.name,
       clientCompany: client.company || '',
       clientEmail: client.email || '',
       clientAddress: client.address || '',
+      currency: clientCurrency as Currency,
     })
-    onClientSelect?.(id)
+    onClientSelect?.(id, clientCurrency)
   }
 
   async function handleSaveAsClient() {
@@ -311,9 +307,27 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
           </div>
           <div>
             <label className={labelCls}>Currency</label>
-            <select className={inputCls} value={data.currency} onChange={(e) => set('currency', e.target.value as Currency)}>
+            <select
+              className={inputCls + (hasCreditApplied ? ' opacity-60 cursor-not-allowed' : '')}
+              value={data.currency}
+              onChange={(e) => set('currency', e.target.value as Currency)}
+              disabled={hasCreditApplied}
+              title={hasCreditApplied ? 'Clear the applied credit before changing currency.' : undefined}
+            >
               {CURRENCIES.map((c) => (
-                <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.label}</option>
+                <option key={c.code} value={c.code}>{c.symbol} {c.code} - {c.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>Invoice Language</label>
+            <select
+              className={inputCls}
+              value={data.language ?? 'en'}
+              onChange={(e) => set('language', e.target.value as InvoiceLanguage)}
+            >
+              {LANGUAGE_OPTIONS.map((l) => (
+                <option key={l.value} value={l.value}>{l.flag} {l.label}</option>
               ))}
             </select>
           </div>
@@ -349,7 +363,7 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
                 value={data.recurringFrequency || ''}
                 onChange={(e) => set('recurringFrequency', e.target.value as RecurringFrequency)}
               >
-                <option value="" disabled>Select frequency…</option>
+                <option value="" disabled>Select frequency...</option>
                 <option value="weekly">Weekly</option>
                 <option value="monthly">Monthly</option>
                 <option value="quarterly">Quarterly</option>
@@ -368,11 +382,13 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
           <div className="mb-3">
             <label className={labelCls}>Saved Clients</label>
             <select
-              className={inputCls}
+              className={inputCls + (hasCreditApplied ? ' opacity-60 cursor-not-allowed' : '')}
               defaultValue=""
               onChange={(e) => handleSelectClient(e.target.value)}
+              disabled={hasCreditApplied}
+              title={hasCreditApplied ? 'Clear the applied credit before changing client.' : undefined}
             >
-              <option value="">— Select a saved client —</option>
+              <option value="">-- Select a saved client --</option>
               {savedClients.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}{c.company ? ` (${c.company})` : ''}
@@ -499,7 +515,16 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => setActivePaymentTab(tab.id)}
+                  onClick={() => {
+                    setActivePaymentTab(tab.id)
+                    // Clear the other tabs' data so stale payment details don't bleed into the invoice
+                    const cleared: typeof data.paymentDetails = {
+                      bankTransfer: tab.id === 'bankTransfer' ? data.paymentDetails?.bankTransfer : undefined,
+                      mobileMoney: tab.id === 'mobileMoney' ? data.paymentDetails?.mobileMoney : undefined,
+                      other: tab.id === 'other' ? data.paymentDetails?.other : undefined,
+                    }
+                    set('paymentDetails', cleared)
+                  }}
                   className={`flex-1 text-xs font-medium py-1.5 px-2 rounded-md transition ${
                     activePaymentTab === tab.id
                       ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-white'
@@ -575,7 +600,7 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
                     value={mm.provider || ''}
                     onChange={(e) => setMobileMoney({ provider: e.target.value })}
                   >
-                    <option value="">— Select provider —</option>
+                    <option value="">-- Select provider --</option>
                     {MOBILE_MONEY_PROVIDERS.map((p) => (
                       <option key={p} value={p}>{p}</option>
                     ))}
@@ -602,7 +627,7 @@ export default function InvoiceForm({ data, onChange, isSignedIn, onClientSelect
                     className={inputCls}
                     value={ot.paymentMethod || ''}
                     onChange={(e) => setOther({ paymentMethod: e.target.value })}
-                    placeholder="PayPal, Wise, Cash…"
+                    placeholder="PayPal, Wise, Cash..."
                   />
                 </div>
                 <div className="col-span-2">

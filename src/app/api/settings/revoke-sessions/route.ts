@@ -9,6 +9,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
+import { logError } from '@/lib/logger'
 
 export async function POST() {
   const supabase = await createClient()
@@ -32,7 +33,7 @@ export async function POST() {
     .upsert({ id: user.id, revoke_token: token, revoke_token_expires_at: expiresAt })
 
   if (dbError) {
-    console.error('revoke-sessions db error:', dbError)
+    logError('settings/revoke-sessions', 'Token upsert failed', { userId: user.id }, dbError)
     return NextResponse.json({ error: 'Failed to generate token' }, { status: 500 })
   }
 
@@ -42,12 +43,12 @@ export async function POST() {
   }
   const resend = new Resend(apiKey)
 
-  const revokeLink = `https://billbydab.com/settings/revoke-sessions?token=${token}`
+  const revokeLink = `https://vortali.com/settings/revoke-sessions?token=${token}`
 
   const { error: emailError } = await resend.emails.send({
-    from: 'BillByDab <invoices@billbydab.com>',
+    from: 'Vortali <invoices@vortali.com>',
     to: [user.email],
-    subject: 'Sign out from other devices — BillByDab',
+    subject: 'Sign out from other devices — Vortali',
     html: `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Sign out from other devices</title></head>
@@ -57,14 +58,14 @@ export async function POST() {
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
         <tr>
           <td style="background:#4F46E5;padding:32px 40px;border-radius:12px 12px 0 0;">
-            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">BillByDab</h1>
+            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">Vortali</h1>
           </td>
         </tr>
         <tr>
           <td style="background:#ffffff;padding:32px 40px;">
             <h2 style="margin:0 0 16px;color:#111827;font-size:18px;font-weight:600;">Sign out from other devices</h2>
             <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">
-              You requested to sign out your BillByDab account from all other browsers and devices.
+              You requested to sign out your Vortali account from all other browsers and devices.
             </p>
             <p style="margin:0 0 28px;color:#374151;font-size:15px;line-height:1.6;">
               Click the button below to confirm. This link expires in <strong>1 hour</strong>.
@@ -81,7 +82,7 @@ export async function POST() {
         </tr>
         <tr>
           <td style="background:#f9fafb;padding:20px 40px;border-radius:0 0 12px 12px;border-top:1px solid #e5e7eb;text-align:center;">
-            <p style="margin:0;color:#9ca3af;font-size:12px;">Sent via <strong style="color:#6b7280;">BillByDab</strong></p>
+            <p style="margin:0;color:#9ca3af;font-size:12px;">Sent via <strong style="color:#6b7280;">Vortali</strong></p>
           </td>
         </tr>
       </table>
@@ -92,7 +93,7 @@ export async function POST() {
   })
 
   if (emailError) {
-    console.error('revoke-sessions email error:', emailError)
+    logError('settings/revoke-sessions', 'Resend send failed', { userId: user.id }, emailError)
     return NextResponse.json({ error: 'Failed to send confirmation email' }, { status: 500 })
   }
 

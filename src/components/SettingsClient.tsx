@@ -98,8 +98,10 @@ export default function SettingsClient({
   const [emailMsg, setEmailMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // Password section
+  const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [totpCode, setTotpCode] = useState('')
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -201,6 +203,9 @@ export default function SettingsClient({
   // Danger zone
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteInput, setDeleteInput] = useState('')
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteTotpCode, setDeleteTotpCode] = useState('')
+  const [deleteMfaRequired, setDeleteMfaRequired] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
@@ -246,19 +251,35 @@ export default function SettingsClient({
       setPasswordMsg({ type: 'error', text: 'Passwords do not match.' })
       return
     }
-    if (newPassword.length < 6) {
-      setPasswordMsg({ type: 'error', text: 'Password must be at least 6 characters.' })
+    if (newPassword.length < 12) {
+      setPasswordMsg({ type: 'error', text: 'Password must be at least 12 characters.' })
       return
     }
     setPasswordSaving(true)
-    const { error } = await supabase.auth.updateUser({ password: newPassword })
-    setPasswordSaving(false)
-    if (error) {
-      setPasswordMsg({ type: 'error', text: error.message })
-    } else {
-      setPasswordMsg({ type: 'success', text: 'Password changed successfully.' })
-      setNewPassword('')
-      setConfirmPassword('')
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+          ...(totpCode ? { totpCode } : {}),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setPasswordMsg({ type: 'error', text: data.error ?? 'Failed to change password.' })
+      } else {
+        setPasswordMsg({ type: 'success', text: 'Password changed successfully.' })
+        setCurrentPassword('')
+        setNewPassword('')
+        setConfirmPassword('')
+        setTotpCode('')
+      }
+    } catch {
+      setPasswordMsg({ type: 'error', text: 'Failed to change password. Please try again.' })
+    } finally {
+      setPasswordSaving(false)
     }
   }
 
@@ -309,13 +330,26 @@ export default function SettingsClient({
   }
 
   async function deleteAccount() {
-    if (deleteInput !== 'DELETE') return
+    if (deleteInput !== 'DELETE' || !deletePassword) return
     setDeleting(true)
     setDeleteError(null)
     try {
-      const res = await fetch('/api/settings/delete-account', { method: 'POST' })
+      const body: Record<string, string> = { password: deletePassword }
+      if (deleteTotpCode) body.totpCode = deleteTotpCode
+      const res = await fetch('/api/settings/delete-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
       const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Failed to delete account')
+      if (!res.ok) {
+        if (json.error === 'Two-factor authentication code required.') {
+          setDeleteMfaRequired(true)
+          setDeleting(false)
+          return
+        }
+        throw new Error(json.error || 'Failed to delete account')
+      }
       await supabase.auth.signOut()
       router.push('/')
     } catch (err) {
@@ -491,6 +525,16 @@ export default function SettingsClient({
         </div>
         <form onSubmit={changePassword} className="p-6 space-y-4">
           <div>
+            <label className={labelCls}>Current password</label>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="••••••••"
+              className={inputCls}
+            />
+          </div>
+          <div>
             <label className={labelCls}>New password</label>
             <input
               type="password"
@@ -507,6 +551,21 @@ export default function SettingsClient({
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="••••••••"
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>
+              Authenticator code{' '}
+              <span className="text-gray-400 dark:text-gray-500 font-normal">(required if 2FA is enabled)</span>
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={totpCode}
+              onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}
+              placeholder="000000"
               className={inputCls}
             />
           </div>
@@ -715,7 +774,7 @@ export default function SettingsClient({
             <div className="flex-1">
               <p className="text-sm font-medium text-gray-900 dark:text-white">Product updates &amp; announcements</p>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                Get notified about new features and improvements to BillByDab.
+                Get notified about new features and improvements to Vortali.
               </p>
             </div>
             <button
@@ -1004,9 +1063,9 @@ export default function SettingsClient({
 
       {/* Support link */}
       <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
-        Need help?{' '}
-        <a href="mailto:support@billbydab.com" className="text-indigo-600 hover:text-indigo-700 font-medium transition-colors">
-          support@billbydab.com
+        Need help? Contact us at{' '}
+        <a href="mailto:support@vortali.com" className="text-indigo-600 hover:text-indigo-700 font-medium transition-colors">
+          support@vortali.com
         </a>
       </p>
 
@@ -1038,6 +1097,25 @@ export default function SettingsClient({
                 placeholder="DELETE"
                 className="w-full border border-red-200 dark:border-red-700 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300 transition"
               />
+              <input
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                placeholder="Enter your password"
+                autoComplete="current-password"
+                className="w-full border border-red-200 dark:border-red-700 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300 transition"
+              />
+              {deleteMfaRequired && (
+                <input
+                  type="text"
+                  value={deleteTotpCode}
+                  onChange={(e) => setDeleteTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="6-digit authenticator code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  className="w-full border border-red-200 dark:border-red-700 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-red-300 transition"
+                />
+              )}
               {deleteError && (
                 <p className="text-sm text-red-600 dark:text-red-400">{deleteError}</p>
               )}
@@ -1046,6 +1124,9 @@ export default function SettingsClient({
                   onClick={() => {
                     setShowDeleteConfirm(false)
                     setDeleteInput('')
+                    setDeletePassword('')
+                    setDeleteTotpCode('')
+                    setDeleteMfaRequired(false)
                     setDeleteError(null)
                   }}
                   className="text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 px-4 py-2 rounded-lg hover:border-gray-300 dark:hover:border-gray-500 transition-colors"
@@ -1054,7 +1135,7 @@ export default function SettingsClient({
                 </button>
                 <button
                   onClick={deleteAccount}
-                  disabled={deleteInput !== 'DELETE' || deleting}
+                  disabled={deleteInput !== 'DELETE' || !deletePassword || deleting}
                   className="text-sm bg-red-600 text-white px-5 py-2 rounded-lg hover:bg-red-700 disabled:opacity-40 transition-colors"
                 >
                   {deleting ? 'Deleting...' : 'Confirm Delete'}

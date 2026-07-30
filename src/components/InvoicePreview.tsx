@@ -3,6 +3,7 @@
 import { InvoiceData } from '@/lib/types'
 import { calcTotals, formatCurrency } from '@/lib/utils'
 import InvoiceWatermark from '@/components/InvoiceWatermark'
+import { getInvoiceTranslations } from '@/lib/invoice-i18n'
 
 interface Props {
   data: InvoiceData
@@ -13,7 +14,18 @@ interface Props {
 
 // ─── Shared payment details renderer ──────────────────────────────────────────
 
+function Row({ label, value }: { label: string; value?: string }) {
+  if (!value) return null
+  return (
+    <div className="flex gap-4 py-0.5">
+      <span className="w-40 flex-shrink-0 text-gray-400">{label}</span>
+      <span className="text-gray-800 break-all">{value}</span>
+    </div>
+  )
+}
+
 function PaymentBlock({ data, accentColor }: { data: InvoiceData; accentColor: string }) {
+  const t = getInvoiceTranslations(data.language)
   const pd = data.paymentDetails
   if (!pd) return null
   const bt = pd.bankTransfer
@@ -24,40 +36,32 @@ function PaymentBlock({ data, accentColor }: { data: InvoiceData; accentColor: s
   const hasOT = ot && (ot.paymentMethod || ot.details)
   if (!hasBT && !hasMM && !hasOT) return null
 
-  const Row = ({ label, value }: { label: string; value?: string }) =>
-    value ? (
-      <div className="flex gap-4 py-0.5">
-        <span className="w-40 flex-shrink-0 text-gray-400">{label}</span>
-        <span className="text-gray-800 break-all">{value}</span>
-      </div>
-    ) : null
-
   return (
     <div className="mb-6 rounded-lg border border-gray-200 overflow-hidden" style={{ background: '#F9FAFB' }}>
       <div className="px-4 py-2.5 border-b border-gray-200">
-        <span className="text-xs font-bold uppercase tracking-wider" style={{ color: accentColor }}>Payment Details</span>
+        <span className="text-xs font-bold uppercase tracking-wider" style={{ color: accentColor }}>{t.paymentDetails}</span>
       </div>
       <div className="px-4 py-3 text-xs space-y-3">
         {hasBT && (
           <div>
-            <div className="text-xs font-semibold text-gray-500 mb-1">Bank Transfer</div>
-            <Row label="Account Name" value={bt?.accountName} />
-            <Row label="Bank Name" value={bt?.bankName} />
-            <Row label="Account Number" value={bt?.accountNumber} />
-            <Row label="Sort Code / Routing" value={bt?.routingNumber} />
-            <Row label="SWIFT / IBAN" value={bt?.swiftIban} />
+            <div className="text-xs font-semibold text-gray-500 mb-1">{t.bankTransfer}</div>
+            <Row label={t.accountName} value={bt?.accountName} />
+            <Row label={t.bankName} value={bt?.bankName} />
+            <Row label={t.accountNumber} value={bt?.accountNumber} />
+            <Row label={t.sortCodeRouting} value={bt?.routingNumber} />
+            <Row label={t.swiftIban} value={bt?.swiftIban} />
           </div>
         )}
         {hasMM && (
           <div>
-            <div className="text-xs font-semibold text-gray-500 mb-1">Mobile Money</div>
-            <Row label="Provider" value={mm?.provider} />
-            <Row label="Phone / Account" value={mm?.phoneNumber} />
+            <div className="text-xs font-semibold text-gray-500 mb-1">{t.mobileMoney}</div>
+            <Row label={t.provider} value={mm?.provider} />
+            <Row label={t.phoneAccount} value={mm?.phoneNumber} />
           </div>
         )}
         {hasOT && (
           <div>
-            <div className="text-xs font-semibold text-gray-500 mb-1">{ot?.paymentMethod || 'Other'}</div>
+            <div className="text-xs font-semibold text-gray-500 mb-1">{ot?.paymentMethod || t.paymentDetails}</div>
             {ot?.details && <p className="text-gray-700 whitespace-pre-line">{ot.details}</p>}
           </div>
         )}
@@ -70,6 +74,8 @@ function PaymentBlock({ data, accentColor }: { data: InvoiceData; accentColor: s
 
 function MinimalPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLogoUrl }: Props) {
   const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
+  const creditApplied = Number(data.creditApplied || 0)
+  const t = getInvoiceTranslations(data.language)
 
   return (
     <div
@@ -93,20 +99,20 @@ function MinimalPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
           )}
         </div>
         <div className="text-right">
-          <div className="text-3xl font-light text-gray-300 tracking-widest uppercase">Invoice</div>
+          <div className="text-3xl font-light text-gray-300 tracking-widest uppercase">{t.invoice}</div>
           <div className="text-sm font-semibold text-gray-700 mt-1">{data.invoiceNumber}</div>
           <div className="text-xs text-gray-400 mt-3">
-            <span className="font-medium text-gray-500">Issued: </span>
-            {new Date(data.issueDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+            <span className="font-medium text-gray-500">{t.issued}: </span>
+            {new Date(data.issueDate + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}
           </div>
           {data.dueDate && (
             <div className="text-xs text-gray-400 mt-0.5">
-              <span className="font-medium text-gray-500">Due: </span>
-              {new Date(data.dueDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+              <span className="font-medium text-gray-500">{t.due}: </span>
+              {new Date(data.dueDate + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}
             </div>
           )}
           <div className="mt-2">
-            <span className="inline-block border border-gray-300 text-gray-500 text-xs px-2 py-0.5 rounded capitalize">{data.status}</span>
+            <span className="inline-block border border-gray-300 text-gray-500 text-xs px-2 py-0.5 rounded capitalize">{t.status[data.status] ?? data.status}</span>
           </div>
         </div>
       </div>
@@ -117,7 +123,7 @@ function MinimalPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
       {/* Bill To */}
       <div className="px-10 py-6 flex gap-16">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Bill To</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">{t.billTo}</div>
           <div className="font-semibold text-gray-800">{data.clientName || 'Client Name'}</div>
           {data.clientCompany && <div className="text-sm text-gray-500">{data.clientCompany}</div>}
           {data.clientAddress && <div className="text-xs text-gray-400 whitespace-pre-line mt-1">{data.clientAddress}</div>}
@@ -133,14 +139,14 @@ function MinimalPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
         <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
-              <th className="text-left pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Description</th>
-              <th className="text-center pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400 w-16">Qty</th>
-              <th className="text-right pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400 w-24">Rate</th>
-              <th className="text-right pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400 w-28">Amount</th>
+              <th className="text-left pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">{t.description}</th>
+              <th className="text-center pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400 w-16">{t.qty}</th>
+              <th className="text-right pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400 w-24">{t.rate}</th>
+              <th className="text-right pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400 w-28">{t.amount}</th>
             </tr>
           </thead>
           <tbody>
-            {data.lineItems.map((item, i) => (
+            {data.lineItems.map((item) => (
               <tr key={item.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                 <td className="py-2.5 text-gray-700">{item.description || '—'}</td>
                 <td className="py-2.5 text-center text-gray-500">{item.quantity}</td>
@@ -150,7 +156,7 @@ function MinimalPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
             ))}
             {data.lineItems.length === 0 && (
               <tr>
-                <td colSpan={4} className="py-4 text-center text-gray-300 italic text-xs">No items added</td>
+                <td colSpan={4} className="py-4 text-center text-gray-300 italic text-xs">{t.noItems}</td>
               </tr>
             )}
           </tbody>
@@ -161,24 +167,30 @@ function MinimalPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
       <div className="px-10 pb-8 flex justify-end">
         <div className="w-56 text-sm">
           <div className="flex justify-between py-1 text-gray-500">
-            <span>Subtotal</span>
+            <span>{t.subtotal}</span>
             <span>{formatCurrency(subtotal, data.currency)}</span>
           </div>
           {data.discount > 0 && (
             <div className="flex justify-between py-1 text-gray-500">
-              <span>Discount{data.discountType === 'percent' ? ` (${data.discount}%)` : ''}</span>
+              <span>{t.discount}{data.discountType === 'percent' ? ` (${data.discount}%)` : ''}</span>
               <span className="text-red-500">-{formatCurrency(discountAmount, data.currency)}</span>
             </div>
           )}
           {data.taxRate > 0 && (
             <div className="flex justify-between py-1 text-gray-500">
-              <span>Tax ({data.taxRate}%)</span>
+              <span>{t.tax} ({data.taxRate}%)</span>
               <span>{formatCurrency(taxAmount, data.currency)}</span>
             </div>
           )}
+          {creditApplied > 0 && (
+            <div className="flex justify-between py-1 text-green-600">
+              <span>{t.creditApplied}</span>
+              <span>-{formatCurrency(creditApplied, data.currency)}</span>
+            </div>
+          )}
           <div className="flex justify-between py-2 mt-1 font-bold text-gray-900 border-t border-gray-300">
-            <span>Total</span>
-            <span>{formatCurrency(total, data.currency)}</span>
+            <span>{t.total}</span>
+            <span>{formatCurrency(Math.max(0, total - creditApplied), data.currency)}</span>
           </div>
         </div>
       </div>
@@ -193,12 +205,12 @@ function MinimalPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
       {/* Notes */}
       {data.notes && (
         <div className="px-10 pb-6">
-          <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Notes</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">{t.notes}</div>
           <p className="text-xs text-gray-500 whitespace-pre-line">{data.notes}</p>
         </div>
       )}
 
-      <div className="mt-10 pb-8 text-center text-xs text-gray-200">Generated by BillByDab</div>
+      <div className="mt-10 pb-8 text-center text-xs text-gray-200">{t.generatedBy}</div>
     </div>
   )
 }
@@ -207,7 +219,9 @@ function MinimalPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
 
 function ClassicPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLogoUrl }: Props) {
   const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
+  const creditApplied = Number(data.creditApplied || 0)
   const brand = data.brandColor || '#4F46E5'
+  const t = getInvoiceTranslations(data.language)
 
   return (
     <div
@@ -234,25 +248,25 @@ function ClassicPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
           {data.businessPhone && <div className="text-xs text-white/75">{data.businessPhone}</div>}
         </div>
         <div className="text-right">
-          <div className="text-4xl font-extrabold text-white tracking-tight mb-4">INVOICE</div>
+          <div className="text-4xl font-extrabold text-white tracking-tight mb-4">{t.invoice.toUpperCase()}</div>
           <div className="text-xs text-white/80 space-y-1">
             <div>
-              <span className="font-semibold text-white">Invoice #: </span>
+              <span className="font-semibold text-white">{t.invoiceNumber}: </span>
               {data.invoiceNumber}
             </div>
             <div>
-              <span className="font-semibold text-white">Issue Date: </span>
-              {new Date(data.issueDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+              <span className="font-semibold text-white">{t.issued}: </span>
+              {new Date(data.issueDate + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}
             </div>
             {data.dueDate && (
               <div>
-                <span className="font-semibold text-white">Due Date: </span>
-                {new Date(data.dueDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                <span className="font-semibold text-white">{t.due}: </span>
+                {new Date(data.dueDate + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}
               </div>
             )}
             <div className="mt-2">
               <span className="inline-block bg-white/20 text-white text-xs font-semibold px-2 py-0.5 rounded capitalize">
-                {data.status}
+                {t.status[data.status] ?? data.status}
               </span>
             </div>
           </div>
@@ -263,7 +277,7 @@ function ClassicPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
       <div className="px-10 pt-8 pb-10">
         {/* Bill To */}
         <div className="mb-8 rounded-lg p-4" style={{ backgroundColor: `${brand}15`, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', colorAdjust: 'exact' }}>
-          <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: brand }}>Bill To</div>
+          <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: brand }}>{t.billTo}</div>
           <div className="font-semibold text-gray-800">{data.clientName || 'Client Name'}</div>
           {data.clientCompany && <div className="text-sm text-gray-600">{data.clientCompany}</div>}
           {data.clientAddress && <div className="text-xs text-gray-500 whitespace-pre-line mt-1">{data.clientAddress}</div>}
@@ -274,10 +288,10 @@ function ClassicPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
         <table className="w-full text-sm mb-6" style={{ borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ backgroundColor: brand, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', colorAdjust: 'exact' }}>
-              <th className="text-left px-3 py-2 text-xs font-semibold text-white">Description</th>
-              <th className="text-center px-3 py-2 text-xs font-semibold text-white w-16">Qty</th>
-              <th className="text-right px-3 py-2 text-xs font-semibold text-white w-24">Rate</th>
-              <th className="text-right px-3 py-2 text-xs font-semibold text-white w-28">Amount</th>
+              <th className="text-left px-3 py-2 text-xs font-semibold text-white">{t.description}</th>
+              <th className="text-center px-3 py-2 text-xs font-semibold text-white w-16">{t.qty}</th>
+              <th className="text-right px-3 py-2 text-xs font-semibold text-white w-24">{t.rate}</th>
+              <th className="text-right px-3 py-2 text-xs font-semibold text-white w-28">{t.amount}</th>
             </tr>
           </thead>
           <tbody>
@@ -291,7 +305,7 @@ function ClassicPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
             ))}
             {data.lineItems.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-3 py-4 text-center text-gray-400 italic text-xs">No items added</td>
+                <td colSpan={4} className="px-3 py-4 text-center text-gray-400 italic text-xs">{t.noItems}</td>
               </tr>
             )}
           </tbody>
@@ -301,25 +315,31 @@ function ClassicPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
         <div className="flex justify-end mb-8">
           <div className="w-56 text-sm">
             <div className="flex justify-between py-1 text-gray-600">
-              <span>Subtotal</span>
+              <span>{t.subtotal}</span>
               <span>{formatCurrency(subtotal, data.currency)}</span>
             </div>
             {data.discount > 0 && (
               <div className="flex justify-between py-1 text-gray-600">
-                <span>Discount{data.discountType === 'percent' ? ` (${data.discount}%)` : ''}</span>
+                <span>{t.discount}{data.discountType === 'percent' ? ` (${data.discount}%)` : ''}</span>
                 <span className="text-red-500">-{formatCurrency(discountAmount, data.currency)}</span>
               </div>
             )}
             <div className="flex justify-between py-1 text-gray-600">
-              <span>Tax ({data.taxRate}%)</span>
+              <span>{t.tax} ({data.taxRate}%)</span>
               <span>{formatCurrency(taxAmount, data.currency)}</span>
             </div>
+            {creditApplied > 0 && (
+              <div className="flex justify-between py-1 text-green-600">
+                <span>{t.creditApplied}</span>
+                <span>-{formatCurrency(creditApplied, data.currency)}</span>
+              </div>
+            )}
             <div
               className="flex justify-between px-3 py-2 mt-1 font-bold text-white text-base rounded"
               style={{ backgroundColor: brand, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', colorAdjust: 'exact' }}
             >
-              <span>Total</span>
-              <span>{formatCurrency(total, data.currency)}</span>
+              <span>{t.total}</span>
+              <span>{formatCurrency(Math.max(0, total - creditApplied), data.currency)}</span>
             </div>
           </div>
         </div>
@@ -330,12 +350,12 @@ function ClassicPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
         {/* Notes */}
         {data.notes && (
           <div className="border-t border-gray-200 pt-4">
-            <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: brand }}>Notes</div>
+            <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: brand }}>{t.notes}</div>
             <p className="text-xs text-gray-600 whitespace-pre-line">{data.notes}</p>
           </div>
         )}
 
-        <div className="mt-12 text-center text-xs text-gray-300">Generated by BillByDab</div>
+        <div className="mt-12 text-center text-xs text-gray-300">{t.generatedBy}</div>
       </div>
     </div>
   )
@@ -345,7 +365,9 @@ function ClassicPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLog
 
 function BoldPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLogoUrl }: Props) {
   const { subtotal, discountAmount, taxAmount, total } = calcTotals(data.lineItems, data.taxRate, data.discount, data.discountType)
+  const creditApplied = Number(data.creditApplied || 0)
   const brand = data.brandColor || '#4F46E5'
+  const t = getInvoiceTranslations(data.language)
 
   return (
     <div
@@ -373,22 +395,22 @@ function BoldPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLogoUr
             {data.businessPhone && <div className="text-sm text-white/70 mt-0.5">{data.businessPhone}</div>}
           </div>
           <div className="text-right">
-            <div className="text-5xl font-black text-white/20 uppercase tracking-widest leading-none">INV</div>
+            <div className="text-5xl font-black text-white/20 uppercase tracking-widest leading-none">{t.invoice.substring(0, 3).toUpperCase()}</div>
             <div className="text-xl font-bold text-white mt-1">{data.invoiceNumber}</div>
             <div className="mt-3 space-y-1 text-sm text-white/75">
               <div>
-                <span className="font-semibold text-white/90">Issued: </span>
-                {new Date(data.issueDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                <span className="font-semibold text-white/90">{t.issued}: </span>
+                {new Date(data.issueDate + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'short', year: 'numeric' })}
               </div>
               {data.dueDate && (
                 <div>
-                  <span className="font-semibold text-white/90">Due: </span>
-                  {new Date(data.dueDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  <span className="font-semibold text-white/90">{t.due}: </span>
+                  {new Date(data.dueDate + 'T00:00:00').toLocaleDateString(t.dateLocale, { day: 'numeric', month: 'short', year: 'numeric' })}
                 </div>
               )}
             </div>
             <div className="mt-3">
-              <span className="inline-block bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">{data.status}</span>
+              <span className="inline-block bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">{t.status[data.status] ?? data.status}</span>
             </div>
           </div>
         </div>
@@ -396,7 +418,7 @@ function BoldPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLogoUr
 
       {/* Bill To — white card below header */}
       <div className="px-10 py-6 border-b border-gray-100">
-        <div className="text-xs font-black uppercase tracking-widest mb-2" style={{ color: brand }}>Bill To</div>
+        <div className="text-xs font-black uppercase tracking-widest mb-2" style={{ color: brand }}>{t.billTo}</div>
         <div className="text-lg font-bold text-gray-900">{data.clientName || 'Client Name'}</div>
         {data.clientCompany && <div className="text-sm font-semibold text-gray-500">{data.clientCompany}</div>}
         {data.clientAddress && <div className="text-sm text-gray-400 whitespace-pre-line mt-0.5">{data.clientAddress}</div>}
@@ -408,10 +430,10 @@ function BoldPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLogoUr
         <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ backgroundColor: brand, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', colorAdjust: 'exact' }}>
-              <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-white">Description</th>
-              <th className="text-center px-4 py-3 text-xs font-black uppercase tracking-wider text-white w-16">Qty</th>
-              <th className="text-right px-4 py-3 text-xs font-black uppercase tracking-wider text-white w-24">Rate</th>
-              <th className="text-right px-4 py-3 text-xs font-black uppercase tracking-wider text-white w-28">Amount</th>
+              <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-white">{t.description}</th>
+              <th className="text-center px-4 py-3 text-xs font-black uppercase tracking-wider text-white w-16">{t.qty}</th>
+              <th className="text-right px-4 py-3 text-xs font-black uppercase tracking-wider text-white w-24">{t.rate}</th>
+              <th className="text-right px-4 py-3 text-xs font-black uppercase tracking-wider text-white w-28">{t.amount}</th>
             </tr>
           </thead>
           <tbody>
@@ -428,7 +450,7 @@ function BoldPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLogoUr
             ))}
             {data.lineItems.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-4 text-center text-gray-400 italic text-xs">No items added</td>
+                <td colSpan={4} className="px-4 py-4 text-center text-gray-400 italic text-xs">{t.noItems}</td>
               </tr>
             )}
           </tbody>
@@ -438,19 +460,25 @@ function BoldPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLogoUr
         <div className="mt-4 flex justify-end">
           <div className="w-64 text-sm">
             <div className="flex justify-between py-1.5 text-gray-500 border-b border-gray-100">
-              <span>Subtotal</span>
+              <span>{t.subtotal}</span>
               <span>{formatCurrency(subtotal, data.currency)}</span>
             </div>
             {data.discount > 0 && (
               <div className="flex justify-between py-1.5 text-gray-500 border-b border-gray-100">
-                <span>Discount{data.discountType === 'percent' ? ` (${data.discount}%)` : ''}</span>
+                <span>{t.discount}{data.discountType === 'percent' ? ` (${data.discount}%)` : ''}</span>
                 <span className="text-red-500">-{formatCurrency(discountAmount, data.currency)}</span>
               </div>
             )}
             {data.taxRate > 0 && (
               <div className="flex justify-between py-1.5 text-gray-500 border-b border-gray-100">
-                <span>Tax ({data.taxRate}%)</span>
+                <span>{t.tax} ({data.taxRate}%)</span>
                 <span>{formatCurrency(taxAmount, data.currency)}</span>
+              </div>
+            )}
+            {creditApplied > 0 && (
+              <div className="flex justify-between py-1.5 text-green-600 border-b border-gray-100">
+                <span>{t.creditApplied}</span>
+                <span>-{formatCurrency(creditApplied, data.currency)}</span>
               </div>
             )}
             <div
@@ -459,8 +487,8 @@ function BoldPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLogoUr
             >
               <div className="w-1.5 self-stretch rounded-l" style={{ backgroundColor: brand }} />
               <div className="flex justify-between flex-1 px-3 py-2.5 bg-gray-900">
-                <span className="font-black text-white text-sm uppercase tracking-wide">Total Due</span>
-                <span className="font-black text-white text-sm">{formatCurrency(total, data.currency)}</span>
+                <span className="font-black text-white text-sm uppercase tracking-wide">{t.totalDue}</span>
+                <span className="font-black text-white text-sm">{formatCurrency(Math.max(0, total - creditApplied), data.currency)}</span>
               </div>
             </div>
           </div>
@@ -479,13 +507,13 @@ function BoldPreview({ data, watermarkEnabled, watermarkOpacity, watermarkLogoUr
             className="rounded-lg p-4"
             style={{ borderLeft: `4px solid ${brand}`, background: '#f9fafb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', colorAdjust: 'exact' }}
           >
-            <div className="text-xs font-black uppercase tracking-widest mb-1" style={{ color: brand }}>Notes</div>
+            <div className="text-xs font-black uppercase tracking-widest mb-1" style={{ color: brand }}>{t.notes}</div>
             <p className="text-sm text-gray-600 whitespace-pre-line">{data.notes}</p>
           </div>
         </div>
       )}
 
-      <div className="mt-10 pb-8 text-center text-xs text-gray-300">Generated by BillByDab</div>
+      <div className="mt-10 pb-8 text-center text-xs text-gray-300">{t.generatedBy}</div>
     </div>
   )
 }

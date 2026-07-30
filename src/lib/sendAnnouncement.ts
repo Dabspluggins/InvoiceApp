@@ -1,5 +1,15 @@
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createHmac } from 'crypto'
 import { Resend } from 'resend'
+import { escHtml } from '@/lib/utils'
+
+function generateUnsubToken(userId: string): string {
+  const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30 // 30 days
+  const payload = `${userId}|${expiresAt}`
+  const secret = process.env.UNSUBSCRIBE_HMAC_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY!
+  const sig = createHmac('sha256', secret).update(payload).digest('hex')
+  return Buffer.from(`${payload}|${sig}`).toString('base64url')
+}
 
 export async function sendAnnouncement({
   subject,
@@ -47,16 +57,17 @@ export async function sendAnnouncement({
   for (const u of recipients) {
     try {
       const firstName = deriveFirstName(u.user_metadata?.full_name as string | undefined, u.email)
-      const { html, text } = buildAnnouncementEmail({ firstName, body, userId: u.id })
+      const unsubToken = generateUnsubToken(u.id)
+      const { html, text } = buildAnnouncementEmail({ firstName, body, unsubToken })
 
       const { error: sendError } = await resend.emails.send({
-        from: 'Dab from BillByDab <onboarding@billbydab.com>',
+        from: 'Dab from Vortali <onboarding@vortali.com>',
         to: u.email,
         subject,
         html,
         text,
         headers: {
-          'List-Unsubscribe': `<mailto:unsubscribe@billbydab.com>, <https://billbydab.com/api/unsubscribe?token=${u.id}>`,
+          'List-Unsubscribe': `<mailto:unsubscribe@vortali.com>, <https://vortali.com/api/unsubscribe?token=${unsubToken}>`,
           'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
         },
       })
@@ -87,14 +98,19 @@ function deriveFirstName(fullName: string | undefined, email: string): string {
 function buildAnnouncementEmail(opts: {
   firstName: string
   body: string
-  userId: string
+  unsubToken: string
 }): { html: string; text: string } {
-  const { firstName, body, userId } = opts
+  const { firstName, body, unsubToken } = opts
 
   const bodyParagraphs = body
     .split(/\n\n+/)
-    .map(para => para.replace(/\n/g, '<br>'))
-    .map(para => `<p style="margin:0 0 16px;color:#222222;font-size:15px;line-height:1.75;">${para}</p>`)
+    .map(para => {
+      const escaped = para
+        .split('\n')
+        .map(line => escHtml(line))
+        .join('<br>')
+      return `<p style="margin:0 0 16px;color:#222222;font-size:15px;line-height:1.75;">${escaped}</p>`
+    })
     .join('')
 
   const html = `<!DOCTYPE html>
@@ -105,17 +121,17 @@ function buildAnnouncementEmail(opts: {
 </head>
 <body style="margin:0;padding:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;">
   <div style="max-width:580px;margin:40px auto;padding:0 24px;">
-    <p style="margin:0 0 20px;color:#222222;font-size:15px;line-height:1.75;">Hey ${firstName},</p>
+    <p style="margin:0 0 20px;color:#222222;font-size:15px;line-height:1.75;">Hey ${escHtml(firstName)},</p>
     ${bodyParagraphs}
     <p style="margin:0 0 16px;color:#222222;font-size:15px;line-height:1.75;">
-      You can check out what&#39;s new at <a href="https://billbydab.com/dashboard" style="color:#222222;">billbydab.com/dashboard</a>.
+      You can check out what&#39;s new at <a href="https://vortali.com/dashboard" style="color:#222222;">vortali.com/dashboard</a>.
     </p>
     <p style="margin:32px 0 0;color:#222222;font-size:15px;line-height:1.8;">
-      With love from Lagos,<br>Dab<br>Founder, BillByDab
+      With love from Lagos,<br>Dab<br>Founder, Vortali
     </p>
     <p style="margin:48px 0 0;color:#9ca3af;font-size:11px;line-height:1.6;">
       You&#39;re receiving this because you opted in to product updates.
-      <a href="https://billbydab.com/api/unsubscribe?token=${userId}" style="color:#9ca3af;">Unsubscribe</a>
+      <a href="https://vortali.com/api/unsubscribe?token=${unsubToken}" style="color:#9ca3af;">Unsubscribe</a>
     </p>
   </div>
 </body>
@@ -125,15 +141,15 @@ function buildAnnouncementEmail(opts: {
 
 ${body}
 
-You can check out what's new at https://billbydab.com/dashboard
+You can check out what's new at https://vortali.com/dashboard
 
 With love from Lagos,
 Dab
-Founder, BillByDab
+Founder, Vortali
 
 ---
 You're receiving this because you opted in to product updates.
-Unsubscribe: https://billbydab.com/api/unsubscribe?token=${userId}`
+Unsubscribe: https://vortali.com/api/unsubscribe?token=${unsubToken}`
 
   return { html, text }
 }

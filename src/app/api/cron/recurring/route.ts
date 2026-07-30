@@ -1,5 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 import type { NextRequest } from 'next/server'
+import { Client } from '@upstash/qstash'
+
+const qstash = new Client({ token: process.env.QSTASH_TOKEN! })
 
 export const dynamic = 'force-dynamic'
 
@@ -39,6 +42,7 @@ export async function GET(request: NextRequest) {
     .from('invoices')
     .select('*')
     .eq('is_recurring', true)
+    .neq('status', 'cancelled')
     .lte('recurring_next_date', today)
 
   if (fetchError) {
@@ -104,7 +108,7 @@ export async function GET(request: NextRequest) {
     // Copy line items
     const { data: lineItems } = await supabase
       .from('line_items')
-      .select('description, quantity, rate, amount, sort_order')
+      .select('description, quantity, rate, amount, sort_order, stockbook_product_id')
       .eq('invoice_id', inv.id)
 
     if (lineItems && lineItems.length > 0) {
@@ -118,6 +122,30 @@ export async function GET(request: NextRequest) {
       .from('invoices')
       .update({ recurring_next_date: newNextDate })
       .eq('id', inv.id)
+
+    // Notify StockBook of the newly generated recurring invoice via QStash.
+    // Use the already-copied line items — no extra DB query needed.
+    const sbItems = (lineItems ?? [])
+      .filter((item) => item.stockbook_product_id != null)
+      .map((item) => ({
+        product_id: item.stockbook_product_id as string,
+        quantity: Math.round(Number(item.quantity)),
+      }))
+      .filter((item) => Number.isFinite(item.quantity) && item.quantity > 0)
+
+    if (sbItems.length > 0) {
+      const stockbookWebhookUrl = process.env.STOCKBOOK_WEBHOOK_URL
+      if (stockbookWebhookUrl) {
+        await qstash.publishJSON({
+          url: stockbookWebhookUrl,
+          body: {
+            type: 'invoice.created',
+            data: { invoice_id: newInv.id, user_id: inv.user_id, line_items: sbItems },
+          },
+          retries: 3,
+        }).catch(() => {})
+      }
+    }
 
     generated.push(newInv.id)
   }

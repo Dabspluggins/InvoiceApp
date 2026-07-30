@@ -30,15 +30,18 @@ export async function PUT(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { name, company, email, phone, address } = body
+  const { name, company, email, phone, address, currency, portal_validity_days: rawValidity } = body
 
   if (!name?.trim()) {
     return NextResponse.json({ error: 'Name is required' }, { status: 400 })
   }
 
+  const VALID_DAYS = [30, 60, 90, 180]
+  const validityDays = VALID_DAYS.includes(Number(rawValidity)) ? Number(rawValidity) : 30
+
   const { data, error } = await supabase
     .from('clients')
-    .update({ name: name.trim(), company, email, phone, address })
+    .update({ name: name.trim(), company, email, phone, address, currency: currency || 'NGN', portal_validity_days: validityDays })
     .eq('id', id)
     .eq('user_id', user.id)
     .select()

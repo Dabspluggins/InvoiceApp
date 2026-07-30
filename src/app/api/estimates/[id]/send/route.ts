@@ -4,6 +4,8 @@ import { Resend } from 'resend'
 import { getCurrencySymbol } from '@/lib/currencies'
 import { sendLimiter } from '@/lib/ratelimit'
 import { logAudit } from '@/lib/audit'
+import { logError } from '@/lib/logger'
+import { escHtml } from '@/lib/utils'
 
 interface LineItem {
   description: string
@@ -56,7 +58,7 @@ function buildEstimateEmail({
     .map(
       (item) => `
     <tr>
-      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;font-size:14px;">${item.description || '—'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;font-size:14px;">${escHtml(item.description) || '—'}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;font-size:14px;text-align:center;">${item.quantity}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;font-size:14px;text-align:right;">${fmt(item.unit_price, estimate.currency)}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;font-size:14px;text-align:right;">${fmt(item.amount, estimate.currency)}</td>
@@ -84,7 +86,7 @@ function buildEstimateEmail({
 
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Estimate ${estimate.estimate_number}</title></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Estimate ${escHtml(estimate.estimate_number)}</title></head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:40px 0;">
     <tr><td align="center">
@@ -94,8 +96,8 @@ function buildEstimateEmail({
         <tr>
           <td style="background:${brandColor};padding:32px 40px;border-radius:12px 12px 0 0;">
             <p style="margin:0;color:rgba(255,255,255,0.8);font-size:13px;text-transform:uppercase;letter-spacing:1px;">Estimate for review</p>
-            <h1 style="margin:4px 0 0;color:#ffffff;font-size:26px;font-weight:700;">${estimate.estimate_number}</h1>
-            ${estimate.title ? `<p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:15px;">${estimate.title}</p>` : ''}
+            <h1 style="margin:4px 0 0;color:#ffffff;font-size:26px;font-weight:700;">${escHtml(estimate.estimate_number)}</h1>
+            ${estimate.title ? `<p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:15px;">${escHtml(estimate.title)}</p>` : ''}
           </td>
         </tr>
 
@@ -104,8 +106,8 @@ function buildEstimateEmail({
           <td style="background:#ffffff;padding:32px 40px;">
 
             <p style="margin:0 0 24px;color:#374151;font-size:15px;line-height:1.6;">
-              Hi ${toName || 'there'},<br><br>
-              Please find your estimate ${estimate.estimate_number} below.
+              Hi ${escHtml(toName) || 'there'},<br><br>
+              Please find your estimate ${escHtml(estimate.estimate_number)} below.
               ${estimate.valid_until ? `This estimate is valid until <strong>${formatDate(estimate.valid_until)}</strong>.` : ''}
               <br><br>
               You can review the items, remove anything you don't need, and either approve it or send back your revisions.
@@ -159,7 +161,7 @@ function buildEstimateEmail({
               estimate.notes
                 ? `<div style="background:#fafafa;border-left:3px solid ${brandColor};padding:12px 16px;border-radius:0 6px 6px 0;margin-bottom:24px;">
               <p style="margin:0;color:#6b7280;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Notes</p>
-              <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">${estimate.notes}</p>
+              <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">${escHtml(estimate.notes)}</p>
             </div>`
                 : ''
             }
@@ -181,7 +183,7 @@ function buildEstimateEmail({
         <!-- Footer -->
         <tr>
           <td style="background:#f9fafb;padding:20px 40px;border-radius:0 0 12px 12px;border-top:1px solid #e5e7eb;text-align:center;">
-            <p style="margin:0;color:#9ca3af;font-size:12px;">This estimate was sent via <strong style="color:#6b7280;">BillByDab</strong></p>
+            <p style="margin:0;color:#9ca3af;font-size:12px;">This estimate was sent via <strong style="color:#6b7280;">Vortali</strong></p>
           </td>
         </tr>
 
@@ -241,11 +243,11 @@ export async function POST(
     const { data: lineItems } = await supabase
       .from('estimate_line_items')
       .select('*')
-      .eq('estimate_id', id)
+      .eq('estimate_id', estimate.id)
       .eq('deleted_by_client', false)
       .order('sort_order')
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.billbydab.com'
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://vortali.com'
     const reviewUrl = `${appUrl}/estimates/${id}/review?token=${estimate.client_token}`
 
     const html = buildEstimateEmail({
@@ -257,14 +259,14 @@ export async function POST(
 
     const resend = new Resend(apiKey)
     const { error: sendError } = await resend.emails.send({
-      from: 'BillByDab <invoices@billbydab.com>',
+      from: 'Vortali <invoices@vortali.com>',
       to: [toEmail],
       subject: `Estimate ${estimate.estimate_number} — please review`,
       html,
     })
 
     if (sendError) {
-      console.error('Resend error:', sendError)
+      logError('estimates/[id]/send', 'Resend send failed', { estimateId: id }, sendError)
       return NextResponse.json({ error: sendError.message }, { status: 500 })
     }
 
@@ -292,7 +294,7 @@ export async function POST(
 
     return NextResponse.json({ success: true })
   } catch (err) {
-    console.error('send estimate error:', err)
+    logError('estimates/[id]/send', 'Unhandled error', { estimateId: id }, err)
     return NextResponse.json({ error: 'Failed to send estimate' }, { status: 500 })
   }
 }

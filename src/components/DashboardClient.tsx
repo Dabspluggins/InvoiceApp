@@ -26,6 +26,8 @@ interface Invoice {
   viewed_at: string | null
   view_count: number | null
   payments?: { amount: number }[]
+  credit_applied?: number | null
+  client_id?: string | null
 }
 
 interface RecordPaymentModal {
@@ -44,12 +46,29 @@ interface CreditConfirmModal {
   currency: Currency
 }
 
-type StatusFilter = 'all' | 'unpaid' | 'paid' | 'overdue' | 'partial'
+type StatusFilter = 'all' | 'unpaid' | 'paid' | 'overdue' | 'partial' | 'cancelled'
 
 interface Template {
   id: string
   name: string
   created_at: string
+}
+
+// Tiny SVG sparkline — no Recharts needed, zero additional bundle weight
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  if (data.length < 2) return null
+  const max = Math.max(...data)
+  const min = Math.min(...data)
+  const range = max - min || 1
+  const W = 100, H = 32
+  const pts = data
+    .map((v, i) => `${(i / (data.length - 1)) * W},${H - ((v - min) / range) * (H - 4) - 2}`)
+    .join(' ')
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-8 mt-2 opacity-70" preserveAspectRatio="none">
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  )
 }
 
 const STATUS_COLORS: Record<InvoiceStatus, string> = {
@@ -58,6 +77,7 @@ const STATUS_COLORS: Record<InvoiceStatus, string> = {
   paid: 'bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300',
   pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/60 dark:text-yellow-300',
   partial: 'bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300',
+  cancelled: 'bg-red-100 text-red-600 dark:bg-red-900/60 dark:text-red-300',
 }
 
 const TODAY = new Date().toISOString().split('T')[0]
@@ -71,11 +91,14 @@ function getAmountPaid(inv: Invoice): number {
 
 function isPartial(inv: Invoice): boolean {
   const paid = getAmountPaid(inv)
-  return paid > 0 && paid < inv.total
+  const effective = paid + Number(inv.credit_applied || 0)
+  return effective > 0 && effective < inv.total
 }
 
 function isOverdue(inv: Invoice): boolean {
-  return !!inv.due_date && inv.due_date < TODAY && inv.status !== 'paid'
+  // Drafts haven't been sent; paid invoices are settled — only actionable statuses can be overdue.
+  // Partial invoices with a balance still owed past due date are also overdue.
+  return !!inv.due_date && inv.due_date < TODAY && (inv.status === 'sent' || inv.status === 'pending' || inv.status === 'partial')
 }
 
 function formatDateLong(dateStr: string | null): string {
@@ -118,6 +141,12 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     currency: 'NGN',
   })
   const [recordingCredit, setRecordingCredit] = useState(false)
+  const [recordingPayment, setRecordingPayment] = useState(false)
+  const [bulkMarkingPaid, setBulkMarkingPaid] = useState(false)
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [summaryStats, setSummaryStats] = useState<{ totalCount: number; paidAmount: number; outstandingAmount: number; primaryCurrency: Currency | null; hasMixedCurrencies: boolean } | null>(null)
+  const [sparklineMonths, setSparklineMonths] = useState<{ invoiced: number[]; paid: number[]; outstanding: number[] }>({ invoiced: [], paid: [], outstanding: [] })
   const router = useRouter()
 
   const filteredInvoices = useMemo(() => {
@@ -133,18 +162,16 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
       if (statusFilter === 'paid') return inv.status === 'paid'
       if (statusFilter === 'unpaid') return inv.status === 'sent' || inv.status === 'pending'
       if (statusFilter === 'partial') return isPartial(inv)
-      if (statusFilter === 'overdue') {
-        const isUnpaid = inv.status === 'sent' || inv.status === 'pending'
-        const isPastDue = inv.due_date != null && inv.due_date < TODAY
-        return isUnpaid && isPastDue
-      }
-      return true
+      if (statusFilter === 'overdue') return isOverdue(inv)
+      if (statusFilter === 'cancelled') return inv.status === 'cancelled'
+      // 'all' excludes cancelled — use the Cancelled filter to see them
+      return inv.status !== 'cancelled'
     })
   }, [invoices, search, statusFilter])
 
   async function handleCopyLink(inv: Invoice) {
     if (!inv.share_token) return
-    await navigator.clipboard.writeText(`https://www.billbydab.com/i/${inv.share_token}`)
+    await navigator.clipboard.writeText(`https://vortali.com/i/${inv.share_token}`)
     setCopiedId(inv.id)
     setTimeout(() => setCopiedId(null), 2000)
   }
@@ -153,7 +180,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
   async function loadInvoices(pageNum: number, append: boolean) {
     const { data } = await supabase
       .from('invoices')
-      .select('id, invoice_number, client_name, client_company, business_name, total, currency, status, issue_date, due_date, notes, is_recurring, share_token, reminders_sent, viewed_at, view_count, payments(amount)')
+      .select('id, invoice_number, client_name, client_company, business_name, total, currency, status, issue_date, due_date, notes, is_recurring, share_token, reminders_sent, viewed_at, view_count, credit_applied, client_id, payments(amount)')
       .order('created_at', { ascending: false })
       .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1)
 
@@ -167,6 +194,53 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     setLoading(false)
   }
 
+  // Fetch summary totals server-side via RPC — covers full invoice history,
+  // not just the current page. Wrapped in useCallback so mutation callbacks
+  // can list it as a stable dependency without exhaustive-deps warnings.
+  const loadSummaryStats = useCallback(async () => {
+    const { data } = await supabase.rpc('get_invoice_summary')
+    if (!data) return
+    setSummaryStats({
+      totalCount: Number(data.total_count ?? 0),
+      paidAmount: Number(data.paid_amount ?? 0),
+      outstandingAmount: Number(data.outstanding_amount ?? 0),
+      primaryCurrency: (data.primary_currency as Currency) ?? null,
+      hasMixedCurrencies: Boolean(data.has_mixed_currencies ?? false),
+    })
+  }, [supabase])
+
+  // Sparkline data: count of invoices per month for last 6 months.
+  // Uses counts (not amounts) so it is currency-agnostic, matches the Total Invoices
+  // count card, and does not depend on partial-payment or credit logic.
+  const loadSparklines = useCallback(async () => {
+    const cutoff = new Date()
+    cutoff.setDate(1) // anchor before month arithmetic to avoid day-overflow
+    cutoff.setMonth(cutoff.getMonth() - 5)
+    const from = cutoff.toISOString().split('T')[0]
+    const months: string[] = []
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(1) // anchor to 1st before month arithmetic to avoid day-overflow
+      d.setMonth(d.getMonth() - i)
+      months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+    }
+    const { data } = await supabase
+      .from('invoices')
+      .select('issue_date, status')
+      .gte('issue_date', from)
+    if (!data) return
+    const invoicedArr: number[] = []
+    const paidArr: number[] = []
+    const outstandingArr: number[] = []
+    for (const m of months) {
+      const inMonth = data.filter(i => i.issue_date?.slice(0, 7) === m)
+      invoicedArr.push(inMonth.length)
+      paidArr.push(inMonth.filter(i => i.status === 'paid').length)
+      outstandingArr.push(inMonth.filter(i => i.status === 'sent' || i.status === 'pending' || i.status === 'partial').length)
+    }
+    setSparklineMonths({ invoiced: invoicedArr, paid: paidArr, outstanding: outstandingArr })
+  }, [supabase])
+
   // Fix 1: reset and reload when filters/search change (also handles initial load)
   useEffect(() => {
     setPage(0)
@@ -179,6 +253,8 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
   useEffect(() => {
     loadTemplates()
     loadUnbilledExpenses()
+    loadSummaryStats()
+    loadSparklines()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fix 1: load next page and append
@@ -195,46 +271,95 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     if (status === 'paid') {
       const inv = invoices.find((i) => i.id === id)
       if (inv) {
-        setRecordPaymentModal({ open: true, invoice: inv, amount: String(inv.total) })
+        const alreadyPaid = (inv.payments || []).reduce((s, p) => s + p.amount, 0)
+        const creditApplied = Number(inv.credit_applied || 0)
+        const remaining = Math.max(0, inv.total - alreadyPaid - creditApplied)
+        setRecordPaymentModal({ open: true, invoice: inv, amount: String(remaining) })
         return
       }
     }
     await supabase.from('invoices').update({ status }).eq('id', id)
     setInvoices((prev) => prev.map((inv) => (inv.id === id ? { ...inv, status } : inv)))
-  }, [supabase, invoices])
+    loadSummaryStats()
+    loadSparklines()
+  }, [supabase, invoices, loadSummaryStats, loadSparklines])
 
   async function handleConfirmPayment() {
+    if (recordingPayment) return
     const { invoice, amount } = recordPaymentModal
     if (!invoice) return
 
     const amountPaid = parseFloat(amount)
     if (isNaN(amountPaid) || amountPaid <= 0) return
 
-    await supabase.from('invoices').update({ status: 'paid' as InvoiceStatus }).eq('id', invoice.id)
-    setInvoices((prev) => prev.map((inv) => (inv.id === invoice.id ? { ...inv, status: 'paid' as InvoiceStatus } : inv)))
-    setRecordPaymentModal({ open: false, invoice: null, amount: '' })
-
-    const excess = amountPaid - invoice.total
-    if (excess > 0.005) {
-      // Look up client_id by name
-      const { data: clientRows } = await supabase
-        .from('clients')
-        .select('id, name')
-        .eq('name', invoice.client_name)
-        .limit(1)
-
-      const clientId = clientRows?.[0]?.id ?? null
-      setCreditConfirmModal({
-        open: true,
-        excess,
-        clientName: invoice.client_name,
-        clientId,
-        invoiceId: invoice.id,
-        invoiceNumber: invoice.invoice_number,
-        currency: invoice.currency,
+    setRecordingPayment(true)
+    try {
+  
+      // Remaining balance = total minus any payments already recorded and any credit already applied.
+      // We compare against this — not raw invoice.total — so existing partial payments are honoured.
+      const totalAlreadyPaid = (invoice.payments || []).reduce((sum, p) => sum + p.amount, 0)
+      const creditApplied = Number(invoice.credit_applied || 0)
+      const remaining = invoice.total - totalAlreadyPaid - creditApplied
+  
+      // The amount to record in the ledger is capped at what is still owed.
+      // Any amount above that is excess and will be offered as client credit.
+      // Guard: if the invoice is already fully covered by credit/prior payments, nothing to post
+      if (remaining <= 0.005) {
+        setRecordPaymentModal({ open: false, invoice: null, amount: '' })
+        showToast('This invoice is already fully covered', 'indigo')
+        return
+      }
+  
+      const paymentAmount = Math.min(amountPaid, remaining)
+      const excess = amountPaid - remaining
+  
+      const today = new Date().toISOString().slice(0, 10)
+  
+      // All payments — partial, exact, and overpayment — go through the payments API
+      // so every payment is recorded in the ledger and status is recomputed correctly.
+      const res = await fetch(`/api/invoices/${invoice.id}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: paymentAmount, paid_at: today }),
       })
-    } else {
-      showToast('Invoice marked as paid ✓', 'green')
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        showToast((err as { error?: string }).error || 'Failed to record payment', 'indigo')
+        return
+      }
+      const { status } = await res.json()
+      setInvoices((prev) =>
+        prev.map((inv) =>
+          inv.id === invoice.id
+            ? { ...inv, status: status as InvoiceStatus, payments: [...(inv.payments || []), { amount: paymentAmount }] }
+            : inv
+        )
+      )
+      loadSummaryStats()
+      loadSparklines()
+      setRecordPaymentModal({ open: false, invoice: null, amount: '' })
+  
+      if (excess > 0.005) {
+        // Use client_id from the invoice directly — name lookup can match the wrong
+        // client when duplicate names exist.
+        const clientId = invoice.client_id ?? null
+        setCreditConfirmModal({
+          open: true,
+          excess,
+          clientName: invoice.client_name,
+          clientId,
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.invoice_number,
+          currency: invoice.currency,
+        })
+      } else {
+        const label = paymentAmount < remaining - 0.005 ? 'Partial payment' : 'Invoice marked as paid'
+        showToast(`${label} — ${formatCurrency(paymentAmount, invoice.currency)} recorded ✓`, 'green')
+      }
+    } catch {
+      showToast('Failed to record payment. Please try again.', 'indigo')
+    } finally {
+      setRecordingPayment(false)
     }
   }
 
@@ -251,31 +376,72 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          client_id: clientId,
+          clientId,
           amount: excess,
-          type: 'credited',
-          reference_invoice_id: invoiceId,
+          referenceNumber: invoiceNumber,
+          invoiceId,
+          currency,
           description: `Overpayment on ${invoiceNumber}`,
         }),
       })
       if (res.ok) {
         showToast(`${formatCurrency(excess, currency)} credit recorded for ${clientName} ✓`, 'green')
+        setCreditConfirmModal((s) => ({ ...s, open: false }))
       } else {
-        showToast('Failed to record credit', 'indigo')
+        const err = await res.json().catch(() => ({}))
+        showToast(err.error || 'Failed to record credit', 'indigo')
       }
+    } catch {
+      showToast('Failed to record credit. Please try again.', 'indigo')
     } finally {
       setRecordingCredit(false)
-      setCreditConfirmModal((s) => ({ ...s, open: false }))
     }
   }
 
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm('Delete this invoice? This cannot be undone.')) return
-    await supabase.from('line_items').delete().eq('invoice_id', id)
-    await supabase.from('invoices').delete().eq('id', id)
-    setInvoices((prev) => prev.filter((inv) => inv.id !== id))
-    setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next })
-  }, [supabase])
+    try {
+      // Notify StockBook to release inventory BEFORE cascade-deleting line_items.
+      if (user?.id) {
+        await fetch('/api/webhooks/cancel-stockbook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ invoice_ids: [id], user_id: user.id }),
+        }).catch(console.error)
+      }
+      // line_items and payments are removed by ON DELETE CASCADE — delete invoice only.
+      const { error } = await supabase.from('invoices').delete().eq('id', id)
+      if (error) throw error
+      setInvoices((prev) => prev.filter((inv) => inv.id !== id))
+      loadSummaryStats()
+      loadSparklines()
+      setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next })
+    } catch {
+      showToast('Failed to delete invoice. Please try again.', 'indigo')
+    }
+  }, [supabase, loadSummaryStats, loadSparklines, user])
+
+  const handleCancel = useCallback(async (id: string) => {
+    if (!confirm('Cancel this invoice? The stock reservations will be released. The invoice will remain on record as cancelled.')) return
+    try {
+      // Release StockBook inventory reservations before marking as cancelled.
+      if (user?.id) {
+        await fetch('/api/webhooks/cancel-stockbook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ invoice_ids: [id], user_id: user.id }),
+        }).catch(console.error)
+      }
+      const { error } = await supabase.from('invoices').update({ status: 'cancelled' as InvoiceStatus, is_recurring: false }).eq('id', id)
+      if (error) throw error
+      setInvoices((prev) => prev.map((inv) => (inv.id === id ? { ...inv, status: 'cancelled' as InvoiceStatus, is_recurring: false } : inv)))
+      loadSummaryStats()
+      loadSparklines()
+      showToast('Invoice cancelled.', 'indigo')
+    } catch {
+      showToast('Failed to cancel invoice. Please try again.', 'indigo')
+    }
+  }, [supabase, loadSummaryStats, loadSparklines, user, showToast])
 
   const handleSendReminder = useCallback(async (id: string) => {
     setRemindingIds((prev) => new Set(prev).add(id))
@@ -301,7 +467,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
 
   const handleWhatsApp = useCallback((inv: Invoice) => {
     if (!inv.share_token) return
-    const shareUrl = `https://www.billbydab.com/i/${inv.share_token}`
+    const shareUrl = `https://vortali.com/i/${inv.share_token}`
     const businessName =
       inv.business_name ||
       user?.user_metadata?.business_name ||
@@ -347,6 +513,36 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     setTemplates((prev) => prev.filter((t) => t.id !== id))
   }
 
+  async function handleBulkDelete() {
+    if (bulkDeleting) return
+    const ids = [...selectedIds]
+    setBulkDeleting(true)
+    try {
+      // Notify StockBook to release inventory BEFORE cascade-deleting line_items.
+      if (user?.id) {
+        await fetch('/api/webhooks/cancel-stockbook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ invoice_ids: ids, user_id: user.id }),
+        }).catch(console.error)
+      }
+      // Delete invoices only — line_items/payments are removed by ON DELETE CASCADE.
+      // Checking { error } because supabase client returns errors rather than throwing.
+      const { error } = await supabase.from('invoices').delete().in('id', ids)
+      if (error) throw error
+      setInvoices((prev) => prev.filter((inv) => !ids.includes(inv.id)))
+      setSelectedIds(new Set())
+      setBulkDeleteConfirm(false)
+      loadSummaryStats()
+      loadSparklines()
+      showToast(`${ids.length} invoice${ids.length !== 1 ? 's' : ''} permanently deleted`, 'indigo')
+    } catch {
+      showToast('Failed to delete invoices. Please try again.', 'indigo')
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
+
   function showToast(message: string, color: 'green' | 'indigo') {
     setToast({ message, color })
     setTimeout(() => setToast(null), 3000)
@@ -362,36 +558,86 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
   }
 
   function toggleSelectAll() {
-    if (selectedIds.size === invoices.length) {
-      setSelectedIds(new Set())
+    // Operate on filteredInvoices so hidden (filtered-out) invoices are never
+    // silently selected — especially important for bulk delete.
+    if (filteredInvoices.every((inv) => selectedIds.has(inv.id))) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        filteredInvoices.forEach((inv) => next.delete(inv.id))
+        return next
+      })
     } else {
-      setSelectedIds(new Set(invoices.map((inv) => inv.id)))
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        filteredInvoices.forEach((inv) => next.add(inv.id))
+        return next
+      })
     }
   }
 
-  // Fix 3: single bulk update query instead of N+1 loop
   async function handleBulkMarkPaid() {
+    if (bulkMarkingPaid) return
     const unpaidSelected = invoices.filter(
-      (inv) => selectedIds.has(inv.id) && inv.status !== 'paid'
+      (inv) => selectedIds.has(inv.id) && inv.status !== 'paid' && inv.status !== 'cancelled'
     )
     if (unpaidSelected.length === 0) return
-
-    const ids = unpaidSelected.map((inv) => inv.id)
-    const { error } = await supabase
-      .from('invoices')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .update({ status: 'paid' as InvoiceStatus, paid_at: new Date().toISOString() } as any)
-      .in('id', ids)
-
-    if (!error) {
-      const successIds = new Set(ids)
-      setInvoices((prev) =>
-        prev.map((inv) =>
-          successIds.has(inv.id) ? { ...inv, status: 'paid' as InvoiceStatus } : inv
+    setBulkMarkingPaid(true)
+    try {
+  
+      type Settled = { id: string; paymentAmount: number | null }
+      const today = new Date().toISOString().slice(0, 10)
+      const settled: Settled[] = []
+  
+      // Route each invoice through the payments API so every payment is recorded
+      // in the ledger and recompute_invoice_status runs for each one.
+      for (const inv of unpaidSelected) {
+        const alreadyPaid = (inv.payments || []).reduce((s, p) => s + p.amount, 0)
+        const creditApplied = Number(inv.credit_applied || 0)
+        const remaining = inv.total - alreadyPaid - creditApplied
+        if (remaining <= 0.005) {
+          // Already effectively settled by credit — a zero-amount payment is invalid,
+          // so update the status directly. Only count as settled if DB succeeds.
+          const { error: dbError } = await supabase
+            .from('invoices')
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .update({ status: 'paid' as InvoiceStatus, paid_at: new Date().toISOString() } as any)
+            .eq('id', inv.id)
+          if (!dbError) settled.push({ id: inv.id, paymentAmount: null })
+          continue
+        }
+        const res = await fetch(`/api/invoices/${inv.id}/payments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: remaining, paid_at: today }),
+        })
+        if (res.ok) settled.push({ id: inv.id, paymentAmount: remaining })
+      }
+  
+      if (settled.length > 0) {
+        const settledMap = new Map(settled.map((s) => [s.id, s.paymentAmount]))
+        setInvoices((prev) =>
+          prev.map((inv) => {
+            if (!settledMap.has(inv.id)) return inv
+            const payment = settledMap.get(inv.id)
+            return {
+              ...inv,
+              status: 'paid' as InvoiceStatus,
+              // Only append a payment row when an actual ledger payment was made (not the credit-only path)
+              payments: payment != null
+                ? [...(inv.payments || []), { amount: payment }]
+                : inv.payments,
+            }
+          })
         )
-      )
-      setSelectedIds(new Set())
-      showToast(`${ids.length} invoice${ids.length !== 1 ? 's' : ''} marked as paid ✓`, 'green')
+        setSelectedIds(new Set())
+        showToast(`${settled.length} invoice${settled.length !== 1 ? 's' : ''} marked as paid ✓`, 'green')
+        loadSummaryStats()
+        loadSparklines()
+      }
+    } catch {
+      showToast('Failed to mark invoices as paid. Please try again.', 'indigo')
+    } finally {
+      setBulkMarkingPaid(false)
     }
   }
 
@@ -418,27 +664,27 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     const a = document.createElement('a')
     const today = new Date().toISOString().slice(0, 10)
     a.href = url
-    a.download = `billbydab-invoices-${today}.csv`
+    a.download = `vortali-invoices-${today}.csv`
     a.click()
     URL.revokeObjectURL(url)
     showToast(`${selected.length} invoice${selected.length !== 1 ? 's' : ''} exported ✓`, 'indigo')
   }
 
-  const totalInvoices = invoices.length
-  const paidAmount = invoices
-    .filter((i) => i.status === 'paid')
-    .reduce((sum, i) => sum + i.total, 0)
-  const outstandingAmount = invoices
-    .filter((i) => i.status === 'sent' || i.status === 'pending')
-    .reduce((sum, i) => sum + i.total, 0)
+  // Summary stats come from a separate all-invoices query so pagination doesn't affect them
+  const totalInvoices = summaryStats?.totalCount ?? invoices.length
+  const paidAmount = summaryStats?.paidAmount ?? 0
+  const outstandingAmount = summaryStats?.outstandingAmount ?? 0
+
+  const primaryCurrency = summaryStats?.primaryCurrency ?? null
+  const hasMixedCurrencies = summaryStats?.hasMixedCurrencies ?? false
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there'
 
   const hasSelection = selectedIds.size > 0
   const hasUnpaidSelected = invoices.some(
-    (inv) => selectedIds.has(inv.id) && inv.status !== 'paid'
+    (inv) => selectedIds.has(inv.id) && inv.status !== 'paid' && inv.status !== 'cancelled'
   )
-  const allSelected = invoices.length > 0 && selectedIds.size === invoices.length
+  const allSelected = filteredInvoices.length > 0 && filteredInvoices.every((inv) => selectedIds.has(inv.id))
 
   const STATUS_PILLS: { label: string; value: StatusFilter }[] = [
     { label: 'All', value: 'all' },
@@ -446,6 +692,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     { label: 'Partial', value: 'partial' },
     { label: 'Paid', value: 'paid' },
     { label: 'Overdue', value: 'overdue' },
+    { label: 'Cancelled', value: 'cancelled' },
   ]
 
   const dk = darkMode
@@ -484,14 +731,37 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
               ? `${filteredInvoices.length} / ${totalInvoices}`
               : totalInvoices}
           </p>
+          <Sparkline data={sparklineMonths.invoiced} color="#3b82f6" />
         </div>
         <div className={`rounded-xl border p-4 md:p-6 ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <p className={`text-xs md:text-sm mb-1 ${dk ? 'text-gray-400' : 'text-gray-500'}`}>Paid</p>
-          <p className="text-xl md:text-2xl font-bold text-green-500">{paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          {hasMixedCurrencies ? (
+            <div>
+              <p className="text-xl md:text-2xl font-bold text-green-500">{paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <span className={`text-xs ${dk ? 'text-gray-400' : 'text-gray-400'}`}>Multiple currencies</span>
+            </div>
+          ) : primaryCurrency ? (
+            <p className="text-xl md:text-2xl font-bold text-green-500">{formatCurrency(paidAmount, primaryCurrency)}</p>
+          ) : (
+            <p className="text-xl md:text-2xl font-bold text-green-500">{paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          )}
+          <Sparkline data={sparklineMonths.paid} color="#22c55e" />
+          {sparklineMonths.paid.some(v => v > 0) && <p className={`text-xs mt-0.5 ${dk ? 'text-gray-600' : 'text-gray-300'}`}>invoice count trend</p>}
         </div>
         <div className={`col-span-2 md:col-span-1 rounded-xl border p-4 md:p-6 ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <p className={`text-xs md:text-sm mb-1 ${dk ? 'text-gray-400' : 'text-gray-500'}`}>Outstanding</p>
-          <p className="text-xl md:text-2xl font-bold text-orange-500">{outstandingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          {hasMixedCurrencies ? (
+            <div>
+              <p className="text-xl md:text-2xl font-bold text-orange-500">{outstandingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <span className={`text-xs ${dk ? 'text-gray-400' : 'text-gray-400'}`}>Multiple currencies</span>
+            </div>
+          ) : primaryCurrency ? (
+            <p className="text-xl md:text-2xl font-bold text-orange-500">{formatCurrency(outstandingAmount, primaryCurrency)}</p>
+          ) : (
+            <p className="text-xl md:text-2xl font-bold text-orange-500">{outstandingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          )}
+          <Sparkline data={sparklineMonths.outstanding} color="#f97316" />
+          {sparklineMonths.outstanding.some(v => v > 0) && <p className={`text-xs mt-0.5 ${dk ? 'text-gray-600' : 'text-gray-300'}`}>invoice count trend</p>}
         </div>
       </div>
 
@@ -597,16 +867,22 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
               </span>
               <button
                 onClick={handleBulkMarkPaid}
-                disabled={!hasUnpaidSelected}
+                disabled={bulkMarkingPaid || !hasUnpaidSelected}
                 className="bg-green-600 text-white text-sm px-3 py-1.5 rounded-md hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
               >
-                ✓ Mark as Paid
+                {bulkMarkingPaid ? 'Working…' : '✓ Mark as Paid'}
               </button>
               <button
                 onClick={handleExportCSV}
                 className="border border-indigo-600 text-indigo-600 text-sm px-3 py-1.5 rounded-md hover:bg-indigo-50 transition"
               >
                 ↓ Export CSV
+              </button>
+              <button
+                onClick={() => setBulkDeleteConfirm(true)}
+                className="border border-red-500 text-red-500 text-sm px-3 py-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+              >
+                🗑 Delete selected
               </button>
               <button
                 onClick={() => setSelectedIds(new Set())}
@@ -666,7 +942,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                     </p>
                     {isPartial(inv) && (
                       <p className="text-xs text-purple-600 mt-0.5">
-                        {formatCurrency(getAmountPaid(inv), inv.currency)} paid
+                        {formatCurrency(getAmountPaid(inv) + Number(inv.credit_applied || 0), inv.currency)} paid
                       </p>
                     )}
                   </div>
@@ -674,10 +950,24 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                 <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs text-gray-400">{formatDateLong(inv.issue_date)}</span>
-                    {inv.status === 'partial' ? (
-                      <span className="bg-purple-100 text-purple-700 text-xs font-semibold px-2 py-1 rounded-full">
-                        PARTIAL
+                    {inv.status === 'cancelled' ? (
+                      <span className="bg-red-100 text-red-600 dark:bg-red-900/60 dark:text-red-300 text-xs font-semibold px-2 py-1 rounded-full">
+                        CANCELLED
                       </span>
+                    ) : inv.status === 'partial' ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const alreadyPaid = (inv.payments || []).reduce((s, p) => s + p.amount, 0)
+                          const creditApplied = Number(inv.credit_applied || 0)
+                          const remaining = Math.max(0, inv.total - alreadyPaid - creditApplied)
+                          setRecordPaymentModal({ open: true, invoice: inv, amount: String(remaining) })
+                        }}
+                        className="bg-purple-100 text-purple-700 text-xs font-semibold px-2 py-1 rounded-full hover:bg-purple-200 transition-colors cursor-pointer"
+                        title="Record next payment"
+                      >
+                        PARTIAL
+                      </button>
                     ) : (
                       <select
                         value={inv.status}
@@ -692,7 +982,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    {inv.share_token && (
+                    {inv.share_token && inv.status !== 'cancelled' && (
                       <button
                         onClick={() => handleCopyLink(inv)}
                         className="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1"
@@ -710,7 +1000,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                         {remindingIds.has(inv.id) ? 'Sending…' : 'Send Reminder'}
                       </button>
                     )}
-                    {inv.share_token && inv.status !== 'paid' && (
+                    {inv.share_token && inv.status !== 'paid' && inv.status !== 'cancelled' && (
                       <button
                         onClick={() => handleWhatsApp(inv)}
                         className="inline-flex items-center gap-1 text-xs bg-green-500 hover:bg-green-600 text-white font-medium px-2 py-1 rounded-md transition"
@@ -728,6 +1018,14 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                     >
                       ⧉ Duplicate
                     </button>
+                    {inv.status !== 'cancelled' && inv.status !== 'paid' && inv.status !== 'partial' && (
+                      <button
+                        onClick={() => handleCancel(inv.id)}
+                        className="text-xs text-orange-500 hover:text-orange-700 font-medium px-2 py-1"
+                      >
+                        Cancel
+                      </button>
+                    )}
                     <button
                       onClick={() => handleDelete(inv.id)}
                       className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1"
@@ -741,8 +1039,8 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
           </div>
 
           {/* Desktop: table */}
-          <div className={`hidden md:block rounded-xl border overflow-hidden ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <table className="w-full">
+          <div className={`hidden md:block rounded-xl border overflow-x-auto ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <table className="min-w-full">
               <thead>
                 <tr className={`border-b text-xs uppercase tracking-wide ${dk ? 'border-gray-700 text-gray-400 bg-gray-900' : 'border-gray-100 text-gray-500 bg-gray-50'}`}>
                   <th className="px-4 py-3 w-8">
@@ -759,7 +1057,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                   <th className="text-left px-6 py-3">Date</th>
                   <th className="text-right px-6 py-3">Amount</th>
                   <th className="text-center px-6 py-3">Status</th>
-                  <th className="text-right px-6 py-3">Actions</th>
+                  <th className="text-right px-6 py-3 whitespace-nowrap w-px">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -812,7 +1110,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                       {formatCurrency(inv.total, inv.currency)}
                       {isPartial(inv) && (
                         <div className="text-xs text-purple-600 mt-0.5">
-                          {formatCurrency(getAmountPaid(inv), inv.currency)} paid
+                          {formatCurrency(getAmountPaid(inv) + Number(inv.credit_applied || 0), inv.currency)} paid
                         </div>
                       )}
                     </td>
@@ -820,14 +1118,28 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                       className="px-6 py-4 text-center"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {inv.status === 'paid' ? (
+                      {inv.status === 'cancelled' ? (
+                        <span className="bg-red-100 text-red-600 dark:bg-red-900/60 dark:text-red-300 text-xs font-semibold px-2 py-0.5 rounded-full">
+                          CANCELLED
+                        </span>
+                      ) : inv.status === 'paid' ? (
                         <span className="bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300 text-xs font-semibold px-2 py-0.5 rounded-full">
                           PAID
                         </span>
                       ) : inv.status === 'partial' ? (
-                        <span className="bg-purple-100 text-purple-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const alreadyPaid = (inv.payments || []).reduce((s, p) => s + p.amount, 0)
+                            const creditApplied = Number(inv.credit_applied || 0)
+                            const remaining = Math.max(0, inv.total - alreadyPaid - creditApplied)
+                            setRecordPaymentModal({ open: true, invoice: inv, amount: String(remaining) })
+                          }}
+                          className="bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300 text-xs font-semibold px-2 py-0.5 rounded-full hover:bg-purple-200 dark:hover:bg-purple-800/60 transition-colors cursor-pointer"
+                          title="Record next payment"
+                        >
                           PARTIAL
-                        </span>
+                        </button>
                       ) : (
                         <select
                           value={inv.status}
@@ -844,11 +1156,11 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                       )}
                     </td>
                     <td
-                      className="px-6 py-4 text-right"
+                      className="px-6 py-4 text-right whitespace-nowrap w-px"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="flex items-center justify-end gap-3">
-                        {inv.share_token && (
+                        {inv.share_token && inv.status !== 'cancelled' && (
                           <button
                             onClick={() => handleCopyLink(inv)}
                             className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
@@ -866,7 +1178,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                             {remindingIds.has(inv.id) ? 'Sending…' : 'Send Reminder'}
                           </button>
                         )}
-                        {inv.share_token && inv.status !== 'paid' && (
+                        {inv.share_token && inv.status !== 'paid' && inv.status !== 'cancelled' && (
                           <button
                             onClick={() => handleWhatsApp(inv)}
                             className="inline-flex items-center gap-1.5 text-xs bg-green-500 hover:bg-green-600 text-white font-medium px-2 py-1 rounded-md transition"
@@ -884,6 +1196,14 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                         >
                           ⧉ Duplicate
                         </button>
+                        {inv.status !== 'cancelled' && inv.status !== 'paid' && inv.status !== 'partial' && (
+                          <button
+                            onClick={() => handleCancel(inv.id)}
+                            className="text-xs text-orange-500 hover:text-orange-700 font-medium"
+                          >
+                            Cancel
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDelete(inv.id)}
                           className="text-xs text-red-500 hover:text-red-700 font-medium"
@@ -957,13 +1277,13 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
             </div>
 
             {/* Desktop: table */}
-            <div className={`hidden md:block rounded-xl border overflow-hidden ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-              <table className="w-full">
+            <div className={`hidden md:block rounded-xl border overflow-x-auto ${dk ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+              <table className="min-w-full">
                 <thead>
                   <tr className={`border-b text-xs uppercase tracking-wide ${dk ? 'border-gray-700 text-gray-400 bg-gray-900' : 'border-gray-100 text-gray-500 bg-gray-50'}`}>
                     <th className="text-left px-6 py-3">Name</th>
                     <th className="text-left px-6 py-3">Saved</th>
-                    <th className="text-right px-6 py-3">Actions</th>
+                    <th className="text-right px-6 py-3 whitespace-nowrap w-px">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -976,7 +1296,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                       <td className={`px-6 py-4 text-sm ${dk ? 'text-gray-400' : 'text-gray-500'}`}>
                         {new Date(tmpl.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </td>
-                      <td className="px-6 py-4 text-right flex items-center justify-end gap-4">
+                      <td className="px-6 py-4 text-right flex items-center justify-end gap-4 whitespace-nowrap w-px">
                         <button
                           onClick={() => router.push(`/invoice?template=${tmpl.id}`)}
                           className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-indigo-700 transition"
@@ -999,6 +1319,42 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
         )}
       </div>
 
+      {/* Bulk delete confirmation modal */}
+      {bulkDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-red-200 dark:border-red-700 p-6 w-full max-w-md">
+            <div className="flex items-start gap-3 mb-4">
+              <span className="text-2xl">⚠️</span>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                  Delete {selectedIds.size} invoice{selectedIds.size !== 1 ? 's' : ''}?
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  This will permanently delete the selected invoice{selectedIds.size !== 1 ? 's' : ''} and all their line items.
+                  <strong className="text-red-600 dark:text-red-400"> This cannot be undone.</strong>
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={() => setBulkDeleteConfirm(false)}
+                disabled={bulkDeleting}
+                className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                {bulkDeleting ? 'Deleting…' : `Delete ${selectedIds.size} invoice${selectedIds.size !== 1 ? 's' : ''}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast */}
       {toast && (
         <div
@@ -1014,7 +1370,10 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
       {recordPaymentModal.open && recordPaymentModal.invoice && (() => {
         const inv = recordPaymentModal.invoice
         const amountPaid = parseFloat(recordPaymentModal.amount) || 0
-        const excess = amountPaid - inv.total
+        const totalAlreadyPaid = (inv.payments || []).reduce((sum, p) => sum + p.amount, 0)
+        const creditApplied = Number(inv.credit_applied || 0)
+        const remaining = inv.total - totalAlreadyPaid - creditApplied
+        const excess = amountPaid - remaining
         return (
           <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm">
@@ -1033,6 +1392,9 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                     Invoice <span className="font-medium text-gray-900 dark:text-white">{inv.invoice_number}</span> — {inv.client_name}
                   </p>
                   <p className="text-xs text-gray-400">Invoice total: {formatCurrency(inv.total, inv.currency)}</p>
+                  {(totalAlreadyPaid > 0 || creditApplied > 0) && (
+                    <p className="text-xs text-indigo-500 mt-0.5">Balance due: {formatCurrency(remaining, inv.currency)}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Amount Received</label>
@@ -1062,10 +1424,10 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
                   <button
                     type="button"
                     onClick={handleConfirmPayment}
-                    disabled={!recordPaymentModal.amount || parseFloat(recordPaymentModal.amount) <= 0}
+                    disabled={recordingPayment || !recordPaymentModal.amount || parseFloat(recordPaymentModal.amount) <= 0}
                     className="text-sm bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
                   >
-                    Confirm Payment
+                    {recordingPayment ? 'Recording…' : 'Confirm Payment'}
                   </button>
                 </div>
               </div>
@@ -1081,7 +1443,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
               <h2 className="text-base font-semibold text-gray-900 dark:text-white">Record Overpayment as Credit?</h2>
               <button
-                onClick={() => { setCreditConfirmModal((s) => ({ ...s, open: false })); showToast('Invoice marked as paid ✓', 'green') }}
+                onClick={() => { setCreditConfirmModal((s) => ({ ...s, open: false })); }}
                 className="text-gray-400 hover:text-gray-600 text-xl leading-none"
               >
                 ×
@@ -1089,7 +1451,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
             </div>
             <div className="p-6 space-y-4">
               <p className="text-sm text-gray-700 dark:text-gray-300">
-                <span className="font-semibold text-green-700 dark:text-green-400">{formatCurrency(creditConfirmModal.excess, creditConfirmModal.currency)}</span> is more than the invoice total. Would you like to record the excess as credit for <span className="font-medium">{creditConfirmModal.clientName}</span>?
+                <span className="font-semibold text-green-700 dark:text-green-400">{formatCurrency(creditConfirmModal.excess, creditConfirmModal.currency)}</span> is more than the balance due. Would you like to record the excess as credit for this client?
               </p>
               {!creditConfirmModal.clientId && (
                 <p className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
@@ -1099,7 +1461,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => { setCreditConfirmModal((s) => ({ ...s, open: false })); showToast('Invoice marked as paid ✓', 'green') }}
+                  onClick={() => setCreditConfirmModal((s) => ({ ...s, open: false }))}
                   className="text-sm text-gray-600 hover:text-gray-800 px-4 py-2 rounded-lg border border-gray-200 hover:border-gray-300"
                 >
                   Skip

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { Resend } from 'resend'
+import { logError } from '@/lib/logger'
+import { escHtml } from '@/lib/utils'
 
 export async function POST(
   _req: NextRequest,
@@ -43,22 +45,22 @@ export async function POST(
       const resend = new Resend(apiKey)
       const businessName = user.user_metadata?.business_name || user.email || 'Your service provider'
       await resend.emails.send({
-        from: 'BillByDab <noreply@billbydab.com>',
+        from: 'Vortali <noreply@vortali.com>',
         to: estimate.client_email,
         subject: `Your negotiation on estimate ${estimate.estimate_number} has been accepted`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
             <h2 style="color: #16a34a;">Negotiation Accepted ✓</h2>
-            <p>Hi ${estimate.client_name || 'there'},</p>
-            <p><strong>${businessName}</strong> has accepted your revised pricing on estimate <strong>${estimate.estimate_number}</strong>${estimate.title ? ` — ${estimate.title}` : ''}.</p>
+            <p>Hi ${escHtml(estimate.client_name || 'there')},</p>
+            <p><strong>${escHtml(businessName)}</strong> has accepted your revised pricing on estimate <strong>${escHtml(estimate.estimate_number)}</strong>${estimate.title ? ` — ${escHtml(estimate.title)}` : ''}.</p>
             <p>They will now proceed to create your invoice at the agreed prices. You should receive it shortly.</p>
-            <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">Sent via BillByDab</p>
+            <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">Sent via Vortali</p>
           </div>
         `,
       })
     }
   } catch (e) {
-    console.error('Failed to email client on accept:', e)
+    logError('estimates/[id]/accept-negotiation', 'Client email failed', { userId: user.id, estimateId: id }, e)
   }
 
   return NextResponse.json({ success: true })

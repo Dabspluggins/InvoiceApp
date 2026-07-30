@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomBytes } from 'crypto'
 import { Resend } from 'resend'
 import { PaymentDetails } from '@/lib/types'
 import { getCurrencySymbol } from '@/lib/currencies'
 import { createClient } from '@/lib/supabase/server'
 import { sendLimiter } from '@/lib/ratelimit'
 import { logAudit } from '@/lib/audit'
+import { escHtml } from '@/lib/utils'
+import { logError } from '@/lib/logger'
 
 interface LineItem {
   description: string
@@ -34,6 +37,7 @@ interface InvoicePayload {
     taxRate: number
     subtotal: number
     taxAmount: number
+    creditApplied?: number
     total: number
     notes: string
     brandColor: string
@@ -55,7 +59,7 @@ function row(label: string, value?: string): string {
   if (!value) return ''
   return `<tr>
     <td style="padding:4px 0;color:#6b7280;font-size:13px;width:160px;vertical-align:top;">${label}</td>
-    <td style="padding:4px 0;color:#111827;font-size:13px;vertical-align:top;word-break:break-all;">${value}</td>
+    <td style="padding:4px 0;color:#111827;font-size:13px;vertical-align:top;word-break:break-all;">${escHtml(value)}</td>
   </tr>`
 }
 
@@ -91,8 +95,8 @@ function buildPaymentDetailsHtml(pd?: PaymentDetails): string {
   }
 
   if (hasOT) {
-    sections += `<p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">${ot?.paymentMethod || 'Other'}</p>
-    ${ot?.details ? `<p style="margin:0 0 12px;color:#374151;font-size:13px;line-height:1.5;">${ot.details.replace(/\n/g, '<br>')}</p>` : ''}`
+    sections += `<p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">${escHtml(ot?.paymentMethod) || 'Other'}</p>
+    ${ot?.details ? `<p style="margin:0 0 12px;color:#374151;font-size:13px;line-height:1.5;">${escHtml(ot.details).replace(/\n/g, '<br>')}</p>` : ''}`
   }
 
   return `<div style="margin:24px 0;padding:16px;background:#F9FAFB;border-radius:8px;border:1px solid #e5e7eb;">
@@ -103,13 +107,22 @@ function buildPaymentDetailsHtml(pd?: PaymentDetails): string {
 
 function buildEmailHtml(payload: InvoicePayload): string {
   const { invoiceData, message, shareToken } = payload
-  const { brandColor = '#4F46E5' } = invoiceData
+  const { brandColor: rawBrandColor = '#4F46E5' } = invoiceData
+  const brandColor = escHtml(rawBrandColor)
+
+  const safeBusinessName = escHtml(invoiceData.businessName) || 'Your Business'
+  const safeLogoUrl = invoiceData.logoUrl ? escHtml(invoiceData.logoUrl) : null
+  const safeMessage = escHtml(message).replace(/\n/g, '<br>')
+  const safeInvoiceNumber = escHtml(invoiceData.invoiceNumber)
+  const safeCurrency = escHtml(invoiceData.currency)
+  const safeNotes = invoiceData.notes ? escHtml(invoiceData.notes) : null
+  const safeSubject = escHtml(payload.subject)
 
   const lineItemRows = invoiceData.lineItems
     .map(
       (item) => `
     <tr>
-      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;font-size:14px;">${item.description || '—'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;font-size:14px;">${escHtml(item.description) || '—'}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;font-size:14px;text-align:center;">${item.quantity}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;font-size:14px;text-align:right;">${formatCurrency(item.rate, invoiceData.currency)}</td>
       <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;color:#374151;font-size:14px;text-align:right;">${formatCurrency(item.amount, invoiceData.currency)}</td>
@@ -125,9 +138,17 @@ function buildEmailHtml(payload: InvoicePayload): string {
     </tr>`
       : ''
 
+  const creditRow =
+    invoiceData.creditApplied && invoiceData.creditApplied > 0
+      ? `<tr>
+      <td colspan="3" style="padding:8px 12px;text-align:right;color:#16a34a;font-size:14px;">Deposit applied</td>
+      <td style="padding:8px 12px;text-align:right;color:#16a34a;font-size:14px;">-${formatCurrency(invoiceData.creditApplied, invoiceData.currency)}</td>
+    </tr>`
+      : ''
+
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${payload.subject}</title></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${safeSubject}</title></head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:40px 0;">
     <tr><td align="center">
@@ -136,9 +157,9 @@ function buildEmailHtml(payload: InvoicePayload): string {
         <!-- Header -->
         <tr>
           <td style="background:${brandColor};padding:32px 40px;border-radius:12px 12px 0 0;">
-            ${invoiceData.logoUrl ? `<img src="${invoiceData.logoUrl}" alt="Logo" style="display:block;max-height:64px;max-width:200px;object-fit:contain;margin-bottom:12px;background:rgba(255,255,255,0.1);border-radius:4px;padding:4px;">` : ''}
+            ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="Logo" style="display:block;max-height:64px;max-width:200px;object-fit:contain;margin-bottom:12px;background:rgba(255,255,255,0.1);border-radius:4px;padding:4px;">` : ''}
             <p style="margin:0;color:rgba(255,255,255,0.8);font-size:13px;text-transform:uppercase;letter-spacing:1px;">Invoice from</p>
-            <h1 style="margin:4px 0 0;color:#ffffff;font-size:26px;font-weight:700;">${invoiceData.businessName || 'Your Business'}</h1>
+            <h1 style="margin:4px 0 0;color:#ffffff;font-size:26px;font-weight:700;">${safeBusinessName}</h1>
           </td>
         </tr>
 
@@ -147,7 +168,7 @@ function buildEmailHtml(payload: InvoicePayload): string {
           <td style="background:#ffffff;padding:32px 40px;">
 
             <!-- Message -->
-            <p style="margin:0 0 28px;color:#374151;font-size:15px;line-height:1.6;">${message.replace(/\n/g, '<br>')}</p>
+            <p style="margin:0 0 28px;color:#374151;font-size:15px;line-height:1.6;">${safeMessage}</p>
 
             <!-- Invoice details -->
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
@@ -156,7 +177,7 @@ function buildEmailHtml(payload: InvoicePayload): string {
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td style="color:#6b7280;font-size:13px;font-weight:500;">Invoice Number</td>
-                      <td style="color:#111827;font-size:13px;font-weight:600;text-align:right;">${invoiceData.invoiceNumber}</td>
+                      <td style="color:#111827;font-size:13px;font-weight:600;text-align:right;">${safeInvoiceNumber}</td>
                     </tr>
                   </table>
                 </td>
@@ -202,16 +223,17 @@ function buildEmailHtml(payload: InvoicePayload): string {
                   <td style="padding:10px 12px;text-align:right;color:#374151;font-size:14px;border-top:1px solid #e5e7eb;">${formatCurrency(invoiceData.subtotal, invoiceData.currency)}</td>
                 </tr>
                 ${taxRow}
+                ${creditRow}
                 <tr style="background:#f9fafb;">
                   <td colspan="3" style="padding:12px;text-align:right;color:#111827;font-size:16px;font-weight:700;border-top:2px solid #e5e7eb;">Total Due</td>
-                  <td style="padding:12px;text-align:right;color:${brandColor};font-size:18px;font-weight:700;border-top:2px solid #e5e7eb;">${formatCurrency(invoiceData.total, invoiceData.currency)} ${invoiceData.currency}</td>
+                  <td style="padding:12px;text-align:right;color:${brandColor};font-size:18px;font-weight:700;border-top:2px solid #e5e7eb;">${formatCurrency(invoiceData.total, invoiceData.currency)} ${safeCurrency}</td>
                 </tr>
               </tfoot>
             </table>
 
-            ${invoiceData.notes ? `<div style="background:#fafafa;border-left:3px solid ${brandColor};padding:12px 16px;border-radius:0 6px 6px 0;margin-bottom:24px;">
+            ${safeNotes ? `<div style="background:#fafafa;border-left:3px solid ${brandColor};padding:12px 16px;border-radius:0 6px 6px 0;margin-bottom:24px;">
               <p style="margin:0;color:#6b7280;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Notes</p>
-              <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">${invoiceData.notes}</p>
+              <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">${safeNotes}</p>
             </div>` : ''}
 
             ${buildPaymentDetailsHtml(invoiceData.paymentDetails)}
@@ -220,7 +242,7 @@ function buildEmailHtml(payload: InvoicePayload): string {
 
             ${shareToken ? `<div style="margin-top:24px; padding:16px; background:#F9FAFB; border-radius:8px; text-align:center;">
               <p style="margin:0 0 8px; color:#6B7280; font-size:14px;">View this invoice online</p>
-              <a href="https://www.billbydab.com/i/${shareToken}" style="display:inline-block; background:#4F46E5; color:#fff; padding:10px 24px; border-radius:6px; text-decoration:none; font-weight:600;">View Invoice →</a>
+              <a href="https://vortali.com/i/${shareToken}" style="display:inline-block; background:#4F46E5; color:#fff; padding:10px 24px; border-radius:6px; text-decoration:none; font-weight:600;">View Invoice →</a>
             </div>` : ''}
           </td>
         </tr>
@@ -228,7 +250,7 @@ function buildEmailHtml(payload: InvoicePayload): string {
         <!-- Footer -->
         <tr>
           <td style="background:#f9fafb;padding:20px 40px;border-radius:0 0 12px 12px;border-top:1px solid #e5e7eb;text-align:center;">
-            <p style="margin:0;color:#9ca3af;font-size:12px;">This invoice was sent via <strong style="color:#6b7280;">BillByDab</strong></p>
+            <p style="margin:0;color:#9ca3af;font-size:12px;">This invoice was sent via <strong style="color:#6b7280;">Vortali</strong></p>
           </td>
         </tr>
 
@@ -263,46 +285,120 @@ export async function POST(req: NextRequest) {
     const resend = new Resend(apiKey)
 
     const body: InvoicePayload = await req.json()
-    const { toEmail, toName, subject, invoiceData } = body
+    const { toEmail, subject } = body
 
     if (!toEmail) {
       return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 })
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail)) {
+      return NextResponse.json({ error: 'Invalid recipient email address' }, { status: 400 })
+    }
+    if (!body.invoiceId) {
+      return NextResponse.json({ error: 'Save the invoice before sending it' }, { status: 400 })
+    }
 
-    // Compute totals if not provided
-    const subtotal = invoiceData.subtotal ?? invoiceData.lineItems.reduce((s, i) => s + i.amount, 0)
-    const taxAmount = invoiceData.taxAmount ?? subtotal * ((invoiceData.taxRate ?? 0) / 100)
-    const total = invoiceData.total ?? subtotal + taxAmount
-    const enrichedPayload = { ...body, invoiceData: { ...invoiceData, subtotal, taxAmount, total } }
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('id', body.invoiceId)
+      .eq('user_id', user.id)
+      .single()
+
+    if (invoiceError || !invoice) {
+      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+    }
+
+    if (invoice.status === 'cancelled') {
+      return NextResponse.json({ error: 'Cannot send a cancelled invoice' }, { status: 409 })
+    }
+
+    const { data: lineItems } = await supabase
+      .from('line_items')
+      .select('description, quantity, rate, amount')
+      .eq('invoice_id', invoice.id)
+      .order('sort_order')
+
+    let shareToken = invoice.share_token as string | null
+    if (!shareToken) {
+      shareToken = randomBytes(32).toString('hex')
+      const { error: tokenError } = await supabase
+        .from('invoices')
+        .update({ share_token: shareToken, updated_at: new Date().toISOString() })
+        .eq('id', invoice.id)
+        .eq('user_id', user.id)
+      if (tokenError) {
+        return NextResponse.json({ error: tokenError.message }, { status: 500 })
+      }
+    }
+
+    const grossTotal = Number(invoice.total || 0)
+    const creditApplied = Number(invoice.credit_applied || 0)
+    const netTotal = Math.max(0, grossTotal - creditApplied)
+
+    const enrichedPayload: InvoicePayload = {
+      ...body,
+      shareToken,
+      invoiceData: {
+        invoiceNumber: invoice.invoice_number,
+        issueDate: invoice.issue_date,
+        dueDate: invoice.due_date || '',
+        currency: invoice.currency,
+        businessName: invoice.business_name || '',
+        businessEmail: invoice.business_email || '',
+        logoUrl: invoice.logo_url || null,
+        clientName: invoice.client_name || '',
+        clientCompany: invoice.client_company || '',
+        lineItems: (lineItems || []).map((item) => ({
+          description: item.description || '',
+          quantity: Number(item.quantity || 0),
+          rate: Number(item.rate || 0),
+          amount: Number(item.amount || 0),
+        })),
+        taxRate: Number(invoice.tax_rate || 0),
+        subtotal: Number(invoice.subtotal || 0),
+        taxAmount: Number(invoice.tax_amount || 0),
+        creditApplied: creditApplied > 0 ? creditApplied : undefined,
+        total: netTotal,
+        notes: invoice.notes || '',
+        brandColor: invoice.brand_color || '#4F46E5',
+        paymentDetails: invoice.payment_details || undefined,
+      },
+    }
 
     const html = buildEmailHtml(enrichedPayload)
 
     const { error } = await resend.emails.send({
-      from: 'BillByDab <invoices@billbydab.com>',
+      from: 'Vortali <invoices@vortali.com>',
       to: [toEmail],
       subject,
       html,
-      replyTo: invoiceData.businessEmail || undefined,
+      replyTo: enrichedPayload.invoiceData.businessEmail || undefined,
     })
 
     if (error) {
-      console.error('Resend error:', error)
+      logError('send-invoice', 'Resend send failed', { userId: user.id, invoiceId: body.invoiceId }, error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+
+    await supabase
+      .from('invoices')
+      .update({ status: 'sent', updated_at: new Date().toISOString() })
+      .eq('id', invoice.id)
+      .eq('user_id', user.id)
 
     if (user) {
       logAudit({
         userId: user.id,
         action: 'invoice.sent',
         entityType: 'invoice',
-        entityId: body.invoiceId,
+        entityId: invoice.id,
         metadata: { to: toEmail },
       }).catch(console.error)
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, shareToken })
   } catch (err) {
-    console.error('send-invoice error:', err)
+    logError('send-invoice', 'Unhandled error', { userId: user.id }, err)
     return NextResponse.json({ error: 'Failed to send invoice' }, { status: 500 })
   }
 }

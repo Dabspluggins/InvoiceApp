@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrencySymbol, CURRENCIES } from '@/lib/currencies'
+import ClientCreditsTab from '@/components/ClientCreditsTab'
 
 interface Client {
   id: string
@@ -10,78 +12,21 @@ interface Client {
   email: string | null
   phone: string | null
   address: string | null
+  currency: string
   created_at: string
   portal_token: string | null
+  portal_token_expires_at: string | null
+  portal_validity_days: number
 }
 
-interface CreditRow {
-  id: string
-  amount: number
-  type: 'credited' | 'applied'
-  description: string | null
-  reference_invoice_id: string | null
-  created_at: string
-}
+const VALIDITY_OPTIONS = [30, 60, 90, 180] as const
 
-interface ClientCreditInfo {
-  balance: number
-  rows: CreditRow[]
-}
-
-const emptyForm = { name: '', company: '', email: '', phone: '', address: '' }
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
-function CreditHistory({ rows, balance }: { rows: CreditRow[]; balance: number }) {
-  return (
-    <div>
-      <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Credit History</p>
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="text-gray-400 dark:text-gray-500 uppercase tracking-wide border-b border-gray-200 dark:border-gray-600">
-              <th className="text-left py-1.5 pr-4">Date</th>
-              <th className="text-left py-1.5 pr-4">Type</th>
-              <th className="text-right py-1.5 pr-4">Amount</th>
-              <th className="text-left py-1.5">Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="border-b border-gray-100 dark:border-gray-700 last:border-0">
-                <td className="py-1.5 pr-4 text-gray-500 dark:text-gray-400">{formatDate(row.created_at)}</td>
-                <td className="py-1.5 pr-4">
-                  <span className={`font-medium ${row.type === 'credited' ? 'text-green-600' : 'text-orange-500'}`}>
-                    {row.type === 'credited' ? 'Credited' : 'Applied'}
-                  </span>
-                </td>
-                <td className={`py-1.5 pr-4 text-right font-medium ${row.type === 'credited' ? 'text-green-600' : 'text-orange-500'}`}>
-                  {row.type === 'applied' ? '−' : '+'}₦{row.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </td>
-                <td className="py-1.5 text-gray-500 dark:text-gray-400">{row.description || '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t border-gray-200 dark:border-gray-600">
-              <td colSpan={2} className="pt-2 text-gray-500 dark:text-gray-400 font-medium">Balance</td>
-              <td className={`pt-2 text-right font-bold ${balance > 0 ? 'text-green-700' : 'text-gray-700 dark:text-gray-300'}`}>
-                ₦{balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </td>
-              <td />
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </div>
-  )
-}
+const emptyForm = { name: '', company: '', email: '', phone: '', address: '', currency: 'NGN', portal_validity_days: 30 }
 
 export default function ClientsClient() {
   const [clients, setClients] = useState<Client[]>([])
   const [estimateCounts, setEstimateCounts] = useState<Record<string, number>>({})
+  const [creditBalances, setCreditBalances] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
@@ -89,19 +34,17 @@ export default function ClientsClient() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
-  const [creditInfo, setCreditInfo] = useState<Record<string, ClientCreditInfo>>({})
-  const [expandedCreditId, setExpandedCreditId] = useState<string | null>(null)
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null)
+  const [regeneratedId, setRegeneratedId] = useState<string | null>(null)
+  const [regenerateError, setRegenerateError] = useState<{ id: string; msg: string } | null>(null)
+  const [expandedCreditsId, setExpandedCreditsId] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadClients()
-  }, [])
-
-  async function loadClients() {
+  const loadClients = useCallback(async () => {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     const { data } = await supabase
       .from('clients')
-      .select('id, name, company, email, phone, address, created_at, portal_token')
+      .select('id, name, company, email, phone, address, currency, created_at, portal_token, portal_token_expires_at, portal_validity_days')
       .order('created_at', { ascending: false })
     setClients(data || [])
 
@@ -113,9 +56,7 @@ export default function ClientsClient() {
     if (estData) {
       const counts: Record<string, number> = {}
       for (const row of estData) {
-        if (row.client_id) {
-          counts[row.client_id] = (counts[row.client_id] || 0) + 1
-        }
+        if (row.client_id) counts[row.client_id] = (counts[row.client_id] || 0) + 1
       }
       setEstimateCounts(counts)
     }
@@ -123,43 +64,69 @@ export default function ClientsClient() {
     setLoading(false)
 
     if (data && data.length > 0 && user) {
-      loadCreditInfo(data.map((c) => c.id), user.id)
+      loadCreditBalances(data, user.id)
     }
-  }
+  }, [])
 
-  async function loadCreditInfo(clientIds: string[], userId: string) {
+  useEffect(() => {
+    loadClients()
+  }, [loadClients])
+
+  async function loadCreditBalances(clients: Client[], userId: string) {
     const supabase = createClient()
+    const clientIds = clients.map((c) => c.id)
+    const clientCurrencyMap = Object.fromEntries(clients.map((c) => [c.id, c.currency || 'NGN']))
+
     const { data } = await supabase
       .from('client_credits')
-      .select('id, client_id, amount, type, description, reference_invoice_id, created_at')
+      .select('client_id, amount, type, currency')
       .in('client_id', clientIds)
       .eq('user_id', userId)
-      .order('created_at', { ascending: false })
 
     if (!data) return
-
-    const map: Record<string, ClientCreditInfo> = {}
+    const balances: Record<string, number> = {}
     for (const row of data) {
-      if (!map[row.client_id]) map[row.client_id] = { balance: 0, rows: [] }
-      map[row.client_id].rows.push({
-        id: row.id,
-        amount: row.amount,
-        type: row.type,
-        description: row.description,
-        reference_invoice_id: row.reference_invoice_id,
-        created_at: row.created_at,
-      })
-      map[row.client_id].balance += row.type === 'credited' ? row.amount : -row.amount
+      // Only count rows that match this client's configured currency
+      if (row.currency !== clientCurrencyMap[row.client_id]) continue
+      if (!balances[row.client_id]) balances[row.client_id] = 0
+      if (row.type === 'credit_added') balances[row.client_id] += Number(row.amount)
+      else if (row.type === 'credit_applied') balances[row.client_id] -= Number(row.amount)
+      else if (row.type === 'credit_refunded') balances[row.client_id] -= Number(row.amount)
+      else if (row.type === 'credit_adjusted') balances[row.client_id] += Number(row.amount)
     }
-    setCreditInfo(map)
+    setCreditBalances(balances)
   }
 
   async function handleCopyPortalLink(client: Client) {
     if (!client.portal_token) return
-    const url = `https://www.billbydab.com/portal/${client.portal_token}`
+    const url = `https://vortali.com/portal/${client.portal_token}`
     await navigator.clipboard.writeText(url)
     setCopiedId(client.id)
     setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  async function handleRegeneratePortalLink(client: Client) {
+    setRegeneratingId(client.id)
+    try {
+      const res = await fetch(`/api/clients/${client.id}/regenerate-portal`, { method: 'POST' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to regenerate')
+      setClients((prev) =>
+        prev.map((c) =>
+          c.id === client.id
+            ? { ...c, portal_token: json.portal_token, portal_token_expires_at: json.portal_token_expires_at }
+            : c
+        )
+      )
+      setRegeneratedId(client.id)
+      setTimeout(() => setRegeneratedId(null), 3000)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to regenerate portal link'
+      setRegenerateError({ id: client.id, msg })
+      setTimeout(() => setRegenerateError(null), 4000)
+    } finally {
+      setRegeneratingId(null)
+    }
   }
 
   function openAdd() {
@@ -177,6 +144,8 @@ export default function ClientsClient() {
       email: client.email || '',
       phone: client.phone || '',
       address: client.address || '',
+      currency: client.currency || 'NGN',
+      portal_validity_days: client.portal_validity_days ?? 30,
     })
     setError(null)
     setShowModal(true)
@@ -204,7 +173,7 @@ export default function ClientsClient() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, currency: form.currency || 'NGN' }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Failed to save client')
@@ -228,6 +197,10 @@ export default function ClientsClient() {
     if (res.ok) {
       setClients((prev) => prev.filter((c) => c.id !== id))
     }
+  }
+
+  function toggleCredits(clientId: string) {
+    setExpandedCreditsId((prev) => (prev === clientId ? null : clientId))
   }
 
   const inputCls =
@@ -272,8 +245,7 @@ export default function ClientsClient() {
           {/* Mobile: card list */}
           <div className="md:hidden flex flex-col gap-3">
             {clients.map((client) => {
-              const credit = creditInfo[client.id]
-              const balance = credit?.balance ?? 0
+              const balance = creditBalances[client.id] ?? 0
               return (
                 <div key={client.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
                   <div className="flex justify-between items-start mb-2">
@@ -284,7 +256,7 @@ export default function ClientsClient() {
                       )}
                       {balance > 0 && (
                         <span className="inline-flex items-center mt-1 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300 px-2 py-0.5 rounded-full">
-                          ₦{balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit available
+                          {getCurrencySymbol(client.currency)}{balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} deposit
                         </span>
                       )}
                     </div>
@@ -295,6 +267,19 @@ export default function ClientsClient() {
                           className="text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 font-medium px-2 py-1 rounded transition"
                         >
                           {copiedId === client.id ? 'Copied!' : '🔗 Portal link'}
+                        </button>
+                      )}
+                      {client.portal_token && (
+                        <button
+                          onClick={() => handleRegeneratePortalLink(client)}
+                          disabled={regeneratingId === client.id}
+                          className="text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 font-medium px-2 py-1 rounded transition disabled:opacity-50"
+                        >
+                          {regeneratedId === client.id
+                            ? 'Portal link regenerated'
+                            : regeneratingId === client.id
+                            ? 'Regenerating...'
+                            : '↺ Regenerate link'}
                         </button>
                       )}
                       <button
@@ -310,6 +295,9 @@ export default function ClientsClient() {
                         ✕ Delete
                       </button>
                     </div>
+                    {regenerateError?.id === client.id && (
+                      <p className="text-xs text-red-500 mt-2">{regenerateError.msg}</p>
+                    )}
                   </div>
                   {(client.email || client.phone) && (
                     <div className="text-xs text-gray-400 dark:text-gray-500 space-y-0.5">
@@ -324,27 +312,28 @@ export default function ClientsClient() {
                       </span>
                     </div>
                   )}
-                  {credit && credit.rows.length > 0 && (
-                    <div className="mt-3">
-                      <button
-                        onClick={() => setExpandedCreditId(expandedCreditId === client.id ? null : client.id)}
-                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
-                      >
-                        {expandedCreditId === client.id ? '▲ Hide credit history' : '▼ Credit history'}
-                      </button>
-                      {expandedCreditId === client.id && (
-                        <CreditHistory rows={credit.rows} balance={balance} />
-                      )}
-                    </div>
-                  )}
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Next link: {client.portal_validity_days ?? 30} days</p>
+                  <div className="mt-3">
+                    <button
+                      onClick={() => toggleCredits(client.id)}
+                      className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                    >
+                      {expandedCreditsId === client.id ? '▲ Hide deposits' : '▼ Manage deposits'}
+                    </button>
+                    {expandedCreditsId === client.id && (
+                      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                        <ClientCreditsTab clientId={client.id} clientName={client.name} currency={client.currency} />
+                      </div>
+                    )}
+                  </div>
                 </div>
               )
             })}
           </div>
 
           {/* Desktop: table */}
-          <div className="hidden md:block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <table className="w-full">
+          <div className="hidden md:block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-x-auto">
+            <table className="min-w-full">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide bg-gray-50 dark:bg-gray-700">
                   <th className="text-left px-6 py-3">Name</th>
@@ -352,21 +341,22 @@ export default function ClientsClient() {
                   <th className="text-left px-6 py-3">Email</th>
                   <th className="text-left px-6 py-3">Phone</th>
                   <th className="text-center px-6 py-3">Estimates</th>
-                  <th className="text-left px-6 py-3">Credit</th>
-                  <th className="text-right px-6 py-3">Actions</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Deposit</th>
+                  <th className="text-right px-4 py-3 whitespace-nowrap w-px">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {clients.map((client) => {
-                  const credit = creditInfo[client.id]
-                  const balance = credit?.balance ?? 0
+                  const balance = creditBalances[client.id] ?? 0
                   return (
-                    <>
+                    <React.Fragment key={client.id}>
                       <tr
-                        key={client.id}
                         className="border-b border-gray-50 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                       >
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">{client.name}</td>
+                        <td className="px-6 py-4">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{client.name}</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Next link: {client.portal_validity_days ?? 30} days</p>
+                        </td>
                         <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{client.company || '—'}</td>
                         <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{client.email || '—'}</td>
                         <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{client.phone || '—'}</td>
@@ -379,26 +369,41 @@ export default function ClientsClient() {
                             <span className="text-xs text-gray-300 dark:text-gray-600">—</span>
                           )}
                         </td>
-                        <td className="px-6 py-4">
-                          {balance > 0 ? (
-                            <button
-                              onClick={() => setExpandedCreditId(expandedCreditId === client.id ? null : client.id)}
-                              className="inline-flex items-center text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300 px-2 py-0.5 rounded-full hover:bg-green-200 dark:hover:bg-green-900 transition"
-                            >
-                              ₦{balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit
-                            </button>
-                          ) : (
-                            <span className="text-xs text-gray-400 dark:text-gray-600">—</span>
-                          )}
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <button
+                            onClick={() => toggleCredits(client.id)}
+                            className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full transition ${
+                              balance > 0
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900'
+                                : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                            }`}
+                          >
+                            {balance > 0
+                              ? `${getCurrencySymbol(client.currency)}${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} deposit`
+                              : 'Deposits'}
+                          </button>
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-1">
+                        <td className="px-4 py-4 text-right whitespace-nowrap w-px">
+                          <div className="flex justify-end gap-1 flex-nowrap">
                             {client.portal_token && (
                               <button
                                 onClick={() => handleCopyPortalLink(client)}
                                 className="text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 font-medium px-2 py-1 rounded transition"
                               >
                                 {copiedId === client.id ? 'Copied!' : '🔗 Portal link'}
+                              </button>
+                            )}
+                            {client.portal_token && (
+                              <button
+                                onClick={() => handleRegeneratePortalLink(client)}
+                                disabled={regeneratingId === client.id}
+                                className="text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 font-medium px-2 py-1 rounded transition disabled:opacity-50"
+                              >
+                                {regeneratedId === client.id
+                                  ? 'Portal link regenerated'
+                                  : regeneratingId === client.id
+                                  ? 'Regenerating...'
+                                  : '↺ Regenerate link'}
                               </button>
                             )}
                             <button
@@ -416,14 +421,21 @@ export default function ClientsClient() {
                           </div>
                         </td>
                       </tr>
-                      {expandedCreditId === client.id && credit && (
-                        <tr key={`${client.id}-history`} className="bg-gray-50 dark:bg-gray-700/50">
-                          <td colSpan={7} className="px-6 py-4">
-                            <CreditHistory rows={credit.rows} balance={balance} />
+                      {expandedCreditsId === client.id && (
+                        <tr className="bg-gray-50 dark:bg-gray-900/30">
+                          <td colSpan={7} className="px-6 py-5">
+                            <ClientCreditsTab clientId={client.id} clientName={client.name} currency={client.currency} />
                           </td>
                         </tr>
                       )}
-                    </>
+                      {regenerateError?.id === client.id && (
+                        <tr>
+                          <td colSpan={7} className="px-6 pb-2">
+                            <p className="text-xs text-red-500">{regenerateError.msg}</p>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   )
                 })}
               </tbody>
@@ -432,7 +444,7 @@ export default function ClientsClient() {
         </>
       )}
 
-      {/* Modal */}
+      {/* Add / Edit modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
@@ -495,6 +507,30 @@ export default function ClientsClient() {
                   onChange={(e) => setForm({ ...form, address: e.target.value })}
                   placeholder="456 Client Ave, City, State"
                 />
+              </div>
+              <div>
+                <label className={labelCls}>Currency</label>
+                <select
+                  className={inputCls}
+                  value={form.currency}
+                  onChange={(e) => setForm({ ...form, currency: e.target.value })}
+                >
+                  {CURRENCIES.map((c) => (
+                    <option key={c.code} value={c.code}>{c.symbol} {c.code} - {c.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Portal link validity</label>
+                <select
+                  className={inputCls}
+                  value={form.portal_validity_days}
+                  onChange={(e) => setForm({ ...form, portal_validity_days: Number(e.target.value) })}
+                >
+                  {VALIDITY_OPTIONS.map((days) => (
+                    <option key={days} value={days}>{days} days</option>
+                  ))}
+                </select>
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <div className="flex justify-end gap-3 pt-2">

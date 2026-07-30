@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
+import { logError } from '@/lib/logger'
+import { escHtml } from '@/lib/utils'
 
 function getAdmin() {
   return createAdminClient(
@@ -42,14 +44,6 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid or expired link' }, { status: 403 })
     }
 
-    // Prevent re-submission
-    if (estimate.status === 'approved' || estimate.status === 'rejected') {
-      return NextResponse.json(
-        { error: 'This estimate has already been responded to' },
-        { status: 409 }
-      )
-    }
-
     const now = new Date().toISOString()
     const events: {
       estimate_id: string
@@ -59,10 +53,19 @@ export async function POST(
     }[] = []
 
     if (action === 'approve') {
-      await admin
+      const { data: approvedRows } = await admin
         .from('estimates')
         .update({ status: 'approved', updated_at: now })
         .eq('id', id)
+        .not('status', 'in', '("approved","rejected","converted")')
+        .select('id')
+
+      if (!approvedRows || approvedRows.length === 0) {
+        return NextResponse.json(
+          { error: 'This estimate has already been responded to' },
+          { status: 409 }
+        )
+      }
 
       events.push({
         estimate_id: id,
@@ -71,7 +74,22 @@ export async function POST(
         details: null,
       })
     } else if (action === 'revise') {
-      // Soft-delete the specified items
+      // Atomic status guard first — only proceed if not already responded to
+      const { data: revisedRows } = await admin
+        .from('estimates')
+        .update({ status: 'revised', updated_at: now })
+        .eq('id', id)
+        .not('status', 'in', '("approved","rejected","converted")')
+        .select('id')
+
+      if (!revisedRows || revisedRows.length === 0) {
+        return NextResponse.json(
+          { error: 'This estimate has already been responded to' },
+          { status: 409 }
+        )
+      }
+
+      // Soft-delete the specified items (only runs if status update succeeded)
       const safeDeletedIds =
         Array.isArray(deletedItemIds) && deletedItemIds.length > 0 ? deletedItemIds : []
 
@@ -89,11 +107,6 @@ export async function POST(
           details: { item_ids: safeDeletedIds, count: safeDeletedIds.length },
         })
       }
-
-      await admin
-        .from('estimates')
-        .update({ status: 'revised', updated_at: now })
-        .eq('id', id)
 
       events.push({
         estimate_id: id,
@@ -119,6 +132,7 @@ export async function POST(
           .from('estimate_line_items')
           .select('unit_price, min_price')
           .eq('id', itemId)
+          .eq('estimate_id', id)
           .single()
         if (!itemData) continue
 
@@ -152,13 +166,13 @@ export async function POST(
 
         if (ownerEmail) {
           const resend = new Resend(apiKey)
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.billbydab.com'
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://vortali.com'
           const estimateUrl = `${appUrl}/estimates/${id}`
           const clientName = estimate.client_name || 'Your client'
           const actionLabel = action === 'approve' ? 'approved' : 'submitted revisions on'
 
           await resend.emails.send({
-            from: 'BillByDab <invoices@billbydab.com>',
+            from: 'Vortali <invoices@vortali.com>',
             to: [ownerEmail],
             subject: `${clientName} has ${actionLabel} estimate ${estimate.estimate_number}`,
             html: `<!DOCTYPE html>
@@ -178,8 +192,8 @@ export async function POST(
         <tr>
           <td style="background:#ffffff;padding:32px 40px;">
             <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">
-              <strong>${clientName}</strong> has ${actionLabel} estimate
-              <strong>${estimate.estimate_number}</strong>${estimate.title ? ` (${estimate.title})` : ''}.
+              <strong>${escHtml(clientName)}</strong> has ${actionLabel} estimate
+              <strong>${escHtml(estimate.estimate_number)}</strong>${estimate.title ? ` (${escHtml(estimate.title)})` : ''}.
             </p>
             ${
               action === 'revise' && Array.isArray(deletedItemIds) && deletedItemIds.length > 0
@@ -206,7 +220,7 @@ export async function POST(
         </tr>
         <tr>
           <td style="background:#f9fafb;padding:16px 40px;border-radius:0 0 12px 12px;border-top:1px solid #e5e7eb;text-align:center;">
-            <p style="margin:0;color:#9ca3af;font-size:12px;">Sent via <strong style="color:#6b7280;">BillByDab</strong></p>
+            <p style="margin:0;color:#9ca3af;font-size:12px;">Sent via <strong style="color:#6b7280;">Vortali</strong></p>
           </td>
         </tr>
       </table>
@@ -218,13 +232,13 @@ export async function POST(
         }
       } catch (notifyErr) {
         // Non-fatal — don't fail the request if notification fails
-        console.error('Failed to send owner notification:', notifyErr)
+        logError('estimates/[id]/client-action', 'Owner notification failed', { estimateId: id }, notifyErr)
       }
     }
 
     return NextResponse.json({ success: true })
   } catch (err) {
-    console.error('client-action error:', err)
+    logError('estimates/[id]/client-action', 'Unhandled error', { estimateId: id }, err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
+import Script from 'next/script'
 import { createClient } from '@/lib/supabase/client'
 
 type Screen = 'credentials' | 'totp' | 'backup'
@@ -18,9 +19,53 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false)
   const [totpCode, setTotpCode] = useState('')
   const [backupCode, setBackupCode] = useState('')
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const [captchaError, setCaptchaError] = useState(false)
   const totpRef = useRef<HTMLInputElement>(null)
   const backupRef = useRef<HTMLInputElement>(null)
+  const turnstileRef = useRef<HTMLDivElement>(null)
+  const turnstileWidgetIdRef = useRef<string | null>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    window.onloadTurnstileCallback = () => {
+      if (!turnstileRef.current) return
+      const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+      if (!siteKey) {
+        setCaptchaError(true)
+        return
+      }
+      turnstileWidgetIdRef.current = window.turnstile!.render(
+        turnstileRef.current,
+        {
+          sitekey: siteKey,
+          callback:           (token: string) => { setCaptchaToken(token); setCaptchaError(false) },
+          'expired-callback': () => setCaptchaToken(null),
+          'error-callback':   () => { setCaptchaToken(null); setCaptchaError(true) },
+        }
+      )
+    }
+    if (typeof window.turnstile !== 'undefined') {
+      window.onloadTurnstileCallback?.()
+    }
+    return () => {
+      delete window.onloadTurnstileCallback
+      const widgetId = turnstileWidgetIdRef.current
+      if (widgetId != null) {
+        window.turnstile?.remove(widgetId)
+        turnstileWidgetIdRef.current = null
+      }
+    }
+  }, [])
+
+  const resetCaptcha = () => {
+    const widgetId = turnstileWidgetIdRef.current
+    if (widgetId != null) {
+      window.turnstile?.reset(widgetId)
+    }
+    setCaptchaToken(null)
+    setCaptchaError(false)
+  }
 
   const handleGoogleLogin = async () => {
     setOauthLoading(true)
@@ -46,30 +91,41 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    const rlRes = await fetch('/api/auth/check-rate-limit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'login' }),
-    })
-    const rlData = await rlRes.json()
-    if (!rlData.allowed) {
-      const minutes = Math.ceil(rlData.retryAfter / 60)
-      setError(`Too many attempts. Please try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`)
+    let res: Response
+    try {
+      res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, captchaToken }),
+      })
+    } catch {
+      setError('Network error. Please check your connection and try again.')
       setLoading(false)
       return
     }
 
-    const supabase = createClient()
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    let data: { error?: string; retryAfter?: number; mfaRequired?: boolean } = {}
+    try { data = await res.json() } catch { /* non-JSON response — treat as generic failure */ }
 
-    if (signInError) {
-      setError(signInError.message)
+    if (res.status === 429) {
+      const minutes = Math.ceil((data.retryAfter ?? 0) / 60)
+      setError(
+        Number.isFinite(minutes) && minutes > 0
+          ? `Too many attempts. Please try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`
+          : 'Too many attempts. Please try again later.'
+      )
       setLoading(false)
       return
     }
 
-    const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
-    if (aalData?.nextLevel === 'aal2' && aalData.currentLevel !== 'aal2') {
+    if (!res.ok) {
+      setError(data.error ?? 'Sign in failed. Please try again.')
+      resetCaptcha()
+      setLoading(false)
+      return
+    }
+
+    if (data.mfaRequired) {
       setLoading(false)
       setScreen('totp')
       return
@@ -149,7 +205,7 @@ export default function LoginPage() {
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold text-blue-600">BillByDab</Link>
+          <Link href="/" className="text-2xl font-bold text-blue-600">Vortali</Link>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">
             {screen === 'credentials' && 'Sign in to your account'}
             {screen === 'totp' && 'Two-factor authentication'}
@@ -232,6 +288,32 @@ export default function LoginPage() {
               />
               <span className="text-sm text-gray-600 dark:text-gray-400">Remember me on this device</span>
             </label>
+            <div ref={turnstileRef} />
+            {captchaError && (
+              <div className="text-sm text-center space-y-2">
+                <p className="text-red-500">
+                  Security check failed. Please disable any ad blockers or refresh the page.
+                </p>
+                <div className="flex flex-col items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={resetCaptcha}
+                    className="text-blue-600 dark:text-blue-400 underline hover:no-underline font-medium"
+                  >
+                    Retry security check
+                  </button>
+                  <span className="text-gray-400 dark:text-gray-500">
+                    or contact{' '}
+                    <a
+                      href="mailto:support@vortali.com"
+                      className="text-blue-600 dark:text-blue-400 underline hover:no-underline"
+                    >
+                      support@vortali.com
+                    </a>
+                  </span>
+                </div>
+              </div>
+            )}
             {error && (
               <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 text-sm px-4 py-3 rounded-lg">
                 {error}
@@ -239,11 +321,16 @@ export default function LoginPage() {
             )}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !captchaToken}
               className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60"
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
+            {!captchaToken && !captchaError && !loading && (
+              <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+                Complete the security check above to sign in.
+              </p>
+            )}
           </form>
         )}
 
@@ -343,6 +430,13 @@ export default function LoginPage() {
           </div>
         )}
       </div>
+
+      <Script
+        id="cf-turnstile-script-login"
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onloadTurnstileCallback"
+        strategy="lazyOnload"
+        onError={() => setCaptchaError(true)}
+      />
     </div>
   )
 }

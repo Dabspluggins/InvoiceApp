@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BillByDab — Architecture Map</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3350;
+    --blue: #3b82f6;
+    --blue-dim: #1d3557;
+    --green: #22c55e;
+    --green-dim: #14532d;
+    --amber: #f59e0b;
+    --amber-dim: #451a03;
+    --red: #ef4444;
+    --red-dim: #450a0a;
+    --purple: #a855f7;
+    --purple-dim: #2e1065;
+    --cyan: #06b6d4;
+    --cyan-dim: #083344;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+    --radius: 10px;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; }
+
+  /* LAYOUT */
+  .layout { display: flex; min-height: 100vh; }
+  nav.sidebar {
+    width: 220px; min-width: 220px; background: var(--surface); border-right: 1px solid var(--border);
+    position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 24px 0; flex-shrink: 0;
+  }
+  nav.sidebar .logo { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  nav.sidebar .logo span { font-size: 18px; font-weight: 700; color: var(--blue); }
+  nav.sidebar .logo small { display: block; color: var(--text-dim); font-size: 11px; margin-top: 2px; }
+  nav.sidebar a {
+    display: block; padding: 7px 20px; color: var(--text-muted); text-decoration: none;
+    font-size: 13px; border-left: 2px solid transparent; transition: all .15s;
+  }
+  nav.sidebar a:hover, nav.sidebar a.active { color: var(--blue); border-left-color: var(--blue); background: var(--blue-dim)20; }
+  nav.sidebar .nav-group { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--text-dim); padding: 14px 20px 4px; }
+
+  main { flex: 1; padding: 40px 48px; max-width: 1200px; }
+
+  /* SECTIONS */
+  section { margin-bottom: 60px; scroll-margin-top: 24px; }
+  h1 { font-size: 28px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  h2 { font-size: 20px; font-weight: 600; color: var(--text); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 15px; font-weight: 600; color: var(--text); margin: 20px 0 10px; }
+  p { color: var(--text-muted); margin-bottom: 12px; }
+
+  /* HERO */
+  .hero { margin-bottom: 48px; }
+  .hero h1 span { color: var(--blue); }
+  .hero .subtitle { color: var(--text-muted); font-size: 15px; margin: 8px 0 24px; }
+  .stats-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px; text-align: center;
+  }
+  .stat-card .num { font-size: 28px; font-weight: 700; color: var(--blue); font-variant-numeric: tabular-nums; }
+  .stat-card .lbl { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; margin-top: 2px; }
+
+  /* STACK DIAGRAM */
+  .stack-diagram { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .stack-layer {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px;
+  }
+  .stack-layer .layer-title { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; margin-bottom: 10px; }
+  .stack-chip {
+    display: inline-block; padding: 3px 9px; border-radius: 4px; font-size: 12px;
+    font-weight: 500; margin: 3px 3px 0 0;
+  }
+  .chip-blue { background: var(--blue-dim); color: var(--blue); }
+  .chip-green { background: var(--green-dim); color: var(--green); }
+  .chip-amber { background: var(--amber-dim); color: var(--amber); }
+  .chip-purple { background: var(--purple-dim); color: var(--purple); }
+  .chip-cyan { background: var(--cyan-dim); color: var(--cyan); }
+  .chip-red { background: var(--red-dim); color: var(--red); }
+  .chip-gray { background: var(--surface2); color: var(--text-muted); }
+
+  /* TABLES */
+  .tbl-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 24px; }
+  table { width: 100%; border-collapse: collapse; }
+  thead { background: var(--surface2); }
+  th { padding: 10px 14px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 9px 14px; border-bottom: 1px solid var(--border); color: var(--text-muted); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface)80; }
+  td code, th code { font-family: var(--mono); font-size: 12px; background: var(--surface2); padding: 1px 5px; border-radius: 3px; color: var(--cyan); }
+
+  /* BADGES */
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .badge-green { background: var(--green-dim); color: var(--green); }
+  .badge-red { background: var(--red-dim); color: var(--red); }
+  .badge-amber { background: var(--amber-dim); color: var(--amber); }
+  .badge-blue { background: var(--blue-dim); color: var(--blue); }
+  .badge-purple { background: var(--purple-dim); color: var(--purple); }
+  .badge-gray { background: var(--surface2); color: var(--text-dim); }
+  .badge-cyan { background: var(--cyan-dim); color: var(--cyan); }
+
+  /* FLOW DIAGRAM */
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .flow-step {
+    display: flex; align-items: flex-start; gap: 14px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 12px 16px; margin-bottom: 4px; position: relative;
+  }
+  .flow-num {
+    width: 24px; height: 24px; border-radius: 50%; background: var(--blue-dim); color: var(--blue);
+    display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
+    flex-shrink: 0; margin-top: 1px;
+  }
+  .flow-content { flex: 1; }
+  .flow-content strong { color: var(--text); font-size: 13px; }
+  .flow-content span { color: var(--text-muted); font-size: 13px; }
+  .flow-arrow { text-align: center; color: var(--text-dim); font-size: 16px; line-height: 1; margin: 2px 0; }
+
+  /* INTEGRATION CARDS */
+  .integrations-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .integration-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+  .integration-card .int-name { font-weight: 700; font-size: 15px; color: var(--text); margin-bottom: 6px; }
+  .integration-card .int-purpose { color: var(--text-muted); font-size: 13px; margin-bottom: 10px; }
+  .integration-card .int-env { font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
+  .integration-card .int-env span { display: block; background: var(--surface2); padding: 2px 6px; border-radius: 3px; margin-bottom: 3px; color: var(--cyan); }
+
+  /* SECTION TABS */
+  .tab-group { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .tab-btn {
+    padding: 5px 12px; border-radius: 6px; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text-muted); cursor: pointer; font-size: 12px; font-weight: 500; transition: all .15s;
+  }
+  .tab-btn.active, .tab-btn:hover { background: var(--blue-dim); border-color: var(--blue); color: var(--blue); }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* SECURITY GRID */
+  .security-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .security-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+  .security-card h4 { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .security-card ul { list-style: none; }
+  .security-card ul li { color: var(--text-muted); font-size: 13px; padding: 3px 0; padding-left: 14px; position: relative; }
+  .security-card ul li::before { content: '›'; position: absolute; left: 0; color: var(--blue); }
+
+  /* DB SCHEMA */
+  .db-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .db-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+  .db-card .db-name { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--cyan); margin-bottom: 4px; }
+  .db-card .db-access { margin-bottom: 6px; }
+  .db-card .db-desc { color: var(--text-muted); font-size: 12px; margin-bottom: 8px; }
+  .db-card .db-cols { font-family: var(--mono); font-size: 11px; color: var(--text-dim); line-height: 1.7; }
+  .db-card .db-cols span { display: inline-block; background: var(--surface2); padding: 1px 5px; border-radius: 3px; margin: 1px; }
+
+  /* COMPONENTS LIST */
+  .comp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .comp-item { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; }
+  .comp-item .comp-name { font-family: var(--mono); font-size: 12px; color: var(--cyan); font-weight: 600; }
+  .comp-item .comp-desc { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+
+  /* ARCH OVERVIEW */
+  .arch-overview {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 24px; display: grid; grid-template-columns: 1fr; gap: 12px;
+  }
+  .arch-tier { border-radius: 8px; padding: 14px 18px; }
+  .arch-tier .tier-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px; }
+  .arch-tier .tier-items { display: flex; flex-wrap: wrap; gap: 8px; }
+  .arch-tier-browser { background: var(--blue-dim)40; border: 1px solid var(--blue)40; }
+  .arch-tier-browser .tier-label { color: var(--blue); }
+  .arch-tier-edge { background: var(--amber-dim)40; border: 1px solid var(--amber)40; }
+  .arch-tier-edge .tier-label { color: var(--amber); }
+  .arch-tier-server { background: var(--green-dim)40; border: 1px solid var(--green)40; }
+  .arch-tier-server .tier-label { color: var(--green); }
+  .arch-tier-data { background: var(--purple-dim)40; border: 1px solid var(--purple)40; }
+  .arch-tier-data .tier-label { color: var(--purple); }
+  .arch-tier-external { background: var(--cyan-dim)40; border: 1px solid var(--cyan)40; }
+  .arch-tier-external .tier-label { color: var(--cyan); }
+  .arch-arrow { text-align: center; color: var(--text-dim); font-size: 20px; }
+
+  /* LIB TABLE */
+  .lib-item { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; }
+  .lib-item .lib-file { font-family: var(--mono); font-size: 12px; color: var(--cyan); margin-bottom: 4px; }
+  .lib-item .lib-exports { color: var(--text-muted); font-size: 12px; }
+
+  /* FOOTER */
+  footer { color: var(--text-dim); font-size: 12px; padding: 32px 0; border-top: 1px solid var(--border); margin-top: 40px; }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    nav.sidebar { display: none; }
+    main { padding: 24px 20px; }
+    .stats-grid { grid-template-columns: repeat(3, 1fr); }
+    .stack-diagram, .integrations-grid, .security-grid, .db-grid, .comp-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- SIDEBAR NAV -->
+<nav class="sidebar">
+  <div class="logo">
+    <span>BillByDab</span>
+    <small>Architecture Map · 2026-05-15</small>
+  </div>
+  <div class="nav-group">Overview</div>
+  <a href="#overview">Overview & Stack</a>
+  <a href="#arch">Architecture Tiers</a>
+  <div class="nav-group">Routes</div>
+  <a href="#pages">Pages</a>
+  <a href="#api">API Routes</a>
+  <div class="nav-group">Data</div>
+  <a href="#database">Database Schema</a>
+  <div class="nav-group">Frontend</div>
+  <a href="#components">Components</a>
+  <a href="#lib">Libraries</a>
+  <div class="nav-group">Behaviour</div>
+  <a href="#auth">Auth Flows</a>
+  <a href="#flows">Data Flows</a>
+  <a href="#middleware">Middleware</a>
+  <div class="nav-group">Infrastructure</div>
+  <a href="#integrations">Integrations</a>
+  <a href="#security">Security</a>
+</nav>
+
+<!-- MAIN CONTENT -->
+<main>
+
+<!-- HERO -->
+<div class="hero" id="overview">
+  <h1>BillByDab <span>Architecture</span></h1>
+  <p class="subtitle">A complete self-documenting map of the codebase — every route, table, component, and data flow.</p>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="num">27</div><div class="lbl">Pages</div></div>
+    <div class="stat-card"><div class="num">50</div><div class="lbl">API Routes</div></div>
+    <div class="stat-card"><div class="num">20</div><div class="lbl">DB Tables</div></div>
+    <div class="stat-card"><div class="num">30</div><div class="lbl">Components</div></div>
+    <div class="stat-card"><div class="num">11</div><div class="lbl">Lib Files</div></div>
+    <div class="stat-card"><div class="num">6</div><div class="lbl">Integrations</div></div>
+  </div>
+</div>
+
+<!-- STACK -->
+<section>
+  <h2>Tech Stack</h2>
+  <div class="stack-diagram">
+    <div class="stack-layer">
+      <div class="layer-title" style="color:var(--blue)">Frontend</div>
+      <span class="stack-chip chip-blue">Next.js 16 App Router</span>
+      <span class="stack-chip chip-blue">React 19</span>
+      <span class="stack-chip chip-blue">TypeScript</span>
+      <span class="stack-chip chip-blue">Tailwind CSS</span>
+      <span class="stack-chip chip-blue">Lucide Icons</span>
+    </div>
+    <div class="stack-layer">
+      <div class="layer-title" style="color:var(--green)">Backend / Data</div>
+      <span class="stack-chip chip-green">Supabase (PostgreSQL)</span>
+      <span class="stack-chip chip-green">Supabase Auth</span>
+      <span class="stack-chip chip-green">Row Level Security</span>
+      <span class="stack-chip chip-green">Postgres RPC</span>
+      <span class="stack-chip chip-green">@supabase/ssr</span>
+    </div>
+    <div class="stack-layer">
+      <div class="layer-title" style="color:var(--amber)">Infrastructure</div>
+      <span class="stack-chip chip-amber">Vercel (hosting + cron)</span>
+      <span class="stack-chip chip-amber">Upstash Redis</span>
+      <span class="stack-chip chip-amber">Resend (email)</span>
+      <span class="stack-chip chip-amber">Sentry (monitoring)</span>
+      <span class="stack-chip chip-amber">Cloudflare Turnstile</span>
+    </div>
+  </div>
+</section>
+
+<!-- ARCHITECTURE TIERS -->
+<section id="arch">
+  <h2>Architecture Tiers</h2>
+  <div class="arch-overview">
+    <div class="arch-tier arch-tier-browser">
+      <div class="tier-label">Browser (Client Components)</div>
+      <div class="tier-items">
+        <span class="stack-chip chip-blue">React pages</span>
+        <span class="stack-chip chip-blue">DashboardClient</span>
+        <span class="stack-chip chip-blue">InvoiceForm</span>
+        <span class="stack-chip chip-blue">EstimateEditor</span>
+        <span class="stack-chip chip-blue">ClientsClient</span>
+        <span class="stack-chip chip-blue">Cloudflare Turnstile CAPTCHA</span>
+        <span class="stack-chip chip-blue">Supabase browser client (MFA, OAuth)</span>
+        <span class="stack-chip chip-blue">IdleTimer / SessionHeartbeat</span>
+      </div>
+    </div>
+    <div class="arch-arrow">↕</div>
+    <div class="arch-tier arch-tier-edge">
+      <div class="tier-label">Edge (Next.js Middleware)</div>
+      <div class="tier-items">
+        <span class="stack-chip chip-amber">src/middleware.ts</span>
+        <span class="stack-chip chip-amber">Auth gating (public vs protected paths)</span>
+        <span class="stack-chip chip-amber">Login POST rate limiting (in-memory, 4/15min/IP)</span>
+        <span class="stack-chip chip-amber">Supabase session cookie refresh</span>
+        <span class="stack-chip chip-amber">Security headers via next.config.ts</span>
+      </div>
+    </div>
+    <div class="arch-arrow">↕</div>
+    <div class="arch-tier arch-tier-server">
+      <div class="tier-label">Server (API Routes — Node.js)</div>
+      <div class="tier-items">
+        <span class="stack-chip chip-green">50+ route handlers</span>
+        <span class="stack-chip chip-green">Upstash Redis rate limiting</span>
+        <span class="stack-chip chip-green">Supabase server client (cookies)</span>
+        <span class="stack-chip chip-green">Resend email dispatch</span>
+        <span class="stack-chip chip-green">Sentry error capture</span>
+        <span class="stack-chip chip-green">Audit logging</span>
+        <span class="stack-chip chip-green">Vercel Cron handlers</span>
+      </div>
+    </div>
+    <div class="arch-arrow">↕</div>
+    <div class="arch-tier arch-tier-data">
+      <div class="tier-label">Data Layer (Supabase / PostgreSQL)</div>
+      <div class="tier-items">
+        <span class="stack-chip chip-purple">20 tables</span>
+        <span class="stack-chip chip-purple">Row Level Security on all tables</span>
+        <span class="stack-chip chip-purple">3 stored RPC procedures</span>
+        <span class="stack-chip chip-purple">Supabase Auth (JWT)</span>
+        <span class="stack-chip chip-purple">Supabase Storage (logos)</span>
+      </div>
+    </div>
+    <div class="arch-arrow">↕</div>
+    <div class="arch-tier arch-tier-external">
+      <div class="tier-label">External Services</div>
+      <div class="tier-items">
+        <span class="stack-chip chip-cyan">Resend (email)</span>
+        <span class="stack-chip chip-cyan">Upstash Redis (rate limits)</span>
+        <span class="stack-chip chip-cyan">Sentry (errors + CSP reports)</span>
+        <span class="stack-chip chip-cyan">Cloudflare Turnstile (CAPTCHA)</span>
+        <span class="stack-chip chip-cyan">Vercel (hosting, cron, preview)</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PAGES -->
+<section id="pages">
+  <h2>Pages</h2>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>Route</th><th>Access</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>/</code></td><td><span class="badge badge-green">Public</span></td><td>Homepage with product overview and CTA</td></tr>
+        <tr><td><code>/invoice</code></td><td><span class="badge badge-green">Public</span></td><td>Guest invoice creator — no account needed</td></tr>
+        <tr><td><code>/i/[token]</code></td><td><span class="badge badge-green">Public</span></td><td>Invoice viewer via share token (read-only, PDF download)</td></tr>
+        <tr><td><code>/portal/[token]</code></td><td><span class="badge badge-green">Public</span></td><td>Client portal — all invoices for a client, token-gated</td></tr>
+        <tr><td><code>/auth/login</code></td><td><span class="badge badge-green">Public</span></td><td>Email/password login with CAPTCHA + MFA step-up</td></tr>
+        <tr><td><code>/auth/signup</code></td><td><span class="badge badge-green">Public</span></td><td>Account creation with email confirmation</td></tr>
+        <tr><td><code>/auth/callback</code></td><td><span class="badge badge-green">Public</span></td><td>OAuth / magic-link redirect handler from Supabase</td></tr>
+        <tr><td><code>/forgot-password</code></td><td><span class="badge badge-green">Public</span></td><td>Password reset request</td></tr>
+        <tr><td><code>/reset-password</code></td><td><span class="badge badge-green">Public</span></td><td>Password reset with Supabase token</td></tr>
+        <tr><td><code>/contact</code></td><td><span class="badge badge-green">Public</span></td><td>Contact form (rate-limited 5/hour/IP)</td></tr>
+        <tr><td><code>/privacy</code></td><td><span class="badge badge-green">Public</span></td><td>Privacy policy</td></tr>
+        <tr><td><code>/terms</code></td><td><span class="badge badge-green">Public</span></td><td>Terms of service</td></tr>
+        <tr><td><code>/support</code></td><td><span class="badge badge-green">Public</span></td><td>Support and help page</td></tr>
+        <tr><td><code>/dashboard</code></td><td><span class="badge badge-blue">Auth</span></td><td>KPIs, recent invoices, revenue summary</td></tr>
+        <tr><td><code>/estimates</code></td><td><span class="badge badge-blue">Auth</span></td><td>Estimate list with status filters and actions</td></tr>
+        <tr><td><code>/estimates/new</code></td><td><span class="badge badge-blue">Auth</span></td><td>Create a new estimate with negotiation config</td></tr>
+        <tr><td><code>/estimates/[id]</code></td><td><span class="badge badge-blue">Auth</span></td><td>View or edit a specific estimate</td></tr>
+        <tr><td><code>/estimates/[id]/review</code></td><td><span class="badge badge-amber">Token</span></td><td>Client-facing estimate review — approve or revise</td></tr>
+        <tr><td><code>/clients</code></td><td><span class="badge badge-blue">Auth</span></td><td>Client CRM — manage contacts, portal links, credits</td></tr>
+        <tr><td><code>/expenses</code></td><td><span class="badge badge-blue">Auth</span></td><td>Expense tracking with invoice and client linkage</td></tr>
+        <tr><td><code>/analytics</code></td><td><span class="badge badge-blue">Auth</span></td><td>Revenue analytics, charts, insights</td></tr>
+        <tr><td><code>/reports</code></td><td><span class="badge badge-blue">Auth</span></td><td>Custom report builder by date range</td></tr>
+        <tr><td><code>/settings</code></td><td><span class="badge badge-blue">Auth</span></td><td>Profile, branding, MFA, idle timeout, security</td></tr>
+        <tr><td><code>/settings/revoke-sessions</code></td><td><span class="badge badge-blue">Auth</span></td><td>View and revoke active device sessions</td></tr>
+        <tr><td><code>/admin/announcements</code></td><td><span class="badge badge-red">Admin</span></td><td>Send platform-wide email announcements</td></tr>
+        <tr><td><code>/admin/segments</code></td><td><span class="badge badge-red">Admin</span></td><td>Create rule-based user segments for targeting</td></tr>
+        <tr><td><code>/admin/users</code></td><td><span class="badge badge-red">Admin</span></td><td>View and manage all user accounts</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- API ROUTES -->
+<section id="api">
+  <h2>API Routes</h2>
+  <div class="tab-group" id="apiTabs">
+    <button class="tab-btn active" onclick="showTab('auth-tab', this)">Auth</button>
+    <button class="tab-btn" onclick="showTab('mfa-tab', this)">MFA & Sessions</button>
+    <button class="tab-btn" onclick="showTab('invoices-tab', this)">Invoices</button>
+    <button class="tab-btn" onclick="showTab('estimates-tab', this)">Estimates</button>
+    <button class="tab-btn" onclick="showTab('clients-tab', this)">Clients & Credits</button>
+    <button class="tab-btn" onclick="showTab('utility-tab', this)">Utility & Cron</button>
+    <button class="tab-btn" onclick="showTab('admin-tab', this)">Admin</button>
+  </div>
+
+  <div id="auth-tab" class="tab-pane active">
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Path</th><th>Methods</th><th>Auth</th><th>Rate Limit</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>/api/auth/login</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-green">None</span></td><td>5/15min/IP (Upstash) + 4/15min (middleware)</td><td>Sign in — rate check + <code>signInWithPassword</code> server-side. Returns <code>mfaRequired</code> flag. Always returns generic error on failure.</td></tr>
+        <tr><td><code>/api/auth/signup</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-green">None</span></td><td>3/hour/IP (Upstash)</td><td>Create account — enforces 12-char password server-side, passes captchaToken to Supabase</td></tr>
+        <tr><td><code>/api/auth/change-password</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-blue">User</span></td><td>5/15min/user</td><td>Change authenticated user's password</td></tr>
+        <tr><td><code>/api/auth/secure-account</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>Generate secure account token for sensitive operations</td></tr>
+        <tr><td><code>/api/auth/check-rate-limit</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-green">None</span></td><td>—</td><td><span class="badge badge-gray">Deprecated</span> Legacy probe — no longer called by login/signup pages</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div id="mfa-tab" class="tab-pane">
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Path</th><th>Methods</th><th>Auth</th><th>Rate Limit</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>/api/mfa/backup-codes</code></td><td><span class="badge badge-blue">GET POST</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>Generate or fetch TOTP backup codes (hashed in DB)</td></tr>
+        <tr><td><code>/api/mfa/verify-backup</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-blue">User</span></td><td>5/15min/user</td><td>Verify backup code for MFA step-up; marks code as used</td></tr>
+        <tr><td><code>/api/sessions/register</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-green">None</span></td><td>4/15min/IP</td><td>Register trusted device after login; returns trust_token (30-day)</td></tr>
+        <tr><td><code>/api/sessions/trust-device</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>Mark current session device as trusted</td></tr>
+        <tr><td><code>/api/sessions/trust-device-token</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-green">None</span></td><td>—</td><td>Verify and activate a trust device token (skips MFA)</td></tr>
+        <tr><td><code>/api/sessions/heartbeat</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>Update session <code>last_active</code> timestamp (called every 30s)</td></tr>
+        <tr><td><code>/api/sessions/revoke</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>Revoke a specific session by ID</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div id="invoices-tab" class="tab-pane">
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Path</th><th>Methods</th><th>Auth</th><th>Rate Limit</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>/api/send-invoice</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-green">None</span></td><td>50/hour/user</td><td>Send invoice email via Resend; generates share_token; sets status → sent</td></tr>
+        <tr><td><code>/api/invoices/next-number</code></td><td><span class="badge badge-green">GET</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>Auto-increment invoice number for user</td></tr>
+        <tr><td><code>/api/invoices/share-token</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>Generate or refresh share token for /i/[token] viewer</td></tr>
+        <tr><td><code>/api/invoices/[id]/mark-paid</code></td><td><span class="badge badge-amber">PATCH</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>Mark invoice as fully paid; sets <code>paid_at</code></td></tr>
+        <tr><td><code>/api/invoices/[id]/remind</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-blue">User</span></td><td>50/hour/user</td><td>Send payment reminder email to client via Resend</td></tr>
+        <tr><td><code>/api/invoices/[id]/payments</code></td><td><span class="badge badge-green">GET</span> <span class="badge badge-blue">POST</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>List or record payment entries for an invoice</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div id="estimates-tab" class="tab-pane">
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Path</th><th>Methods</th><th>Auth</th><th>Rate Limit</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>/api/estimates/[id]/send</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-blue">User</span></td><td>50/hour/user</td><td>Email estimate to client with /review?token=[client_token] link</td></tr>
+        <tr><td><code>/api/estimates/[id]/client-action</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-green">None</span></td><td>—</td><td>Client approve or revise estimate (validated by client_token, not auth)</td></tr>
+        <tr><td><code>/api/estimates/[id]/accept-negotiation</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>Owner accepts client's proposed line item changes</td></tr>
+        <tr><td><code>/api/estimates/[id]/reject-negotiation</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>Owner rejects client's proposed changes</td></tr>
+        <tr><td><code>/api/estimates/[id]/convert</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>Convert approved estimate into a new invoice</td></tr>
+        <tr><td><code>/api/estimates/templates</code></td><td><span class="badge badge-green">GET</span> <span class="badge badge-blue">POST</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>List or create estimate templates</td></tr>
+        <tr><td><code>/api/estimates/templates/[id]</code></td><td><span class="badge badge-green">GET</span> <span class="badge badge-amber">PATCH</span> <span class="badge badge-red">DELETE</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>View, update, or delete a specific template</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div id="clients-tab" class="tab-pane">
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Path</th><th>Methods</th><th>Auth</th><th>Rate Limit</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>/api/clients</code></td><td><span class="badge badge-green">GET</span> <span class="badge badge-blue">POST</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>List or create clients</td></tr>
+        <tr><td><code>/api/clients/[id]</code></td><td><span class="badge badge-green">GET</span> <span class="badge badge-amber">PATCH</span> <span class="badge badge-red">DELETE</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>View, update, or delete a client</td></tr>
+        <tr><td><code>/api/clients/[id]/regenerate-portal</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>Generate new portal token; honours <code>portal_validity_days</code> setting</td></tr>
+        <tr><td><code>/api/credits</code></td><td><span class="badge badge-green">GET</span> <span class="badge badge-blue">POST</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>List or create client credit ledger entries</td></tr>
+        <tr><td><code>/api/credits/[id]</code></td><td><span class="badge badge-green">GET</span> <span class="badge badge-amber">PATCH</span> <span class="badge badge-red">DELETE</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>View, update, or delete a credit entry</td></tr>
+        <tr><td><code>/api/credits/apply</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>Apply credit to invoice via atomic Postgres RPC</td></tr>
+        <tr><td><code>/api/credits/balance</code></td><td><span class="badge badge-green">GET</span></td><td><span class="badge badge-blue">User</span></td><td>—</td><td>Get total available credit balance for a client</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div id="utility-tab" class="tab-pane">
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Path</th><th>Methods</th><th>Auth</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>/api/contact</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-green">None</span></td><td>Contact form — sends to support inbox via Resend (5/hour/IP)</td></tr>
+        <tr><td><code>/api/welcome-email</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-green">None</span></td><td>Send welcome email after account confirmation</td></tr>
+        <tr><td><code>/api/unsubscribe</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-green">None</span></td><td>Unsubscribe from announcement emails by token</td></tr>
+        <tr><td><code>/api/webhooks/resend</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-green">None</span></td><td>Resend webhook handler — bounce/complaint/delivery tracking</td></tr>
+        <tr><td><code>/api/cron/recurring</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-amber">Vercel Cron</span></td><td>Process recurring invoices; generate next occurrence</td></tr>
+        <tr><td><code>/api/cron/overdue-reminders</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-amber">Vercel Cron</span></td><td>Send overdue payment reminder emails</td></tr>
+        <tr><td><code>/api/cron/send-scheduled</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-amber">Vercel Cron</span></td><td>Dispatch scheduled announcement drafts</td></tr>
+        <tr><td><code>/api/settings/delete-account</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-blue">User</span></td><td>Permanently delete user account and all data</td></tr>
+        <tr><td><code>/api/settings/revoke-sessions</code></td><td><span class="badge badge-blue">POST</span></td><td><span class="badge badge-blue">User</span></td><td>Revoke all active sessions except the current one</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div id="admin-tab" class="tab-pane">
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Path</th><th>Methods</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>/api/admin/announcements</code></td><td><span class="badge badge-green">GET</span></td><td>List all sent platform announcements</td></tr>
+        <tr><td><code>/api/admin/send-announcement</code></td><td><span class="badge badge-blue">POST</span></td><td>Send platform-wide announcement email (10/24h/user)</td></tr>
+        <tr><td><code>/api/admin/drafts</code></td><td><span class="badge badge-green">GET</span> <span class="badge badge-blue">POST</span></td><td>List or create announcement drafts</td></tr>
+        <tr><td><code>/api/admin/drafts/[id]</code></td><td><span class="badge badge-green">GET</span> <span class="badge badge-amber">PATCH</span> <span class="badge badge-red">DELETE</span></td><td>View, update, or delete a specific draft</td></tr>
+        <tr><td><code>/api/admin/drafts/[id]/send</code></td><td><span class="badge badge-blue">POST</span></td><td>Send a draft announcement immediately</td></tr>
+        <tr><td><code>/api/admin/segments</code></td><td><span class="badge badge-green">GET</span> <span class="badge badge-blue">POST</span></td><td>List or create user segments (JSONB rules)</td></tr>
+        <tr><td><code>/api/admin/segments/[id]</code></td><td><span class="badge badge-green">GET</span> <span class="badge badge-amber">PATCH</span> <span class="badge badge-red">DELETE</span></td><td>View, update, or delete a segment</td></tr>
+        <tr><td><code>/api/admin/segments/preview</code></td><td><span class="badge badge-blue">POST</span></td><td>Preview segment rule matching — returns user count</td></tr>
+        <tr><td><code>/api/admin/users</code></td><td><span class="badge badge-green">GET</span></td><td>List all users with role and account status</td></tr>
+      </tbody>
+    </table></div>
+    <p style="font-size:12px;color:var(--text-dim)">All admin routes require <code>isAdmin(userId)</code> check via <code>profiles.role === 'admin'</code> and use the service_role Supabase client.</p>
+  </div>
+</section>
+
+<!-- DATABASE -->
+<section id="database">
+  <h2>Database Schema</h2>
+  <p>All tables protected by Row Level Security. Users see only rows where <code>user_id = auth.uid()</code>. Admin operations use the service_role key.</p>
+  <div class="db-grid">
+    <div class="db-card">
+      <div class="db-name">profiles</div>
+      <div class="db-access"><span class="badge badge-blue">authenticated</span></div>
+      <div class="db-desc">User account metadata, branding, security preferences, idle timeout, role</div>
+      <div class="db-cols"><span>id</span><span>business_name</span><span>logo_url</span><span>brand_color</span><span>role</span><span>idle_timeout_minutes</span><span>watermark_enabled</span><span>secure_account_token</span></div>
+    </div>
+    <div class="db-card">
+      <div class="db-name">invoices</div>
+      <div class="db-access"><span class="badge badge-blue">authenticated</span></div>
+      <div class="db-desc">Core invoice documents with full billing info, status, and recurring config</div>
+      <div class="db-cols"><span>id</span><span>user_id</span><span>invoice_number</span><span>status</span><span>issue_date</span><span>due_date</span><span>currency</span><span>total</span><span>share_token</span><span>is_recurring</span><span>recurring_frequency</span></div>
+    </div>
+    <div class="db-card">
+      <div class="db-name">line_items</div>
+      <div class="db-access"><span class="badge badge-blue">authenticated</span></div>
+      <div class="db-desc">Invoice line items — cascade delete when invoice deleted</div>
+      <div class="db-cols"><span>id</span><span>invoice_id</span><span>description</span><span>quantity</span><span>rate</span><span>amount</span><span>sort_order</span></div>
+    </div>
+    <div class="db-card">
+      <div class="db-name">payments</div>
+      <div class="db-access"><span class="badge badge-blue">authenticated</span></div>
+      <div class="db-desc">Payment records per invoice (amount must be > 0)</div>
+      <div class="db-cols"><span>id</span><span>invoice_id</span><span>user_id</span><span>amount</span><span>paid_at</span><span>note</span></div>
+    </div>
+    <div class="db-card">
+      <div class="db-name">clients</div>
+      <div class="db-access"><span class="badge badge-blue">authenticated</span></div>
+      <div class="db-desc">Client contacts with portal token and configurable link validity</div>
+      <div class="db-cols"><span>id</span><span>user_id</span><span>name</span><span>email</span><span>portal_token</span><span>portal_token_expires_at</span><span>portal_validity_days</span></div>
+    </div>
+    <div class="db-card">
+      <div class="db-name">client_credits</div>
+      <div class="db-access"><span class="badge badge-blue">authenticated</span></div>
+      <div class="db-desc">Credit ledger per client — credited or applied entries</div>
+      <div class="db-cols"><span>id</span><span>user_id</span><span>client_id</span><span>amount</span><span>type</span><span>reference_invoice_id</span><span>description</span></div>
+    </div>
+    <div class="db-card">
+      <div class="db-name">expenses</div>
+      <div class="db-access"><span class="badge badge-blue">authenticated</span></div>
+      <div class="db-desc">Expense tracker with client/invoice linkage and billable flag</div>
+      <div class="db-cols"><span>id</span><span>user_id</span><span>client_id</span><span>invoice_id</span><span>description</span><span>amount</span><span>date</span><span>category</span><span>billable</span></div>
+    </div>
+    <div class="db-card">
+      <div class="db-name">templates</div>
+      <div class="db-access"><span class="badge badge-blue">authenticated</span></div>
+      <div class="db-desc">Reusable invoice templates stored as JSONB blobs</div>
+      <div class="db-cols"><span>id</span><span>user_id</span><span>name</span><span>data (JSONB)</span></div>
+    </div>
+    <div class="db-card">
+      <div class="db-name">estimates</div>
+      <div class="db-access"><span class="badge badge-blue">authenticated</span></div>
+      <div class="db-desc">Estimate documents with negotiation config and client token</div>
+      <div class="db-cols"><span>id</span><span>user_id</span><span>estimate_number</span><span>status</span><span>client_token</span><span>allow_negotiation</span><span>max_discount_pct</span><span>valid_until</span></div>
+    </div>
+    <div class="db-card">
+      <div class="db-name">estimate_line_items</div>
+      <div class="db-access"><span class="badge badge-blue">authenticated</span></div>
+      <div class="db-desc">Estimate line items with client negotiation fields</div>
+      <div class="db-cols"><span>id</span><span>estimate_id</span><span>description</span><span>unit_price</span><span>min_price</span><span>client_proposed_price</span><span>deleted_by_client</span></div>
+    </div>
+    <div class="db-card">
+      <div class="db-name">estimate_events</div>
+      <div class="db-access"><span class="badge badge-blue">authenticated</span></div>
+      <div class="db-desc">Audit trail for all estimate state changes (owner and client actions)</div>
+      <div class="db-cols"><span>id</span><span>estimate_id</span><span>event_type</span><span>actor</span><span>details (JSONB)</span></div>
+    </div>
+    <div class="db-card">
+      <div class="db-name">estimate_templates</div>
+      <div class="db-access"><span class="badge badge-blue">authenticated</span></div>
+      <div class="db-desc">Reusable estimate templates with negotiation settings</div>
+      <div class="db-cols"><span>id</span><span>user_id</span><span>name</span><span>allow_negotiation</span><span>max_discount_pct</span><span>valid_days</span></div>
+    </div>
+    <div class="db-card">
+      <div class="db-name">audit_logs</div>
+      <div class="db-access"><span class="badge badge-red">service_role write</span> <span class="badge badge-blue">authenticated read-own</span></div>
+      <div class="db-desc">Immutable action log — users cannot insert (prevents forgery)</div>
+      <div class="db-cols"><span>id</span><span>user_id</span><span>action</span><span>entity_type</span><span>entity_id</span><span>metadata (JSONB)</span></div>
+    </div>
+    <div class="db-card">
+      <div class="db-name">mfa_backup_codes</div>
+      <div class="db-access"><span class="badge badge-blue">authenticated</span></div>
+      <div class="db-desc">Hashed TOTP backup codes — generated via crypto.randomBytes()</div>
+      <div class="db-cols"><span>id</span><span>user_id</span><span>code_hash</span><span>used</span></div>
+    </div>
+    <div class="db-card">
+      <div class="db-name">trusted_devices</div>
+      <div class="db-access"><span class="badge badge-blue">authenticated</span></div>
+      <div class="db-desc">Trusted device tokens for MFA bypass (30-day expiry)</div>
+      <div class="db-cols"><span>id</span><span>user_id</span><span>token_hash</span><span>device_info</span><span>expires_at</span></div>
+    </div>
+    <div class="db-card">
+      <div class="db-name">user_sessions</div>
+      <div class="db-access"><span class="badge badge-red">service_role write</span> <span class="badge badge-blue">authenticated read-own</span></div>
+      <div class="db-desc">Active session tracking with device/browser/IP info</div>
+      <div class="db-cols"><span>id</span><span>user_id</span><span>session_token</span><span>device_type</span><span>browser</span><span>ip_address</span><span>last_active</span></div>
+    </div>
+    <div class="db-card">
+      <div class="db-name">user_segments</div>
+      <div class="db-access"><span class="badge badge-red">service_role only</span></div>
+      <div class="db-desc">JSONB-rule-based user targeting segments for announcements</div>
+      <div class="db-cols"><span>id</span><span>name</span><span>rules (JSONB)</span><span>created_by</span></div>
+    </div>
+    <div class="db-card">
+      <div class="db-name">announcement_drafts</div>
+      <div class="db-access"><span class="badge badge-red">service_role only</span></div>
+      <div class="db-desc">Email announcement drafts with scheduling and status tracking</div>
+      <div class="db-cols"><span>id</span><span>subject</span><span>body_html</span><span>status</span><span>scheduled_for</span><span>recipient_mode</span></div>
+    </div>
+    <div class="db-card">
+      <div class="db-name">announcements</div>
+      <div class="db-access"><span class="badge badge-red">service_role only</span></div>
+      <div class="db-desc">Log of all sent platform-wide announcements</div>
+      <div class="db-cols"><span>id</span><span>subject</span><span>recipient_count</span><span>sent_by</span><span>created_at</span></div>
+    </div>
+  </div>
+
+  <h3>Stored Procedures (RPC)</h3>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Function</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>apply_credit_to_invoice(credit_id, invoice_id, amount)</code></td><td>Atomic credit debit + invoice payment in a single transaction — prevents double-apply</td></tr>
+      <tr><td><code>recompute_invoice_status(invoice_id)</code></td><td>Recalculate invoice status (draft/sent/paid/partial/overdue) based on payments</td></tr>
+      <tr><td><code>record_invoice_view(invoice_id)</code></td><td>Increment view_count and set viewed_at on the invoice</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- COMPONENTS -->
+<section id="components">
+  <h2>Components</h2>
+  <h3>Layout & Navigation</h3>
+  <div class="comp-grid">
+    <div class="comp-item"><div class="comp-name">Nav.tsx</div><div class="comp-desc">Top navigation bar with logo, links, and profile dropdown</div></div>
+    <div class="comp-item"><div class="comp-name">DashboardShell.tsx</div><div class="comp-desc">Sidebar wrapper for all authenticated pages</div></div>
+    <div class="comp-item"><div class="comp-name">ProfileDropdown.tsx</div><div class="comp-desc">User menu — settings, MFA, logout, account actions</div></div>
+    <div class="comp-item"><div class="comp-name">DarkModeSync.tsx</div><div class="comp-desc">Syncs dark mode preference across browser tabs</div></div>
+  </div>
+  <h3>Auth & Security</h3>
+  <div class="comp-grid">
+    <div class="comp-item"><div class="comp-name">MfaTwoFactor.tsx</div><div class="comp-desc">TOTP and backup code entry during MFA step-up</div></div>
+    <div class="comp-item"><div class="comp-name">RememberMeGuard.tsx</div><div class="comp-desc">Trusted device check on page load</div></div>
+    <div class="comp-item"><div class="comp-name">ActiveSessions.tsx</div><div class="comp-desc">Display and revoke active device sessions</div></div>
+    <div class="comp-item"><div class="comp-name">SessionHeartbeat.tsx</div><div class="comp-desc">Periodic POST to /api/sessions/heartbeat every 30s</div></div>
+    <div class="comp-item"><div class="comp-name">IdleTimer.tsx</div><div class="comp-desc">Detect inactivity and auto-logout after idle_timeout_minutes</div></div>
+    <div class="comp-item"><div class="comp-name">IdleTimerLoader.tsx</div><div class="comp-desc">Lazy-load wrapper for IdleTimer initialisation</div></div>
+  </div>
+  <h3>Invoice</h3>
+  <div class="comp-grid">
+    <div class="comp-item"><div class="comp-name">InvoiceWatermark.tsx</div><div class="comp-desc">"Draft" watermark overlay shown on unpaid invoices</div></div>
+    <div class="comp-item"><div class="comp-name">LineItemsTable.tsx</div><div class="comp-desc">Editable line items table with quantity, rate, and amount</div></div>
+    <div class="comp-item"><div class="comp-name">Totals.tsx</div><div class="comp-desc">Subtotal, discount, tax, and total calculation display</div></div>
+  </div>
+  <h3>Estimates</h3>
+  <div class="comp-grid">
+    <div class="comp-item"><div class="comp-name">EstimateEditor.tsx</div><div class="comp-desc">Full estimate create/edit form with negotiation options</div></div>
+    <div class="comp-item"><div class="comp-name">EstimateReviewClient.tsx</div><div class="comp-desc">Client-facing review UI — approve or propose changes</div></div>
+    <div class="comp-item"><div class="comp-name">EstimatesClient.tsx</div><div class="comp-desc">Estimate list with status filters and bulk actions</div></div>
+  </div>
+  <h3>Feature Clients</h3>
+  <div class="comp-grid">
+    <div class="comp-item"><div class="comp-name">DashboardClient.tsx</div><div class="comp-desc">KPI cards, recent activity, revenue charts</div></div>
+    <div class="comp-item"><div class="comp-name">ClientsClient.tsx</div><div class="comp-desc">Client list, CRUD, portal link management, credits tab</div></div>
+    <div class="comp-item"><div class="comp-name">ClientCreditsTab.tsx</div><div class="comp-desc">Credit ledger display and apply-to-invoice UI</div></div>
+    <div class="comp-item"><div class="comp-name">ExpensesClient.tsx</div><div class="comp-desc">Expense tracker — add, filter, import from invoices</div></div>
+    <div class="comp-item"><div class="comp-name">ReportsClient.tsx</div><div class="comp-desc">Custom report builder with date range selection</div></div>
+    <div class="comp-item"><div class="comp-name">AnalyticsClient.tsx</div><div class="comp-desc">Revenue analytics, charts, and data visualisations</div></div>
+    <div class="comp-item"><div class="comp-name">SettingsClient.tsx</div><div class="comp-desc">Profile, branding, MFA setup, watermark, idle timeout</div></div>
+    <div class="comp-item"><div class="comp-name">LockedFeature.tsx</div><div class="comp-desc">Premium feature gate with upgrade prompt</div></div>
+  </div>
+  <h3>Admin</h3>
+  <div class="comp-grid">
+    <div class="comp-item"><div class="comp-name">AnnouncementComposer.tsx</div><div class="comp-desc">Rich text editor for platform announcements</div></div>
+    <div class="comp-item"><div class="comp-name">AnnouncementHistory.tsx</div><div class="comp-desc">Log of all sent announcements with stats</div></div>
+    <div class="comp-item"><div class="comp-name">SegmentsManager.tsx</div><div class="comp-desc">Create, edit, and preview user targeting segments</div></div>
+    <div class="comp-item"><div class="comp-name">DraftsPanel.tsx</div><div class="comp-desc">Manage announcement drafts and scheduling</div></div>
+    <div class="comp-item"><div class="comp-name">AnnouncementsClient.tsx</div><div class="comp-desc">Main announcements admin page composition</div></div>
+  </div>
+</section>
+
+<!-- LIBRARIES -->
+<section id="lib">
+  <h2>Libraries (src/lib/)</h2>
+  <div class="lib-item"><div class="lib-file">supabase/server.ts</div><div class="lib-exports"><strong>createClient()</strong> — Server-side Supabase client using next/headers cookies. Used in all API routes and middleware.</div></div>
+  <div class="lib-item"><div class="lib-file">supabase/client.ts</div><div class="lib-exports"><strong>createClient()</strong> — Browser Supabase client with PKCE flow. Used for OAuth, MFA challenge/verify, and client-side auth.</div></div>
+  <div class="lib-item"><div class="lib-file">ratelimit.ts</div><div class="lib-exports"><strong>loginLimiter</strong> (5/15min/IP), <strong>signupLimiter</strong> (3/hour/IP), <strong>sendLimiter</strong> (50/hour/user), <strong>contactLimiter</strong> (5/hour/IP), <strong>announcementLimiter</strong> (10/24h/user), <strong>sessionRegisterLimiter</strong> (4/15min/IP), <strong>backupCodeLimiter</strong> (5/15min/user), <strong>changePasswordLimiter</strong> (5/15min/user)</div></div>
+  <div class="lib-item"><div class="lib-file">audit.ts</div><div class="lib-exports"><strong>logAudit(userId, action, entityType, entityId, metadata)</strong> — Writes to audit_logs via service_role. Users cannot forge entries.</div></div>
+  <div class="lib-item"><div class="lib-file">logger.ts</div><div class="lib-exports"><strong>logError(endpoint, action, context, error)</strong> — Sanitizes PII (strips Postgres constraint values), logs full context to Vercel, sends only requestId to Sentry.</div></div>
+  <div class="lib-item"><div class="lib-file">types.ts</div><div class="lib-exports"><strong>InvoiceStatus, EstimateStatus, LineItem, Currency, InvoiceData, EstimateTemplate, EstimateTemplateItem, RecurringFrequency</strong> — Shared TypeScript types across pages and API routes.</div></div>
+  <div class="lib-item"><div class="lib-file">utils.ts</div><div class="lib-exports"><strong>calcTotals()</strong>, <strong>formatCurrency()</strong>, <strong>newLineItem()</strong>, <strong>escHtml()</strong>, <strong>getTrustedIp()</strong> (reads X-Forwarded-For safely)</div></div>
+  <div class="lib-item"><div class="lib-file">currencies.ts</div><div class="lib-exports"><strong>CURRENCIES</strong> array, <strong>getCurrencySymbol()</strong> — 12 supported currencies</div></div>
+  <div class="lib-item"><div class="lib-file">invoice-i18n.ts</div><div class="lib-exports"><strong>getInvoiceTranslations(locale)</strong> — Invoice label translations for en, fr, es</div></div>
+  <div class="lib-item"><div class="lib-file">sendAnnouncement.ts</div><div class="lib-exports"><strong>sendAnnouncement()</strong> — Batch email dispatcher for platform announcements via Resend</div></div>
+  <div class="lib-item"><div class="lib-file">auth/isAdmin.ts</div><div class="lib-exports"><strong>isAdmin(userId)</strong> — Checks profiles.role === 'admin' via service_role client. Used in all /api/admin/* routes.</div></div>
+</section>
+
+<!-- AUTH FLOWS -->
+<section id="auth">
+  <h2>Auth Flows</h2>
+  <div class="tab-group">
+    <button class="tab-btn active" onclick="showTab('login-flow', this)">Login</button>
+    <button class="tab-btn" onclick="showTab('signup-flow', this)">Signup</button>
+    <button class="tab-btn" onclick="showTab('oauth-flow', this)">Google OAuth</button>
+    <button class="tab-btn" onclick="showTab('session-flow', this)">Session Management</button>
+  </div>
+
+  <div id="login-flow" class="tab-pane active">
+    <div class="flow">
+      <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><strong>User fills login form</strong> <span>— /auth/login: email, password, Cloudflare Turnstile CAPTCHA</span></div></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><strong>Middleware rate check</strong> <span>— 4 POST attempts per 15min per IP (in-memory Map, resets on cold start)</span></div></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><strong>POST /api/auth/login</strong> <span>— validates body (email, password, captchaToken required)</span></div></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><strong>Upstash rate check</strong> <span>— loginLimiter.limit(ip): 5 attempts per 15min per IP. Returns 429 with retryAfter on block.</span></div></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step"><div class="flow-num">5</div><div class="flow-content"><strong>supabase.auth.signInWithPassword()</strong> <span>— server-side with captchaToken. On failure: always returns "Invalid email or password." (no provider message leakage)</span></div></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step"><div class="flow-num">6</div><div class="flow-content"><strong>MFA check</strong> <span>— supabase.auth.mfa.getAuthenticatorAssuranceLevel(). If nextLevel = aal2 and currentLevel ≠ aal2, returns { mfaRequired: true }</span></div></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step"><div class="flow-num">7a</div><div class="flow-content"><strong>No MFA</strong> <span>— POST /api/sessions/register → trust token stored. Redirect to /dashboard.</span></div></div>
+      <div class="flow-step"><div class="flow-num">7b</div><div class="flow-content"><strong>MFA required</strong> <span>— Browser shows TOTP screen. User enters 6-digit code. supabase.auth.mfa.challengeAndVerify() from browser client. On success → /dashboard.</span></div></div>
+    </div>
+  </div>
+
+  <div id="signup-flow" class="tab-pane">
+    <div class="flow">
+      <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><strong>User fills signup form</strong> <span>— /auth/signup: email, password (12+ chars), Turnstile CAPTCHA</span></div></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><strong>Client validation</strong> <span>— passwords match, length ≥ 12</span></div></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><strong>POST /api/auth/signup</strong> <span>— validates body; enforces 12-char rule server-side too</span></div></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><strong>Upstash rate check</strong> <span>— signupLimiter.limit(ip): 3 accounts per hour per IP</span></div></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step"><div class="flow-num">5</div><div class="flow-content"><strong>supabase.auth.signUp()</strong> <span>— server-side. emailRedirectTo = NEXT_PUBLIC_SITE_URL/auth/callback</span></div></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step"><div class="flow-num">6</div><div class="flow-content"><strong>Supabase sends confirmation email</strong> <span>— user clicks link → /auth/callback</span></div></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step"><div class="flow-num">7</div><div class="flow-content"><strong>/auth/callback</strong> <span>— exchanges token for session. Session cookie set. Redirect to /dashboard.</span></div></div>
+    </div>
+  </div>
+
+  <div id="oauth-flow" class="tab-pane">
+    <div class="flow">
+      <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><strong>User clicks "Continue with Google"</strong> <span>— browser calls supabase.auth.signInWithOAuth({ provider: 'google' })</span></div></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><strong>Redirect to Google</strong> <span>— user authenticates with Google</span></div></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><strong>Callback to /auth/callback</strong> <span>— Supabase exchanges authorization code for session</span></div></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><strong>Session cookie set</strong> <span>— redirect to /dashboard</span></div></div>
+    </div>
+  </div>
+
+  <div id="session-flow" class="tab-pane">
+    <div class="flow">
+      <div class="flow-step"><div class="flow-num">①</div><div class="flow-content"><strong>Every request</strong> <span>— middleware calls supabase.auth.getUser() which auto-refreshes the session cookie when the access token nears expiry</span></div></div>
+      <div class="flow-step"><div class="flow-num">②</div><div class="flow-content"><strong>Every 30 seconds</strong> <span>— SessionHeartbeat component POSTs to /api/sessions/heartbeat → updates user_sessions.last_active</span></div></div>
+      <div class="flow-step"><div class="flow-num">③</div><div class="flow-content"><strong>Idle timeout</strong> <span>— IdleTimer monitors inactivity. If idle_timeout_minutes set in profile, auto-logs out and redirects to /auth/login</span></div></div>
+      <div class="flow-step"><div class="flow-num">④</div><div class="flow-content"><strong>Trusted devices</strong> <span>— trust_token stored (30-day expiry). On next login from same device, token submitted to /api/sessions/trust-device-token → skips MFA</span></div></div>
+      <div class="flow-step"><div class="flow-num">⑤</div><div class="flow-content"><strong>Revocation</strong> <span>— User can revoke specific sessions (/settings/revoke-sessions) or all sessions (/api/settings/revoke-sessions)</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- DATA FLOWS -->
+<section id="flows">
+  <h2>Key Data Flows</h2>
+  <div class="tab-group">
+    <button class="tab-btn active" onclick="showTab('flow-invoice', this)">Invoice Send</button>
+    <button class="tab-btn" onclick="showTab('flow-portal', this)">Client Portal</button>
+    <button class="tab-btn" onclick="showTab('flow-estimate', this)">Estimate Lifecycle</button>
+  </div>
+
+  <div id="flow-invoice" class="tab-pane active">
+    <div class="flow">
+      <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><strong>Create invoice</strong> <span>— /invoice page: user fills business info, client details, line items, due date</span></div></div>
+      <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><strong>Save as draft</strong> <span>— POST/PATCH to database: invoices + line_items tables. Status = 'draft'.</span></div></div>
+      <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><strong>User clicks Send</strong> <span>— modal: recipient email, subject, custom message</span></div></div>
+      <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><strong>POST /api/send-invoice</strong> <span>— rate checked (50/hour/user). Generates unique share_token.</span></div></div>
+      <div class="flow-step"><div class="flow-num">5</div><div class="flow-content"><strong>Resend email dispatch</strong> <span>— HTML email with invoice details, payment info, "View Invoice" → /i/[share_token]</span></div></div>
+      <div class="flow-step"><div class="flow-num">6</div><div class="flow-content"><strong>Status → 'sent'</strong> <span>— logAudit('invoice.sent') recorded. share_token stored in invoices table.</span></div></div>
+      <div class="flow-step"><div class="flow-num">7</div><div class="flow-content"><strong>Client opens /i/[share_token]</strong> <span>— record_invoice_view() RPC increments view_count, sets viewed_at</span></div></div>
+      <div class="flow-step"><div class="flow-num">8</div><div class="flow-content"><strong>Client downloads PDF</strong> <span>— html2pdf.js generates PDF entirely in browser. No server involvement.</span></div></div>
+    </div>
+  </div>
+
+  <div id="flow-portal" class="tab-pane">
+    <div class="flow">
+      <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><strong>Client created</strong> <span>— system generates portal_token: 16 random bytes, hex-encoded (crypto.randomBytes)</span></div></div>
+      <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><strong>Token stored</strong> <span>— clients.portal_token + portal_token_expires_at = now + portal_validity_days</span></div></div>
+      <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><strong>User shares link</strong> <span>— /portal/[portal_token] sent to client</span></div></div>
+      <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><strong>Client visits portal</strong> <span>— server validates token against clients table using service_role (bypasses RLS)</span></div></div>
+      <div class="flow-step"><div class="flow-num">5</div><div class="flow-content"><strong>Invoice list rendered</strong> <span>— all invoices for that client, grouped by currency, with status badges (PAID / OVERDUE / PENDING)</span></div></div>
+      <div class="flow-step"><div class="flow-num">6</div><div class="flow-content"><strong>No auth required</strong> <span>— purely token-gated. Token can be regenerated at any time from /clients page.</span></div></div>
+    </div>
+  </div>
+
+  <div id="flow-estimate" class="tab-pane">
+    <div class="flow">
+      <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><strong>Create estimate</strong> <span>— /estimates/new: title, line items with optional min_price, negotiation settings, valid_until</span></div></div>
+      <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><strong>Status: 'draft'</strong> <span>— saved with unique client_token</span></div></div>
+      <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><strong>POST /api/estimates/[id]/send</strong> <span>— Resend emails client with /estimates/[id]/review?token=[client_token] link</span></div></div>
+      <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><strong>Status: 'sent'</strong> <span>— estimate_events record: { event_type: 'sent', actor: 'owner' }</span></div></div>
+      <div class="flow-step"><div class="flow-num">5a</div><div class="flow-content"><strong>Client approves</strong> <span>— POST /api/estimates/[id]/client-action { action: 'approve' }. Status → 'approved'.</span></div></div>
+      <div class="flow-step"><div class="flow-num">5b</div><div class="flow-content"><strong>Client revises</strong> <span>— client proposes new prices or removes items. Status → 'revised'. Owner sees changes.</span></div></div>
+      <div class="flow-step"><div class="flow-num">6</div><div class="flow-content"><strong>Owner accepts/rejects negotiation</strong> <span>— accept updates line items, estimate re-sent. Reject returns to previous state.</span></div></div>
+      <div class="flow-step"><div class="flow-num">7</div><div class="flow-content"><strong>Convert to invoice</strong> <span>— POST /api/estimates/[id]/convert creates new invoice from estimate data. Status → 'converted'.</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- MIDDLEWARE -->
+<section id="middleware">
+  <h2>Middleware</h2>
+  <p>File: <code>src/middleware.ts</code> — runs on every request except static assets and images.</p>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Public Paths (no auth required)</th></tr></thead>
+    <tbody>
+      <tr><td><code>/</code> <code>/invoice</code> <code>/auth/</code> <code>/reset-password</code> <code>/forgot-password</code> <code>/portal/</code> <code>/privacy</code> <code>/terms</code> <code>/contact</code> <code>/support</code> <code>/i/</code> <code>/monitoring</code> <code>/api/unsubscribe</code> <code>/api/send-invoice</code> <code>/api/contact</code> <code>/api/auth/</code> <code>/api/cron/</code> <code>/api/webhooks/</code> <code>/api/mfa/</code> <code>/api/sessions/register</code> <code>/api/welcome-email</code></td></tr>
+    </tbody>
+  </table></div>
+  <p>For all other paths: if no valid session → redirect to <code>/auth/login</code> (or 401 for API routes). Middleware also automatically refreshes expiring session cookies via <code>supabase.auth.getUser()</code>.</p>
+</section>
+
+<!-- INTEGRATIONS -->
+<section id="integrations">
+  <h2>External Integrations</h2>
+  <div class="integrations-grid">
+    <div class="integration-card">
+      <div class="int-name">🗄️ Supabase</div>
+      <div class="int-purpose">PostgreSQL database, user authentication (email/password + TOTP MFA + Google OAuth), Row Level Security, Storage for logos</div>
+      <div class="int-env">
+        <span>NEXT_PUBLIC_SUPABASE_URL</span>
+        <span>NEXT_PUBLIC_SUPABASE_ANON_KEY</span>
+        <span>SUPABASE_SERVICE_ROLE_KEY</span>
+      </div>
+    </div>
+    <div class="integration-card">
+      <div class="int-name">⚡ Upstash Redis</div>
+      <div class="int-purpose">Distributed rate limiting across all serverless instances — login, signup, send, contact, backup codes, admin announcements</div>
+      <div class="int-env">
+        <span>UPSTASH_REDIS_REST_URL</span>
+        <span>UPSTASH_REDIS_REST_TOKEN</span>
+      </div>
+    </div>
+    <div class="integration-card">
+      <div class="int-name">📧 Resend</div>
+      <div class="int-purpose">Transactional email — invoices, estimates, reminders, welcome emails, contact form, platform announcements</div>
+      <div class="int-env">
+        <span>RESEND_API_KEY</span>
+      </div>
+    </div>
+    <div class="integration-card">
+      <div class="int-name">🛡️ Sentry</div>
+      <div class="int-purpose">Error monitoring and CSP violation reporting. Only requestId sent to Sentry — no PII. Session replay disabled.</div>
+      <div class="int-env">
+        <span>SENTRY_DSN</span>
+        <span>SENTRY_AUTH_TOKEN</span>
+      </div>
+    </div>
+    <div class="integration-card">
+      <div class="int-name">🤖 Cloudflare Turnstile</div>
+      <div class="int-purpose">CAPTCHA on login and signup forms. Token passed server-side to Supabase — prevents bot credential stuffing.</div>
+      <div class="int-env">
+        <span>NEXT_PUBLIC_TURNSTILE_SITE_KEY</span>
+        <span>TURNSTILE_SECRET_KEY</span>
+      </div>
+    </div>
+    <div class="integration-card">
+      <div class="int-name">▲ Vercel</div>
+      <div class="int-purpose">Hosting, preview deployments, Cron Jobs (recurring invoices, overdue reminders, scheduled announcements), edge middleware</div>
+      <div class="int-env">
+        <span>VERCEL_ENV</span>
+        <span>NEXT_PUBLIC_SITE_URL</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECURITY -->
+<section id="security">
+  <h2>Security</h2>
+  <div class="security-grid">
+    <div class="security-card">
+      <h4>🔒 HTTP Security Headers</h4>
+      <ul>
+        <li>X-Content-Type-Options: nosniff</li>
+        <li>X-Frame-Options: SAMEORIGIN</li>
+        <li>Referrer-Policy: strict-origin-when-cross-origin</li>
+        <li>Strict-Transport-Security: 2 years + preload</li>
+        <li>Permissions-Policy: camera, mic, geolocation blocked</li>
+        <li>Content-Security-Policy-Report-Only (Phase 1)</li>
+      </ul>
+    </div>
+    <div class="security-card">
+      <h4>🚦 Rate Limiting</h4>
+      <ul>
+        <li>Login: 4/15min/IP (middleware) + 5/15min/IP (Upstash)</li>
+        <li>Signup: 3/hour/IP (Upstash)</li>
+        <li>Send invoice: 50/hour/user</li>
+        <li>Contact form: 5/hour/IP</li>
+        <li>Backup codes: 5/15min/user</li>
+        <li>Admin announcements: 10/24h/user</li>
+      </ul>
+    </div>
+    <div class="security-card">
+      <h4>🔑 Authentication & MFA</h4>
+      <ul>
+        <li>TOTP MFA via Supabase Auth (AAL2 step-up)</li>
+        <li>Backup codes hashed via crypto.randomBytes()</li>
+        <li>Trusted device tokens (30-day, hash-stored)</li>
+        <li>Configurable idle timeout per user</li>
+        <li>Session revocation (single or all)</li>
+        <li>Google OAuth support</li>
+      </ul>
+    </div>
+    <div class="security-card">
+      <h4>🗃️ Data Security</h4>
+      <ul>
+        <li>RLS on all 20 tables — users see only their rows</li>
+        <li>audit_logs: service_role insert only (un-forgeable)</li>
+        <li>user_sessions: service_role write only</li>
+        <li>Admin tables: revoked from anon + authenticated</li>
+        <li>logError() strips PII before Sentry — requestId only</li>
+        <li>Auth errors always return generic message</li>
+      </ul>
+    </div>
+    <div class="security-card">
+      <h4>🔐 Password & Input</h4>
+      <ul>
+        <li>Minimum 12 characters enforced client + server</li>
+        <li>Cloudflare Turnstile CAPTCHA on login + signup</li>
+        <li>captchaToken passed server-side to Supabase</li>
+        <li>escHtml() for all user content in emails</li>
+        <li>Body validation on all API routes</li>
+      </ul>
+    </div>
+    <div class="security-card">
+      <h4>📡 CSP (Phase 1 — Report Only)</h4>
+      <ul>
+        <li>Violations reported to Sentry — nothing blocked yet</li>
+        <li>Known violations: wasm-eval (Next.js/Turbopack)</li>
+        <li>Known violations: vercel.live (preview only)</li>
+        <li>Phase 2: add wasm-eval + vercel.live (preview), enforce</li>
+        <li>Extended report period due to low user count</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>BillByDab Architecture Map · Generated 2026-05-15 · <a href="billbydab-architecture.json" style="color:var(--blue)">View JSON</a></p>
+</footer>
+
+</main>
+</div>
+
+<script>
+function showTab(id, btn) {
+  // find parent section's tab panes
+  const section = btn.closest('section') || document.body;
+  const panes = section.querySelectorAll('.tab-pane');
+  const btns = btn.closest('.tab-group').querySelectorAll('.tab-btn');
+  panes.forEach(p => p.classList.remove('active'));
+  btns.forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// Highlight active sidebar link on scroll
+const sections = document.querySelectorAll('section[id], div[id="overview"]');
+const navLinks = document.querySelectorAll('nav.sidebar a');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      navLinks.forEach(l => l.classList.remove('active'));
+      const link = document.querySelector(`nav.sidebar a[href="#${e.target.id}"]`);
+      if (link) link.classList.add('active');
+    }
+  });
+}, { rootMargin: '-30% 0px -60% 0px' });
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

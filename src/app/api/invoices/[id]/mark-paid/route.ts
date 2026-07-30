@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { logAudit } from '@/lib/audit'
+import { logError } from '@/lib/logger'
 
 export async function POST(
   _req: NextRequest,
@@ -34,6 +35,10 @@ export async function POST(
       return NextResponse.json({ error: 'Invoice is already paid' }, { status: 409 })
     }
 
+    if (invoice.status === 'cancelled') {
+      return NextResponse.json({ error: 'Cannot mark a cancelled invoice as paid' }, { status: 409 })
+    }
+
     const { error: updateError } = await supabase
       .from('invoices')
       .update({ status: 'paid', paid_at: new Date().toISOString() })
@@ -52,7 +57,7 @@ export async function POST(
 
     return NextResponse.json({ success: true })
   } catch (err) {
-    console.error('mark-paid error:', err)
+    logError('invoices/[id]/mark-paid', 'Unhandled error', {}, err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

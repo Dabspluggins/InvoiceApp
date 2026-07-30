@@ -2,9 +2,9 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — BillByDab',
+  title: 'Privacy Policy — Vortali',
   description:
-    'Learn how BillByDab collects, uses, and protects your personal data when you use our free invoice generation service.',
+    'Learn how Vortali collects, uses, and protects your personal data when you use our free invoice generation service.',
 }
 
 export default function PrivacyPage() {
@@ -24,10 +24,10 @@ export default function PrivacyPage() {
         <div className="prose prose-gray max-w-none">
 
           <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-10">
-            BillByDab (&ldquo;we&rdquo;, &ldquo;our&rdquo;, or &ldquo;us&rdquo;) operates{' '}
-            <span className="font-medium text-gray-800">billbydab.com</span>. This Privacy Policy
+            Vortali (&ldquo;we&rdquo;, &ldquo;our&rdquo;, or &ldquo;us&rdquo;) operates{' '}
+            <span className="font-medium text-gray-800">vortali.com</span>. This Privacy Policy
             explains what information we collect when you use our free invoice generation service,
-            how we use it, and the choices you have. By using BillByDab you agree to the practices
+            how we use it, and the choices you have. By using Vortali you agree to the practices
             described below.
           </p>
 
@@ -72,8 +72,8 @@ export default function PrivacyPage() {
               <li>To maintain the security and performance of the platform.</li>
               <li>
                 To respond to support requests when you contact us at{' '}
-                <a href="mailto:support@billbydab.com" className="text-indigo-600 hover:underline">
-                  support@billbydab.com
+                <a href="mailto:support@vortali.com" className="text-indigo-600 hover:underline">
+                  support@vortali.com
                 </a>
                 .
               </li>
@@ -106,7 +106,7 @@ export default function PrivacyPage() {
 
           <Section title="4. Third-Party Services">
             <p className="text-gray-600 leading-relaxed mb-4">
-              We use the following third-party providers to operate BillByDab:
+              We use the following third-party providers to operate Vortali:
             </p>
             <div className="space-y-4">
               <ThirdParty
@@ -133,7 +133,7 @@ export default function PrivacyPage() {
 
           <Section title="5. Cookies">
             <p className="text-gray-600 leading-relaxed">
-              BillByDab uses a single session cookie to keep you authenticated. This cookie is
+              Vortali uses a single session cookie to keep you authenticated. This cookie is
               strictly necessary for the service to function and does not track your behaviour
               across other websites. We do <strong>not</strong> use advertising cookies, analytics
               cookies, or any form of cross-site tracking.
@@ -158,8 +158,8 @@ export default function PrivacyPage() {
             </ul>
             <p className="text-gray-600 leading-relaxed mt-4">
               To exercise any of these rights, email us at{' '}
-              <a href="mailto:support@billbydab.com" className="text-indigo-600 hover:underline">
-                support@billbydab.com
+              <a href="mailto:support@vortali.com" className="text-indigo-600 hover:underline">
+                support@vortali.com
               </a>
               . We will respond within 30 days.
             </p>
@@ -176,7 +176,7 @@ export default function PrivacyPage() {
 
           <Section title="8. Children">
             <p className="text-gray-600 leading-relaxed">
-              BillByDab is not intended for use by anyone under the age of 13. We do not knowingly
+              Vortali is not intended for use by anyone under the age of 13. We do not knowingly
               collect personal data from children. If you believe a child has provided us with
               personal information, please contact us and we will delete it promptly.
             </p>
@@ -186,7 +186,7 @@ export default function PrivacyPage() {
             <p className="text-gray-600 leading-relaxed">
               We may update this Privacy Policy from time to time. When we do, we will revise the
               effective date at the top of this page. For material changes we will notify you by
-              email or via an in-app notice. Your continued use of BillByDab after the changes take
+              email or via an in-app notice. Your continued use of Vortali after the changes take
               effect constitutes your acceptance of the revised policy.
             </p>
           </Section>
@@ -195,8 +195,8 @@ export default function PrivacyPage() {
             <p className="text-gray-600 leading-relaxed">
               If you have questions or concerns about this Privacy Policy or how we handle your
               data, please contact us at{' '}
-              <a href="mailto:support@billbydab.com" className="text-indigo-600 hover:underline">
-                support@billbydab.com
+              <a href="mailto:support@vortali.com" className="text-indigo-600 hover:underline">
+                support@vortali.com
               </a>
               .
             </p>
@@ -206,7 +206,7 @@ export default function PrivacyPage() {
 
         <div className="mt-14 pt-8 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
           <Link href="/" className="text-indigo-600 hover:underline font-medium">
-            ← Back to BillByDab
+            ← Back to Vortali
           </Link>
           <span>·</span>
           <Link href="/terms" className="hover:text-indigo-600 transition-colors">

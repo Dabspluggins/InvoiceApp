@@ -1,4 +1,4 @@
-export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'pending' | 'partial'
+export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'pending' | 'partial' | 'cancelled'
 export type EstimateStatus = 'draft' | 'sent' | 'client_reviewing' | 'revised' | 'approved' | 'rejected' | 'converted'
 
 export type SavedPaymentMethod = {
@@ -65,6 +65,7 @@ export interface LineItem {
   quantity: number
   rate: number
   amount: number
+  stockbook_product_id?: string | null
 }
 
 export interface EstimateTemplate {
@@ -96,6 +97,7 @@ export interface EstimateTemplateItem {
 export type RecurringFrequency = 'weekly' | 'monthly' | 'quarterly'
 
 export type InvoiceTemplate = 'minimal' | 'classic' | 'bold'
+export type InvoiceLanguage = 'en' | 'fr' | 'es'
 
 export interface InvoiceData {
   invoiceNumber: string
@@ -122,4 +124,6 @@ export interface InvoiceData {
   recurringFrequency: RecurringFrequency | null
   paymentDetails?: PaymentDetails
   template?: InvoiceTemplate
+  language?: InvoiceLanguage
+  creditApplied?: number
 }

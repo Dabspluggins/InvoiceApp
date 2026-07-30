@@ -177,7 +177,7 @@ export default function EstimatesClient() {
     const businessName =
       user?.user_metadata?.business_name ||
       user?.email ||
-      'BillByDab'
+      'Vortali'
     const clientNameStr = est.client_name || 'there'
     const reviewUrl = `${window.location.origin}/estimates/${est.id}/review?token=${est.client_token}`
     const validUntilStr = est.valid_until
@@ -191,7 +191,7 @@ export default function EstimatesClient() {
     if (est.title) message += `\n${est.title}`
     message += `\nTotal: ${est.currency} ${est.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     if (validUntilStr) message += `\nValid until: ${validUntilStr}`
-    message += `\n\nReview, edit, and approve your estimate here:\n${reviewUrl}\n\nSent via BillByDab`
+    message += `\n\nReview, edit, and approve your estimate here:\n${reviewUrl}\n\nSent via Vortali`
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
     // Update status and log event client-side (fire and forget)
     const supabase = createClient()
@@ -389,8 +389,8 @@ export default function EstimatesClient() {
           </div>
 
           {/* Desktop: table */}
-          <div className="hidden md:block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <table className="w-full">
+          <div className="hidden md:block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-x-auto">
+            <table className="min-w-full">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide bg-gray-50 dark:bg-gray-700/50">
                   <th className="text-left px-6 py-3">Estimate #</th>
@@ -399,7 +399,7 @@ export default function EstimatesClient() {
                   <th className="text-center px-6 py-3">Status</th>
                   <th className="text-left px-6 py-3">Valid Until</th>
                   <th className="text-right px-6 py-3">Total</th>
-                  <th className="text-right px-6 py-3">Actions</th>
+                  <th className="text-right px-6 py-3 whitespace-nowrap w-px">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -430,7 +430,7 @@ export default function EstimatesClient() {
                           {formatCurrency(est.total, est.currency)}
                         </td>
                         <td
-                          className="px-6 py-4 text-right"
+                          className="px-6 py-4 text-right whitespace-nowrap w-px"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <div className="flex items-center justify-end gap-3">

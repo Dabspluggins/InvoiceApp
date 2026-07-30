@@ -78,6 +78,41 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
   const [error, setError] = useState<string | null>(null)
   const [proposedPrices, setProposedPrices] = useState<Record<string, number>>({})
   const [priceErrors, setPriceErrors] = useState<Record<string, string>>({})
+  const [downloading, setDownloading] = useState(false)
+
+  async function handleDownloadPDF() {
+    const el = document.getElementById('estimate-pdf-content')
+    if (!el) return
+    setDownloading(true)
+    try {
+      const h2p = (await import('html2pdf.js')).default
+      const parts = ['Estimate', estimate.estimate_number, estimate.client_name].filter(Boolean)
+      await h2p()
+        .set({
+          margin: 0,
+          filename: parts.join(' - ') + '.pdf',
+          image: { type: 'png' },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            onclone: (_clonedDoc: Document, clonedEl: HTMLElement) => {
+              const inner = clonedEl.querySelector('#estimate-pdf-content') as HTMLElement | null
+              if (inner) {
+                inner.style.position = 'relative'
+                inner.style.left = '0'
+                inner.style.top = '0'
+              }
+            },
+          },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        })
+        .from(el)
+        .save()
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   const activeItems = items.filter((i) => !i.pendingDelete)
   const deletedItems = items.filter((i) => i.pendingDelete)
@@ -226,7 +261,7 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div id="estimate-doc" className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <div className="bg-indigo-600 text-white px-4 py-6 md:py-8">
         <div className="max-w-3xl mx-auto">
@@ -240,6 +275,16 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
               Valid until: {formatDate(estimate.valid_until)}
             </p>
           )}
+          <button
+            onClick={handleDownloadPDF}
+            disabled={downloading}
+            className="pdf-exclude mt-4 inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-60"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            {downloading ? 'Generating PDF…' : 'Download PDF'}
+          </button>
         </div>
       </div>
 
@@ -264,7 +309,7 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
         )}
 
         {/* Instructions */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg px-4 py-3 text-sm text-blue-800 dark:text-blue-300">
+        <div className="pdf-exclude bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg px-4 py-3 text-sm text-blue-800 dark:text-blue-300">
           Click the{' '}
           <span className="font-semibold">✕</span> button on any line item to remove it. You can
           undo by clicking again. When done, use the buttons at the bottom to approve or submit
@@ -358,7 +403,7 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
                     >
                       {formatCurrency((proposedPrices[item.id] ?? item.unit_price) * item.quantity, estimate.currency)}
                     </td>
-                    <td className="px-4 py-4 text-center">
+                    <td className="pdf-exclude px-4 py-4 text-center">
                       <button
                         onClick={() => toggleDelete(item.id)}
                         className={`w-7 h-7 rounded-full text-sm font-bold transition-all flex items-center justify-center mx-auto ${
@@ -438,7 +483,7 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
                   </p>
                   <button
                     onClick={() => toggleDelete(item.id)}
-                    className={`mt-1 text-xs font-medium px-2 py-0.5 rounded-full transition-all ${
+                    className={`pdf-exclude mt-1 text-xs font-medium px-2 py-0.5 rounded-full transition-all ${
                       item.pendingDelete
                         ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400'
@@ -510,13 +555,13 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
 
         {/* Error */}
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg px-4 py-3 text-sm text-red-700 dark:text-red-300">
+          <div className="pdf-exclude bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg px-4 py-3 text-sm text-red-700 dark:text-red-300">
             {error}
           </div>
         )}
 
         {/* Action buttons */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <div className="pdf-exclude bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">Your Response</h3>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
             {hasDeletedItems && hasPriceChanges
@@ -530,7 +575,7 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
           <div className="flex flex-col sm:flex-row gap-3">
             <button
               onClick={() => handleAction('approve')}
-              disabled={submitting}
+              disabled={submitting || hasChanges}
               className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 transition flex items-center justify-center gap-2"
             >
               {submitting ? (
@@ -560,14 +605,14 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
           </div>
           {!hasChanges && (
             <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-2">
-              Remove items or propose prices above to enable "Submit Revised Estimate"
+              Remove items or propose prices above to enable &quot;Submit Revised Estimate&quot;
             </p>
           )}
         </div>
 
         {/* Active items summary if deletions pending */}
         {hasDeletedItems && (
-          <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-xl p-4">
+          <div className="pdf-exclude bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-xl p-4">
             <h3 className="text-sm font-semibold text-orange-800 dark:text-orange-300 mb-2">
               Items marked for removal:
             </h3>
@@ -595,14 +640,104 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
 
         {/* Remaining active items count */}
         {hasDeletedItems && activeItems.length > 0 && (
-          <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+          <p className="pdf-exclude text-xs text-center text-gray-500 dark:text-gray-400">
             {activeItems.length} item{activeItems.length !== 1 ? 's' : ''} remaining
           </p>
         )}
 
         <p className="text-center text-xs text-gray-400 dark:text-gray-500 pb-8">
-          Sent via <span className="font-medium">BillByDab</span>
+          Sent via <span className="font-medium">Vortali</span>
         </p>
+      </div>
+
+      {/* Dedicated PDF template — inline styles only (no Tailwind/color-mix), off-screen until html2canvas clones it */}
+      <div
+        id="estimate-pdf-content"
+        aria-hidden="true"
+        style={{ position: 'absolute', left: '-9999px', top: 0, width: '794px', background: 'white', color: '#111827', fontFamily: 'Arial, sans-serif' }}
+      >
+        {/* Header */}
+        <div style={{ background: '#4F46E5', color: 'white', padding: '32px 40px 28px' }}>
+          <p style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#C7D2FE', margin: '0 0 6px' }}>Estimate</p>
+          <h1 style={{ fontSize: '26px', fontWeight: 700, margin: '0 0 4px' }}>{estimate.estimate_number}</h1>
+          {estimate.title && <p style={{ fontSize: '15px', color: '#E0E7FF', margin: '0 0 4px' }}>{estimate.title}</p>}
+          {estimate.client_name && <p style={{ fontSize: '13px', color: '#C7D2FE', margin: '4px 0 0' }}>Prepared for: {estimate.client_name}</p>}
+          {estimate.valid_until && (
+            <p style={{ fontSize: '12px', color: '#C7D2FE', margin: '4px 0 0' }}>
+              Valid until: {formatDate(estimate.valid_until)}
+            </p>
+          )}
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '32px 40px' }}>
+          {/* Line items */}
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', marginBottom: '24px' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #E5E7EB' }}>
+                <th style={{ textAlign: 'left', padding: '8px 0', fontSize: '11px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Description</th>
+                <th style={{ textAlign: 'center', padding: '8px 12px', fontSize: '11px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, width: '60px' }}>Qty</th>
+                <th style={{ textAlign: 'right', padding: '8px 0', fontSize: '11px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, width: '110px' }}>Unit Price</th>
+                <th style={{ textAlign: 'right', padding: '8px 0', fontSize: '11px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, width: '110px' }}>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activeItems.map((item) => {
+                const pdfUnitPrice = proposedPrices[item.id] ?? item.unit_price
+                const pdfAmount = pdfUnitPrice * item.quantity
+                return (
+                  <tr key={item.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                    <td style={{ padding: '11px 0', color: '#1F2937' }}>{item.description || '—'}</td>
+                    <td style={{ padding: '11px 12px', textAlign: 'center', color: '#6B7280' }}>{item.quantity}</td>
+                    <td style={{ padding: '11px 0', textAlign: 'right', color: '#6B7280' }}>{formatCurrency(pdfUnitPrice, estimate.currency)}</td>
+                    <td style={{ padding: '11px 0', textAlign: 'right', fontWeight: 600, color: '#1F2937' }}>{formatCurrency(pdfAmount, estimate.currency)}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+
+          {/* Totals */}
+          <div style={{ marginLeft: 'auto', width: '280px', fontSize: '13px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', color: '#6B7280' }}>
+              <span>Subtotal</span><span>{formatCurrency(subtotal, estimate.currency)}</span>
+            </div>
+            {estimate.discount_value > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', color: '#6B7280' }}>
+                <span>Discount{estimate.discount_type === 'percentage' ? ` (${estimate.discount_value}%)` : ''}</span>
+                <span style={{ color: '#EF4444' }}>−{formatCurrency(discountAmount, estimate.currency)}</span>
+              </div>
+            )}
+            {estimate.tax_rate > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', color: '#6B7280' }}>
+                <span>Tax ({estimate.tax_rate}%)</span><span>{formatCurrency(taxAmount, estimate.currency)}</span>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid #E5E7EB', marginTop: '8px', paddingTop: '10px', fontWeight: 700, fontSize: '16px', color: '#111827' }}>
+              <span>Total</span><span>{formatCurrency(total, estimate.currency)}</span>
+            </div>
+          </div>
+
+          {/* Notes */}
+          {estimate.notes && (
+            <div style={{ marginTop: '28px', paddingTop: '20px', borderTop: '1px solid #E5E7EB' }}>
+              <p style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px' }}>Notes</p>
+              <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.65, margin: 0 }}>{estimate.notes}</p>
+            </div>
+          )}
+
+          {/* Terms */}
+          {estimate.terms && (
+            <div style={{ marginTop: '20px' }}>
+              <p style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px' }}>Terms &amp; Conditions</p>
+              <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.65, margin: 0 }}>{estimate.terms}</p>
+            </div>
+          )}
+
+          <p style={{ marginTop: '48px', textAlign: 'center', fontSize: '11px', color: '#9CA3AF' }}>
+            Generated with Vortali
+          </p>
+        </div>
       </div>
     </div>
   )

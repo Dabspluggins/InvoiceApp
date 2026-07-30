@@ -23,6 +23,8 @@ type Client = {
   company: string | null
   email: string | null
   portal_token: string
+  portal_token_expires_at: string | null
+  user_id: string
 }
 
 function getServiceClient() {
@@ -41,9 +43,10 @@ function formatDate(dateStr: string | null): string {
   })
 }
 
-type DisplayStatus = 'PAID' | 'OVERDUE' | 'PENDING'
+type DisplayStatus = 'PAID' | 'OVERDUE' | 'PENDING' | 'CANCELLED'
 
 function getDisplayStatus(invoice: Invoice): DisplayStatus {
+  if (invoice.status === 'cancelled') return 'CANCELLED'
   if (invoice.status === 'paid') return 'PAID'
   if (
     invoice.due_date &&
@@ -58,6 +61,7 @@ const STATUS_STYLES: Record<DisplayStatus, string> = {
   PAID: 'bg-green-100 text-green-700 dark:bg-green-900/60 dark:text-green-300',
   OVERDUE: 'bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-300',
   PENDING: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/60 dark:text-yellow-300',
+  CANCELLED: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400',
 }
 
 function formatCurrency(amount: number, currency: string): string {
@@ -76,6 +80,7 @@ function buildSummaries(invoices: Invoice[]): CurrencySummary[] {
   for (const inv of invoices) {
     const c = inv.currency
     if (!map[c]) map[c] = { currency: c, total: 0, paid: 0, outstanding: 0 }
+    if (inv.status === 'cancelled') continue
     map[c].total += inv.total
     if (inv.status === 'paid') {
       map[c].paid += inv.total
@@ -99,7 +104,7 @@ export async function generateMetadata({
     .eq('portal_token', token)
     .single<{ name: string; company: string | null }>()
 
-  if (!client) return { title: 'Portal | BillByDab' }
+  if (!client) return { title: 'Portal | Vortali' }
 
   const { data: invoice } = await supabase
     .from('invoices')
@@ -108,9 +113,9 @@ export async function generateMetadata({
     .limit(1)
     .single<{ business_name: string | null }>()
 
-  const businessName = invoice?.business_name || 'BillByDab'
+  const businessName = invoice?.business_name || 'Vortali'
   return {
-    title: `Invoices from ${businessName} | BillByDab`,
+    title: `Invoices from ${businessName} | Vortali`,
     robots: { index: false, follow: false },
   }
 }
@@ -126,12 +131,24 @@ export default async function PortalPage({
   // 1. Look up client by portal_token
   const { data: client, error: clientError } = await supabase
     .from('clients')
-    .select('id, name, company, email, portal_token')
+    .select('id, name, company, email, portal_token, portal_token_expires_at, user_id')
     .eq('portal_token', token)
     .single<Client>()
 
   if (clientError || !client || !client.email) {
     notFound()
+  }
+
+  if (client.portal_token_expires_at && new Date(client.portal_token_expires_at) < new Date()) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-10 text-center max-w-md w-full">
+          <p className="text-gray-700 dark:text-gray-300 text-sm font-medium">
+            This portal link has expired. Please contact the business for a new link.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   // 2. Fetch all invoices for this client's email (case-insensitive)
@@ -141,10 +158,11 @@ export default async function PortalPage({
       'id, invoice_number, issue_date, due_date, total, currency, status, share_token, business_name'
     )
     .ilike('client_email', client.email)
+    .eq('user_id', client.user_id)
     .order('issue_date', { ascending: false })
 
   const allInvoices: Invoice[] = invoices || []
-  const businessName = allInvoices[0]?.business_name || 'BillByDab'
+  const businessName = allInvoices[0]?.business_name || 'Vortali'
   const summaries = buildSummaries(allInvoices)
   const clientLabel = client.company
     ? `${client.name} / ${client.company}`
@@ -347,14 +365,14 @@ export default async function PortalPage({
         <p className="text-center text-xs text-gray-400 mt-10">
           Powered by{' '}
           <a
-            href="https://www.billbydab.com"
+            href="https://vortali.com"
             className="hover:text-indigo-500 transition"
             target="_blank"
             rel="noopener noreferrer"
           >
-            BillByDab
+            Vortali
           </a>{' '}
-          — free invoice generator at billbydab.com
+          — free invoice generator at vortali.com
         </p>
       </div>
     </div>

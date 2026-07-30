@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { contactLimiter } from '@/lib/ratelimit'
+import { escHtml, getTrustedIp } from '@/lib/utils'
+import { logError } from '@/lib/logger'
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '127.0.0.1'
+  const ip = getTrustedIp(req)
   const { success, reset } = await contactLimiter.limit(ip)
   if (!success) {
     const retryAfter = Math.ceil((reset - Date.now()) / 1000)
@@ -33,6 +35,11 @@ export async function POST(req: NextRequest) {
 
     const resend = new Resend(apiKey)
 
+    const safeName = escHtml(name)
+    const safeEmail = escHtml(email)
+    const safeSubject = escHtml(subject)
+    const safeMessage = escHtml(message).replace(/\n/g, '<br>')
+
     const notifyHtml = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><title>Contact Form</title></head>
@@ -50,22 +57,22 @@ export async function POST(req: NextRequest) {
             <table cellpadding="0" cellspacing="0" width="100%" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:24px;">
               <tr style="background:#f9fafb;">
                 <td style="padding:12px 16px;color:#6b7280;font-size:13px;font-weight:500;width:140px;border-bottom:1px solid #e5e7eb;">Name</td>
-                <td style="padding:12px 16px;color:#111827;font-size:13px;font-weight:600;border-bottom:1px solid #e5e7eb;">${name}</td>
+                <td style="padding:12px 16px;color:#111827;font-size:13px;font-weight:600;border-bottom:1px solid #e5e7eb;">${safeName}</td>
               </tr>
               <tr>
                 <td style="padding:12px 16px;color:#6b7280;font-size:13px;font-weight:500;border-bottom:1px solid #e5e7eb;">Email</td>
-                <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;"><a href="mailto:${email}" style="color:#4F46E5;font-size:13px;">${email}</a></td>
+                <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;"><a href="mailto:${safeEmail}" style="color:#4F46E5;font-size:13px;">${safeEmail}</a></td>
               </tr>
               <tr style="background:#f9fafb;">
                 <td style="padding:12px 16px;color:#6b7280;font-size:13px;font-weight:500;border-bottom:1px solid #e5e7eb;">Subject</td>
-                <td style="padding:12px 16px;color:#111827;font-size:13px;font-weight:600;border-bottom:1px solid #e5e7eb;">${subject}</td>
+                <td style="padding:12px 16px;color:#111827;font-size:13px;font-weight:600;border-bottom:1px solid #e5e7eb;">${safeSubject}</td>
               </tr>
               <tr>
                 <td style="padding:12px 16px;color:#6b7280;font-size:13px;font-weight:500;vertical-align:top;">Message</td>
-                <td style="padding:12px 16px;color:#374151;font-size:13px;line-height:1.6;">${message.replace(/\n/g, '<br>')}</td>
+                <td style="padding:12px 16px;color:#374151;font-size:13px;line-height:1.6;">${safeMessage}</td>
               </tr>
             </table>
-            <p style="margin:0;color:#9ca3af;font-size:12px;text-align:center;">Sent via BillByDab Contact Form</p>
+            <p style="margin:0;color:#9ca3af;font-size:12px;text-align:center;">Sent via Vortali Contact Form</p>
           </td>
         </tr>
       </table>
@@ -83,24 +90,24 @@ export async function POST(req: NextRequest) {
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
         <tr>
           <td style="background:#4F46E5;padding:32px 40px;border-radius:12px 12px 0 0;">
-            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">BillByDab</h1>
+            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">Vortali</h1>
           </td>
         </tr>
         <tr>
           <td style="background:#ffffff;padding:32px 40px;border-radius:0 0 12px 12px;">
-            <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">Hi ${name},</p>
+            <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">Hi ${safeName},</p>
             <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">
-              Thanks for reaching out to BillByDab. We've received your message and will respond within 24 hours.
+              Thanks for reaching out to Vortali. We've received your message and will respond within 24 hours.
             </p>
             <p style="margin:0 0 24px;color:#6b7280;font-size:14px;line-height:1.6;">
-              In the meantime, you can visit our <a href="https://www.billbydab.com/support" style="color:#4F46E5;text-decoration:none;">Help &amp; Support</a> page for answers to common questions.
+              In the meantime, you can visit our <a href="https://vortali.com/support" style="color:#4F46E5;text-decoration:none;">Help &amp; Support</a> page for answers to common questions.
             </p>
-            <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">— The BillByDab Team</p>
+            <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">— The Vortali Team</p>
           </td>
         </tr>
         <tr>
           <td style="background:#f9fafb;padding:16px 40px;border-radius:0 0 12px 12px;border-top:1px solid #e5e7eb;text-align:center;">
-            <p style="margin:0;color:#9ca3af;font-size:12px;">This is an automated confirmation from <strong style="color:#6b7280;">BillByDab</strong></p>
+            <p style="margin:0;color:#9ca3af;font-size:12px;">This is an automated confirmation from <strong style="color:#6b7280;">Vortali</strong></p>
           </td>
         </tr>
       </table>
@@ -111,29 +118,29 @@ export async function POST(req: NextRequest) {
 
     // Send notification to support inbox
     const { error: notifyError } = await resend.emails.send({
-      from: 'BillByDab <invoices@billbydab.com>',
-      to: ['support@billbydab.com'],
+      from: 'Vortali <invoices@vortali.com>',
+      to: ['support@vortali.com'],
       replyTo: email,
-      subject: `[BillByDab Contact] ${subject} — from ${name}`,
+      subject: `[Vortali Contact] ${subject} — from ${name}`,
       html: notifyHtml,
     })
 
     if (notifyError) {
-      console.error('Resend notify error:', notifyError)
+      logError('contact', 'Resend notify failed', {}, notifyError)
       return NextResponse.json({ error: notifyError.message }, { status: 500 })
     }
 
     // Send auto-reply to the user
     await resend.emails.send({
-      from: 'BillByDab Support <invoices@billbydab.com>',
+      from: 'Vortali Support <invoices@vortali.com>',
       to: [email],
-      subject: `We've received your message — BillByDab`,
+      subject: `We've received your message — Vortali`,
       html: autoReplyHtml,
     })
 
     return NextResponse.json({ success: true })
   } catch (err) {
-    console.error('contact route error:', err)
+    logError('contact', 'Unhandled error', {}, err)
     return NextResponse.json({ error: 'Failed to send message' }, { status: 500 })
   }
 }

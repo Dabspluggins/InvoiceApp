@@ -1,8 +1,8 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
+import Script from 'next/script'
 import { createClient } from '@/lib/supabase/client'
 
 export default function SignupPage() {
@@ -15,7 +15,51 @@ export default function SignupPage() {
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
-  const router = useRouter()
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const [captchaError, setCaptchaError] = useState(false)
+  const turnstileRef = useRef<HTMLDivElement>(null)
+  const turnstileWidgetIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    window.onloadTurnstileCallback = () => {
+      if (!turnstileRef.current) return
+      const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+      if (!siteKey) {
+        setCaptchaError(true)
+        return
+      }
+      turnstileWidgetIdRef.current = window.turnstile!.render(
+        turnstileRef.current,
+        {
+          sitekey: siteKey,
+          callback:           (token: string) => { setCaptchaToken(token); setCaptchaError(false) },
+          'expired-callback': () => setCaptchaToken(null),
+          'error-callback':   () => { setCaptchaToken(null); setCaptchaError(true) },
+          retry:              'auto',
+        }
+      )
+    }
+    if (typeof window.turnstile !== 'undefined') {
+      window.onloadTurnstileCallback?.()
+    }
+    return () => {
+      delete window.onloadTurnstileCallback
+      const widgetId = turnstileWidgetIdRef.current
+      if (widgetId != null) {
+        window.turnstile?.remove(widgetId)
+        turnstileWidgetIdRef.current = null
+      }
+    }
+  }, [])
+
+  const resetCaptcha = () => {
+    const widgetId = turnstileWidgetIdRef.current
+    if (widgetId != null) {
+      window.turnstile?.reset(widgetId)
+    }
+    setCaptchaToken(null)
+    setCaptchaError(false)
+  }
 
   const handleGoogleSignup = async () => {
     setOauthLoading(true)
@@ -42,41 +86,48 @@ export default function SignupPage() {
       return
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
+    if (password.length < 12) {
+      setError('Password must be at least 12 characters')
       setLoading(false)
       return
     }
 
-    const rlRes = await fetch('/api/auth/check-rate-limit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'signup' }),
-    })
-    const rlData = await rlRes.json()
-    if (!rlData.allowed) {
-      const minutes = Math.ceil(rlData.retryAfter / 60)
-      setError(`Too many attempts. Please try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`)
+    let res: Response
+    try {
+      res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, captchaToken }),
+      })
+    } catch {
+      setError('Network error. Please check your connection and try again.')
       setLoading(false)
       return
     }
 
-    const supabase = createClient()
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
+    let data: { error?: string; retryAfter?: number } = {}
+    try { data = await res.json() } catch { /* non-JSON response — treat as generic failure */ }
 
-    if (error) {
-      setError(error.message)
+    if (res.status === 429) {
+      const minutes = Math.ceil((data.retryAfter ?? 0) / 60)
+      setError(
+        Number.isFinite(minutes) && minutes > 0
+          ? `Too many attempts. Please try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`
+          : 'Too many attempts. Please try again later.'
+      )
       setLoading(false)
-    } else {
-      setSuccess(true)
-      setLoading(false)
+      return
     }
+
+    if (!res.ok) {
+      setError(data.error ?? 'Sign up failed. Please try again.')
+      resetCaptcha()
+      setLoading(false)
+      return
+    }
+
+    setSuccess(true)
+    setLoading(false)
   }
 
   if (success) {
@@ -99,7 +150,7 @@ export default function SignupPage() {
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold text-blue-600">BillByDab</Link>
+          <Link href="/" className="text-2xl font-bold text-blue-600">Vortali</Link>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">Create your free account</p>
         </div>
 
@@ -137,7 +188,7 @@ export default function SignupPage() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-3 text-sm bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-3 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -149,8 +200,8 @@ export default function SignupPage() {
                 required
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="Min. 6 characters"
-                className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-3 pr-10 text-sm bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Min. 12 characters"
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-3 pr-10 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
                 type="button"
@@ -171,7 +222,7 @@ export default function SignupPage() {
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
                 placeholder="Re-enter your password"
-                className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-3 pr-10 text-sm bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-3 pr-10 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
                 type="button"
@@ -183,6 +234,13 @@ export default function SignupPage() {
             </div>
           </div>
 
+          <div ref={turnstileRef} />
+          {captchaError && (
+            <p className="text-sm text-red-500 text-center">
+              Security check failed. Please disable any ad blockers, refresh the page, or contact support.
+            </p>
+          )}
+
           {error && (
             <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 text-sm px-4 py-3 rounded-lg">
               {error}
@@ -191,11 +249,16 @@ export default function SignupPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !captchaToken}
             className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60"
           >
             {loading ? 'Creating account...' : 'Create Free Account'}
           </button>
+          {!captchaToken && !captchaError && !loading && (
+            <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+              Complete the security check above to create your account.
+            </p>
+          )}
         </form>
 
         <div className="mt-6 text-center space-y-3">
@@ -208,6 +271,13 @@ export default function SignupPage() {
           </Link>
         </div>
       </div>
+
+      <Script
+        id="cf-turnstile-script-signup"
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onloadTurnstileCallback"
+        strategy="lazyOnload"
+        onError={() => setCaptchaError(true)}
+      />
     </div>
   )
 }

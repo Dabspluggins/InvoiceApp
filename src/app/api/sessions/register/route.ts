@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { Resend } from 'resend'
 import { logAudit } from '@/lib/audit'
 import { getTrustedIp } from '@/lib/utils'
@@ -157,11 +157,23 @@ export async function POST(request: NextRequest) {
     } catch { /* ignore — location is optional */ }
   }
 
-  const admin = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  const admin = createAdminClient()
+
+  // Run suspicious-login detection BEFORE upserting the current session.
+  // If we upsert first, the novelty check below would find the current
+  // session in user_sessions and conclude the location/IP is already known,
+  // suppressing the alert. Running detection first (or excluding the current
+  // token) ensures the check reflects only truly prior sessions.
+  detectAndAlertSuspiciousLogin({
+    userId: user.id,
+    userEmail: user.email ?? '',
+    browser,
+    deviceType,
+    location,
+    ip,
+    ua,
+    currentSessionToken: tokenHash,
+  }).catch((e) => logError('sessions/register', 'Suspicious login detection failed', { userId: user.id }, e))
 
   await admin.from('user_sessions').upsert(
     {
@@ -176,17 +188,6 @@ export async function POST(request: NextRequest) {
     { onConflict: 'session_token' }
   )
 
-  // Suspicious login detection — run in background, don't block response
-  detectAndAlertSuspiciousLogin({
-    userId: user.id,
-    userEmail: user.email ?? '',
-    browser,
-    deviceType,
-    location,
-    ip,
-    ua,
-  }).catch((e) => logError('sessions/register', 'Suspicious login detection failed', { userId: user.id }, e))
-
   return NextResponse.json({ ok: true })
 }
 
@@ -198,6 +199,7 @@ async function detectAndAlertSuspiciousLogin({
   location,
   ip,
   ua,
+  currentSessionToken,
 }: {
   userId: string
   userEmail: string
@@ -206,12 +208,10 @@ async function detectAndAlertSuspiciousLogin({
   location: string | null
   ip: string | null
   ua: string
+  /** The token hash of the session being registered — excluded from novelty queries. */
+  currentSessionToken: string
 }) {
-  const admin = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  const admin = createAdminClient()
 
   // Get profile: alerts enabled
   const { data: profile } = await admin
@@ -236,13 +236,14 @@ async function detectAndAlertSuspiciousLogin({
 
   if (trustedDevice) return // known trusted device
 
-  // Check new location
+  // Check new location — exclude the current session so it can't self-suppress the alert.
   if (location) {
     const { count } = await admin
       .from('user_sessions')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('location', location)
+      .neq('session_token', currentSessionToken)
 
     if ((count ?? 0) > 0) return // location seen before
   } else {
@@ -253,6 +254,7 @@ async function detectAndAlertSuspiciousLogin({
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId)
         .eq('ip_address', ip)
+        .neq('session_token', currentSessionToken)
 
       if ((count ?? 0) > 0) return
     } else {

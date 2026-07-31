@@ -30,17 +30,21 @@ export async function POST(request: NextRequest) {
   const rawBody = await request.text()
   const secret = process.env.RESEND_WEBHOOK_SECRET
 
-  if (secret) {
-    const wh = new Webhook(secret)
-    try {
-      wh.verify(rawBody, {
-        'svix-id': request.headers.get('svix-id') ?? '',
-        'svix-timestamp': request.headers.get('svix-timestamp') ?? '',
-        'svix-signature': request.headers.get('svix-signature') ?? '',
-      })
-    } catch {
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-    }
+  // Fail closed — never accept events when the secret is missing.
+  // A misconfigured server is not the same as a valid unsigned event.
+  if (!secret) {
+    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
+  }
+
+  const wh = new Webhook(secret)
+  try {
+    wh.verify(rawBody, {
+      'svix-id': request.headers.get('svix-id') ?? '',
+      'svix-timestamp': request.headers.get('svix-timestamp') ?? '',
+      'svix-signature': request.headers.get('svix-signature') ?? '',
+    })
+  } catch {
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
   let event: ResendEvent

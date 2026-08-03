@@ -1,23 +1,11 @@
-import { createClient } from '@supabase/supabase-js'
 import type { NextRequest } from 'next/server'
 import { Client } from '@upstash/qstash'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { logError } from '@/lib/logger'
 
 const qstash = new Client({ token: process.env.QSTASH_TOKEN! })
 
 export const dynamic = 'force-dynamic'
-
-function nextRecurringDate(fromDate: string, frequency: string): string {
-  const d = new Date(fromDate)
-  if (frequency === 'weekly') d.setDate(d.getDate() + 7)
-  else if (frequency === 'monthly') d.setMonth(d.getMonth() + 1)
-  else if (frequency === 'quarterly') d.setMonth(d.getMonth() + 3)
-  return d.toISOString().split('T')[0]
-}
-
-function shiftDate(dateStr: string | null, frequency: string): string | null {
-  if (!dateStr) return null
-  return nextRecurringDate(dateStr, frequency)
-}
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -27,20 +15,15 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    return Response.json({ error: 'Missing Supabase credentials' }, { status: 500 })
-  }
-
-  const supabase = createClient(supabaseUrl, serviceRoleKey)
-
+  const supabase = createAdminClient()
   const today = new Date().toISOString().split('T')[0]
 
+  // Fetch IDs of all due recurring parent invoices.
+  // The generate_recurring_invoice RPC re-validates each one under a row lock,
+  // so this read does not need to be perfectly consistent.
   const { data: dueInvoices, error: fetchError } = await supabase
     .from('invoices')
-    .select('*')
+    .select('id, user_id')
     .eq('is_recurring', true)
     .neq('status', 'cancelled')
     .lte('recurring_next_date', today)
@@ -54,101 +37,90 @@ export async function GET(request: NextRequest) {
   }
 
   const generated: string[] = []
+  let skipped = 0
+  let failed = 0
+  const failedParentIds: string[] = []
 
   for (const inv of dueInvoices) {
-    const freq: string = inv.recurring_frequency
-
-    // Determine new invoice number by incrementing
-    const { count } = await supabase
-      .from('invoices')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', inv.user_id)
-
-    const newNumber = `INV-${String((count ?? 0) + 1).padStart(4, '0')}`
-
-    const newIssueDate = today
-    const newDueDate = shiftDate(inv.due_date, freq)
-    const newNextDate = newDueDate ? nextRecurringDate(newDueDate, freq) : null
-
-    // Create new invoice
-    const { data: newInv, error: insertError } = await supabase
-      .from('invoices')
-      .insert({
-        user_id: inv.user_id,
-        invoice_number: newNumber,
-        status: 'draft',
-        issue_date: newIssueDate,
-        due_date: newDueDate,
-        currency: inv.currency,
-        business_name: inv.business_name,
-        business_address: inv.business_address,
-        business_email: inv.business_email,
-        business_phone: inv.business_phone,
-        logo_url: inv.logo_url,
-        client_name: inv.client_name,
-        client_company: inv.client_company,
-        client_address: inv.client_address,
-        client_email: inv.client_email,
-        subtotal: inv.subtotal,
-        tax_rate: inv.tax_rate,
-        tax_amount: inv.tax_amount,
-        total: inv.total,
-        notes: inv.notes,
-        brand_color: inv.brand_color,
-        is_recurring: false,
-        recurring_frequency: null,
-        recurring_next_date: null,
-        recurring_parent_id: inv.id,
+    // generate_recurring_invoice is fully atomic:
+    // - Locks the parent row (FOR UPDATE)
+    // - Finds or creates the child by generation key (idempotent retry)
+    // - Allocates invoice number, copies line items, advances parent next date
+    // - Returns (child_invoice_id, already_generated)
+    const { data: result, error: rpcError } = await supabase
+      .rpc('generate_recurring_invoice', {
+        p_parent_id: inv.id,
+        p_today: today,
       })
-      .select('id')
       .single()
 
-    if (insertError || !newInv) continue
-
-    // Copy line items
-    const { data: lineItems } = await supabase
-      .from('line_items')
-      .select('description, quantity, rate, amount, sort_order, stockbook_product_id')
-      .eq('invoice_id', inv.id)
-
-    if (lineItems && lineItems.length > 0) {
-      await supabase.from('line_items').insert(
-        lineItems.map((item) => ({ ...item, invoice_id: newInv.id }))
+    if (rpcError || !result) {
+      logError(
+        'cron/recurring',
+        'generate_recurring_invoice RPC failed',
+        { parentId: inv.id },
+        rpcError
       )
+      failed++
+      failedParentIds.push(inv.id)
+      continue
     }
 
-    // Advance parent's next date
-    await supabase
-      .from('invoices')
-      .update({ recurring_next_date: newNextDate })
-      .eq('id', inv.id)
+    const { child_invoice_id: childId, already_generated: alreadyGenerated } =
+      result as { child_invoice_id: string | null; already_generated: boolean }
 
-    // Notify StockBook of the newly generated recurring invoice via QStash.
-    // Use the already-copied line items — no extra DB query needed.
-    const sbItems = (lineItems ?? [])
-      .filter((item) => item.stockbook_product_id != null)
-      .map((item) => ({
-        product_id: item.stockbook_product_id as string,
-        quantity: Math.round(Number(item.quantity)),
-      }))
-      .filter((item) => Number.isFinite(item.quantity) && item.quantity > 0)
+    // childId is null when the parent is not yet due (race guard inside the RPC).
+    if (!childId) {
+      skipped++
+      continue
+    }
 
-    if (sbItems.length > 0) {
+    if (alreadyGenerated) {
+      // Idempotent retry — child existed, parent was advanced. Not a new generation.
+      skipped++
+    } else {
+      generated.push(childId)
+
+      // Notify StockBook for invoices created in this run (not idempotent retries —
+      // a prior run already notified for those).
       const stockbookWebhookUrl = process.env.STOCKBOOK_WEBHOOK_URL
       if (stockbookWebhookUrl) {
-        await qstash.publishJSON({
-          url: stockbookWebhookUrl,
-          body: {
-            type: 'invoice.created',
-            data: { invoice_id: newInv.id, user_id: inv.user_id, line_items: sbItems },
-          },
-          retries: 3,
-        }).catch(() => {})
+        const { data: sbItems } = await supabase
+          .from('line_items')
+          .select('stockbook_product_id, quantity')
+          .eq('invoice_id', childId)
+          .not('stockbook_product_id', 'is', null)
+
+        if (sbItems && sbItems.length > 0) {
+          const sanitized = sbItems
+            .map((item) => ({
+              product_id: item.stockbook_product_id as string,
+              quantity: Math.round(Number(item.quantity)),
+            }))
+            .filter((item) => Number.isFinite(item.quantity) && item.quantity > 0)
+
+          if (sanitized.length > 0) {
+            await qstash
+              .publishJSON({
+                url: stockbookWebhookUrl,
+                body: {
+                  type: 'invoice.created',
+                  data: { invoice_id: childId, user_id: inv.user_id, line_items: sanitized },
+                },
+                retries: 3,
+              })
+              .catch(() => {})
+          }
+        }
       }
     }
-
-    generated.push(newInv.id)
   }
 
-  return Response.json({ generated: generated.length, invoices: generated })
+  return Response.json({
+    generated: generated.length,
+    skipped,
+    failed,
+    ...(failedParentIds.length > 0 ? { failedParentIds } : {}),
+    invoices: generated,
+  })
 }

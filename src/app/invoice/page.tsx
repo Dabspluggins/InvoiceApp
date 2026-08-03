@@ -631,20 +631,27 @@ function InvoicePageInner() {
         if (error) throw error
         await supabase.from('line_items').delete().eq('invoice_id', currentId)
       } else {
-        const tokenRes = await fetch('/api/invoices/share-token', { method: 'POST' })
-        if (!tokenRes.ok) throw new Error('Failed to generate share token')
-        const { token: shareToken } = await tokenRes.json()
-        const { data: inserted, error } = await supabase
-          .from('invoices')
-          .insert({ ...invoicePayload, share_token: shareToken })
-          .select('id, share_token')
-          .single()
-        if (error) throw error
+        // Create via the server route so the invoice number is allocated atomically
+        // from the sequence table. Direct Supabase inserts would leave the sequence
+        // unadvanced, allowing duplicate invoice numbers across concurrent creates.
+        const createRes = await fetch('/api/invoices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(invoicePayload),
+        })
+        if (!createRes.ok) {
+          const errBody = await createRes.json().catch(() => ({}))
+          throw new Error((errBody as { error?: string }).error ?? 'Failed to create invoice')
+        }
+        const { id: newId, invoiceNumber: newNumber, shareToken: newShareToken } = await createRes.json()
 
-        currentId = inserted.id
+        currentId = newId
         isNewInvoice = true
         setSavedInvoiceId(currentId)
-        setSavedShareToken(inserted.share_token)
+        setSavedShareToken(newShareToken)
+        // Sync the displayed invoice number with the server-allocated value.
+        // Normally matches the peeked number, but can differ if two creates raced.
+        setData((d) => ({ ...d, invoiceNumber: newNumber }))
         window.history.replaceState(null, '', `/invoice?id=${currentId}`)
       }
 

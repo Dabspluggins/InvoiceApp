@@ -1,4 +1,11 @@
-export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'pending' | 'partial' | 'cancelled'
+// Single source of truth for stored invoice statuses.
+// 'overdue' is a derived display state (due_date < today), not a stored value.
+// Import INVOICE_STATUSES in routes for validation so the enum and this list
+// cannot drift independently.
+export const INVOICE_STATUSES = [
+  'draft', 'sent', 'paid', 'pending', 'partial', 'cancelled',
+] as const
+export type InvoiceStatus = (typeof INVOICE_STATUSES)[number]
 export type EstimateStatus = 'draft' | 'sent' | 'client_reviewing' | 'revised' | 'approved' | 'rejected' | 'converted'
 
 export type SavedPaymentMethod = {

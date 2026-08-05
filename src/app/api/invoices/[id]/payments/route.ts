@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { logError } from '@/lib/logger'
+import { validateDateOnly, validateUUID } from '@/lib/api/validation'
 
 export async function POST(
   request: NextRequest,
@@ -12,17 +13,35 @@ export async function POST(
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const body = await request.json()
-    const amount = Number(body.amount)
-    const paidAt = String(body.paid_at || '').trim()
-    const note = typeof body.note === 'string' && body.note.trim() ? body.note.trim() : null
+    let body: Record<string, unknown>
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+    }
 
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return NextResponse.json({ error: 'Payment amount must be greater than zero' }, { status: 400 })
+    // ── amount — must be a JSON number, finite, positive ───────────────────
+    const rawAmount = body.amount
+    if (typeof rawAmount !== 'number' || !Number.isFinite(rawAmount) || rawAmount <= 0) {
+      return NextResponse.json(
+        { error: 'Payment amount must be a positive number' },
+        { status: 400 }
+      )
     }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(paidAt)) {
-      return NextResponse.json({ error: 'Payment date is required' }, { status: 400 })
+    const amount = rawAmount
+
+    // ── paid_at — must be a valid YYYY-MM-DD calendar date ─────────────────
+    // validateDateOnly rejects format errors AND phantom dates like 2026-02-31.
+    if (!validateDateOnly(body.paid_at)) {
+      return NextResponse.json(
+        { error: 'Payment date must be a valid YYYY-MM-DD date' },
+        { status: 400 }
+      )
     }
+    const paidAt = body.paid_at as string
+
+    // ── note — optional string ──────────────────────────────────────────────
+    const note = typeof body.note === 'string' && body.note.trim() ? body.note.trim() : null
 
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
@@ -36,23 +55,23 @@ export async function POST(
     }
 
     if (invoice.status === 'cancelled') {
-      return NextResponse.json({ error: 'Cannot record a payment on a cancelled invoice' }, { status: 409 })
+      return NextResponse.json(
+        { error: 'Cannot record a payment on a cancelled invoice' },
+        { status: 409 }
+      )
     }
 
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
-      .insert({
-        invoice_id: id,
-        user_id: user.id,
-        amount,
-        paid_at: paidAt,
-        note,
-      })
+      .insert({ invoice_id: id, user_id: user.id, amount, paid_at: paidAt, note })
       .select('*')
       .single()
 
     if (paymentError || !payment) {
-      return NextResponse.json({ error: paymentError?.message || 'Failed to record payment' }, { status: 500 })
+      return NextResponse.json(
+        { error: paymentError?.message || 'Failed to record payment' },
+        { status: 500 }
+      )
     }
 
     const { data: recomputeData, error: recomputeError } = await supabase
@@ -85,9 +104,18 @@ export async function DELETE(
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const body = await request.json()
-    const paymentId = typeof body.paymentId === 'string' ? body.paymentId : ''
-    if (!paymentId) return NextResponse.json({ error: 'Payment id is required' }, { status: 400 })
+    let body: Record<string, unknown>
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+    }
+
+    // ── paymentId — must be a valid UUID string ─────────────────────────────
+    if (!validateUUID(body.paymentId)) {
+      return NextResponse.json({ error: 'paymentId must be a valid UUID' }, { status: 400 })
+    }
+    const paymentId = body.paymentId as string
 
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
@@ -101,7 +129,10 @@ export async function DELETE(
     }
 
     if (invoice.status === 'cancelled') {
-      return NextResponse.json({ error: 'Cannot delete a payment on a cancelled invoice' }, { status: 409 })
+      return NextResponse.json(
+        { error: 'Cannot delete a payment on a cancelled invoice' },
+        { status: 409 }
+      )
     }
 
     const { error: deleteError } = await supabase

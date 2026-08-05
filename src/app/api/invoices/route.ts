@@ -210,27 +210,86 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ─── Allocate invoice number ───────────────────────────────────────────────
-  const { data: invoiceNumber, error: seqError } = await supabase.rpc('next_invoice_number', {
-    p_user_id: user.id,
-    p_prefix: 'INV-',
-    p_peek: false,
-  })
-  if (seqError || !invoiceNumber) {
-    logError('invoices/create', 'Failed to allocate invoice number', { userId: user.id }, seqError)
-    return NextResponse.json({ error: 'Failed to allocate invoice number' }, { status: 500 })
+  // ── line_items — optional array, validated before sequence allocation ───────
+  // Each item: description (string), quantity/rate/amount (finite numbers >= 0),
+  // stockbook_product_id (UUID or null).
+  const rawLineItems = body.line_items
+  type ValidatedLineItem = {
+    description: string
+    quantity: number
+    rate: number
+    amount: number
+    sort_order: number
+    stockbook_product_id: string | null
   }
+  const lineItems: ValidatedLineItem[] = []
+  if (rawLineItems !== undefined && rawLineItems !== null) {
+    if (!Array.isArray(rawLineItems)) {
+      return NextResponse.json({ error: 'line_items must be an array' }, { status: 400 })
+    }
+    for (let i = 0; i < rawLineItems.length; i++) {
+      const item = rawLineItems[i] as Record<string, unknown>
+      if (typeof item !== 'object' || item === null || Array.isArray(item)) {
+        return NextResponse.json({ error: `line_items[${i}] must be an object` }, { status: 400 })
+      }
+      const desc = item.description
+      if (typeof desc !== 'string') {
+        return NextResponse.json({ error: `line_items[${i}].description must be a string` }, { status: 400 })
+      }
+
+      const quantity = item.quantity
+      if (typeof quantity !== 'number' || !Number.isFinite(quantity) || quantity < 0) {
+        return NextResponse.json(
+          { error: `line_items[${i}].quantity must be a finite non-negative number` },
+          { status: 400 }
+        )
+      }
+
+      const rate = item.rate
+      if (typeof rate !== 'number' || !Number.isFinite(rate) || rate < 0) {
+        return NextResponse.json(
+          { error: `line_items[${i}].rate must be a finite non-negative number` },
+          { status: 400 }
+        )
+      }
+
+      const amount = item.amount
+      if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0) {
+        return NextResponse.json(
+          { error: `line_items[${i}].amount must be a finite non-negative number` },
+          { status: 400 }
+        )
+      }
+      if (item.stockbook_product_id !== undefined &&
+          item.stockbook_product_id !== null &&
+          (typeof item.stockbook_product_id !== 'string' || !UUID_RE.test(item.stockbook_product_id as string))) {
+        return NextResponse.json(
+          { error: `line_items[${i}].stockbook_product_id must be a valid UUID` },
+          { status: 400 }
+        )
+      }
+      lineItems.push({
+        description:          desc,
+        quantity,
+        rate,
+        amount,
+        sort_order:           i,
+        stockbook_product_id: typeof item.stockbook_product_id === 'string'
+                                ? item.stockbook_product_id
+                                : null,
+      })
+    }
+  }
+
+  // ─── Create invoice + line items atomically via RPC ────────────────────────
+  // create_invoice_with_items() allocates the invoice number, inserts the
+  // invoice, and inserts all line items in one PostgreSQL transaction.
+  // Any failure rolls back completely — no ghost invoices, no wasted sequence numbers.
 
   const shareToken = randomBytes(32).toString('hex')
 
-  // ─── Build payload from typed local variables only ─────────────────────────
-  // No raw body[field] casts below this line.
-  const payload = {
-    // Server-derived — never from client:
-    user_id:        user.id,
-    invoice_number: invoiceNumber,
-    share_token:    shareToken,
-    // Validated and normalized:
+  const invoiceData = {
+    share_token:         shareToken,
     status,
     issue_date:          issueDate,
     due_date:            dueDate,
@@ -262,20 +321,22 @@ export async function POST(req: NextRequest) {
     language,
   }
 
-  const { data: invoice, error: insertError } = await supabase
-    .from('invoices')
-    .insert(payload)
-    .select('id, invoice_number, share_token')
-    .single()
+  const { data: rpcResult, error: rpcError } = await supabase.rpc('create_invoice_with_items', {
+    p_user_id:      user.id,
+    p_invoice_data: invoiceData,
+    p_line_items:   lineItems,
+  })
 
-  if (insertError || !invoice) {
-    logError('invoices/create', 'Invoice insert failed', { userId: user.id }, insertError)
+  if (rpcError || !rpcResult) {
+    logError('invoices/create', 'create_invoice_with_items RPC failed', { userId: user.id }, rpcError)
     return NextResponse.json({ error: 'Failed to create invoice' }, { status: 500 })
   }
 
+  const result = rpcResult as { invoice_id: string; invoice_number: string; share_token: string }
+
   return NextResponse.json({
-    id: invoice.id,
-    invoiceNumber: invoice.invoice_number,
-    shareToken: invoice.share_token,
+    id:            result.invoice_id,
+    invoiceNumber: result.invoice_number,
+    shareToken:    result.share_token,
   })
 }

@@ -44,12 +44,21 @@ export function optionalString(value: unknown): string | null {
 }
 
 /**
- * Return the number if it is finite and strictly positive, or null.
+ * Return the number if it is a JSON number, finite, and strictly positive.
+ * Rejects numeric strings, booleans, and other coercible types — the caller
+ * must send an actual JSON number.
  * Use for monetary amounts, quantities, and other positive-only numerics.
  */
 export function requirePositiveNumber(value: unknown): number | null {
-  const n = Number(value)
-  return Number.isFinite(n) && n > 0 ? n : null
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null
+  return value
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** Return true if value is a valid UUID string (case-insensitive). */
+export function validateUUID(value: unknown): boolean {
+  return typeof value === 'string' && UUID_RE.test(value)
 }
 
 /** Return true if value looks like a valid email address. */

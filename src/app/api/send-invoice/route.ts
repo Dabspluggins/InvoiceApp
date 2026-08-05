@@ -8,6 +8,7 @@ import { sendLimiter } from '@/lib/ratelimit'
 import { logAudit } from '@/lib/audit'
 import { escHtml } from '@/lib/utils'
 import { logError } from '@/lib/logger'
+import { validateUUID } from '@/lib/api/validation'
 
 interface LineItem {
   description: string
@@ -293,7 +294,10 @@ export async function POST(req: NextRequest) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail)) {
       return NextResponse.json({ error: 'Invalid recipient email address' }, { status: 400 })
     }
-    if (!body.invoiceId) {
+    if (typeof subject !== 'string' || !subject.trim()) {
+      return NextResponse.json({ error: 'Subject is required' }, { status: 400 })
+    }
+    if (!validateUUID(body.invoiceId)) {
       return NextResponse.json({ error: 'Save the invoice before sending it' }, { status: 400 })
     }
 

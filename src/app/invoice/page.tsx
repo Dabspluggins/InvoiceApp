@@ -624,12 +624,28 @@ function InvoicePageInner() {
       let isNewInvoice = false
 
       if (currentId) {
-        const { error } = await supabase
-          .from('invoices')
-          .update({ ...invoicePayload, updated_at: new Date().toISOString() })
-          .eq('id', currentId)
-        if (error) throw error
-        await supabase.from('line_items').delete().eq('invoice_id', currentId)
+        // Update via server route so invoice + line items are replaced atomically
+        // in a single update_invoice_with_items() RPC transaction. If the
+        // line-item re-insert fails, the invoice row rolls back too — no partial state.
+        const updateRes = await fetch(`/api/invoices/${currentId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...invoicePayload,
+            line_items: data.lineItems.map((item, idx) => ({
+              description: item.description,
+              quantity: item.quantity,
+              rate: item.rate,
+              amount: item.amount,
+              sort_order: idx,
+              stockbook_product_id: item.stockbook_product_id ?? null,
+            })),
+          }),
+        })
+        if (!updateRes.ok) {
+          const errBody = await updateRes.json().catch(() => ({}))
+          throw new Error((errBody as { error?: string }).error ?? 'Failed to update invoice')
+        }
       } else {
         // Create via the server route so the invoice number is allocated atomically
         // from the sequence table. Direct Supabase inserts would leave the sequence
@@ -669,22 +685,10 @@ function InvoicePageInner() {
         window.history.replaceState(null, '', `/invoice?id=${currentId}`)
       }
 
-      // New invoices: line items were inserted atomically by the server-side
-      // create_invoice_with_items() RPC — skip the direct insert here.
-      // Update path: old items are deleted (line 632) then re-inserted below.
-      if (!isNewInvoice && data.lineItems.length > 0) {
-        const lineItemsPayload = data.lineItems.map((item, idx) => ({
-          invoice_id: currentId,
-          description: item.description,
-          quantity: item.quantity,
-          rate: item.rate,
-          amount: item.amount,
-          sort_order: idx,
-          stockbook_product_id: item.stockbook_product_id ?? null,
-        }))
-        const { error } = await supabase.from('line_items').insert(lineItemsPayload)
-        if (error) throw error
-      }
+      // Line items are handled atomically by the server-side RPCs on both paths:
+      // • new invoices  → create_invoice_with_items() (called by POST /api/invoices)
+      // • updates       → update_invoice_with_items() (called by PATCH /api/invoices/[id])
+      // No direct client-side line_items insert is needed here.
 
       // Fire-and-forget: notify StockBook to reserve inventory for new invoices.
       // Only fires when at least one line item has stockbook_product_id set.

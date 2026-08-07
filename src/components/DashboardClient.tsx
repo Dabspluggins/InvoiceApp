@@ -284,6 +284,11 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     loadSparklines()
   }, [supabase, invoices, loadSummaryStats, loadSparklines])
 
+  const showToast = useCallback((message: string, color: 'green' | 'indigo') => {
+    setToast({ message, color })
+    setTimeout(() => setToast(null), 3000)
+  }, [])
+
   async function handleConfirmPayment() {
     if (recordingPayment) return
     const { invoice, amount } = recordPaymentModal
@@ -399,10 +404,17 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
   }
 
   const handleDelete = useCallback(async (id: string) => {
-    if (!confirm('Delete this invoice? This cannot be undone.')) return
+    const invoice = invoices.find((inv) => inv.id === id)
+    // Paid and cancelled invoices have no live stock reservations — skip the StockBook signal.
+    const hasActiveReservation = invoice?.status !== 'paid' && invoice?.status !== 'cancelled'
+    const confirmMessage = hasActiveReservation
+      ? 'This invoice is unpaid — deleting it will release reserved stock in StockBook. This cannot be undone.'
+      : 'Delete this invoice? This cannot be undone.'
+    if (!confirm(confirmMessage)) return
     try {
-      // Notify StockBook to release inventory BEFORE cascade-deleting line_items.
-      if (user?.id) {
+      // Only notify StockBook if the invoice has active stock reservations.
+      // Paid and cancelled invoices have no live reservations.
+      if (hasActiveReservation && user?.id) {
         await fetch('/api/webhooks/cancel-stockbook', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -419,7 +431,7 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     } catch {
       showToast('Failed to delete invoice. Please try again.', 'indigo')
     }
-  }, [supabase, loadSummaryStats, loadSparklines, user])
+  }, [supabase, loadSummaryStats, loadSparklines, user, invoices, showToast])
 
   const handleCancel = useCallback(async (id: string) => {
     if (!confirm('Cancel this invoice? The stock reservations will be released. The invoice will remain on record as cancelled.')) return
@@ -518,13 +530,20 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     const ids = [...selectedIds]
     setBulkDeleting(true)
     try {
-      // Notify StockBook to release inventory BEFORE cascade-deleting line_items.
+      // Only notify StockBook for invoices with active stock reservations.
+      // Paid and cancelled invoices have no live reservations — skip them.
       if (user?.id) {
-        await fetch('/api/webhooks/cancel-stockbook', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ invoice_ids: ids, user_id: user.id }),
-        }).catch(console.error)
+        const unpaidIds = ids.filter((id) => {
+          const inv = invoices.find((i) => i.id === id)
+          return inv?.status !== 'paid' && inv?.status !== 'cancelled'
+        })
+        if (unpaidIds.length > 0) {
+          await fetch('/api/webhooks/cancel-stockbook', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ invoice_ids: unpaidIds, user_id: user.id }),
+          }).catch(console.error)
+        }
       }
       // Delete invoices only — line_items/payments are removed by ON DELETE CASCADE.
       // Checking { error } because supabase client returns errors rather than throwing.
@@ -541,11 +560,6 @@ export default function DashboardClient({ user, darkMode }: { user?: User | null
     } finally {
       setBulkDeleting(false)
     }
-  }
-
-  function showToast(message: string, color: 'green' | 'indigo') {
-    setToast({ message, color })
-    setTimeout(() => setToast(null), 3000)
   }
 
   function toggleSelect(id: string) {

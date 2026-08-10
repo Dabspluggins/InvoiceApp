@@ -92,6 +92,7 @@ export async function POST(
                 data: { invoice_id: invoiceId, user_id: user.id, line_items: sanitized },
               },
               retries: 3,
+              deduplicationId: `invoice.created:${invoiceId}`,
             })
           }
         } catch {

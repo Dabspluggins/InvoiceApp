@@ -108,6 +108,7 @@ export async function GET(request: NextRequest) {
                   data: { invoice_id: childId, user_id: inv.user_id, line_items: sanitized },
                 },
                 retries: 3,
+                deduplicationId: `invoice.created:${childId}`,
               })
               .catch(() => {})
           }

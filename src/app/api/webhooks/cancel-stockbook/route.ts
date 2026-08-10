@@ -92,6 +92,7 @@ export async function POST(req: NextRequest) {
             data: { invoice_id, user_id },
           },
           retries: 3,
+          deduplicationId: `invoice.cancelled:${invoice_id}`,
         }),
       ),
     )

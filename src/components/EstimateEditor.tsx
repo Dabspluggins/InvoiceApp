@@ -642,7 +642,7 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
     }
     if (template.items && template.items.length > 0) {
       setLineItems(template.items.map(item => ({
-        id: `new-${Math.random()}`,
+        id: crypto.randomUUID(),
         description: item.description,
         quantity: item.quantity,
         unit_price: item.unit_price,

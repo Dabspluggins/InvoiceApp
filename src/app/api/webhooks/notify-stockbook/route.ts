@@ -88,6 +88,7 @@ export async function POST(req: NextRequest) {
           data: { invoice_id, user_id, line_items: sanitizedItems },
         },
         retries: 3,
+        deduplicationId: `invoice.created:${invoice_id}`,
       })
     } catch (err) {
       // Log but return 200 — caller (handleSave) must not retry or fail

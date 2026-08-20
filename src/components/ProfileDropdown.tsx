@@ -301,7 +301,12 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 top-11 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden">
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/30 sm:hidden"
+            onClick={() => setOpen(false)}
+          />
+          <div className="fixed inset-x-3 top-16 bottom-3 z-50 w-auto overflow-y-auto rounded-2xl bg-white shadow-2xl border border-gray-100 sm:absolute sm:left-auto sm:right-0 sm:top-11 sm:bottom-auto sm:w-80 sm:max-h-[calc(100vh-5rem)]">
 
           {/* Section 1: Identity */}
           <div className="px-5 py-4 border-b border-gray-100 bg-gray-50">
@@ -620,7 +625,8 @@ export default function ProfileDropdown({ user, darkMode, setDarkMode, onThemeCh
               Sign Out
             </button>
           </div>
-        </div>
+          </div>
+        </>
       )}
     </div>
   )

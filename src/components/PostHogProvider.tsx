@@ -30,15 +30,32 @@ import { Suspense, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 
 /**
- * Build a safe URL for PostHog: pathname only, no query string.
+ * Build a safe URL for PostHog: redacted pathname only, no query string.
  *
  * Query params in this app can carry invoice tokens, portal links, auth
  * callbacks, client identifiers, and other user-controlled values.  Stripping
  * the entire query string is the only way to guarantee none of that leaks to
- * PostHog.  Pathname alone is sufficient for page-traffic analytics.
+ * PostHog.
+ *
+ * Pathname alone is NOT sufficient: public share links put a secret token in
+ * the path (/i/<token>, /e/<token>, /portal/<token>).  For those routes the
+ * token segment is replaced with ':token' before capture, so PostHog sees
+ * page-level traffic without ever receiving a credential.  Any future route
+ * with a secret in the path MUST be added to TOKENIZED_ROUTES below.
  */
+const TOKENIZED_ROUTES = new Set(['i', 'e', 'portal'])
+
+function redactPathname(pathname: string): string {
+  // ['', '<route>', '<token>', ...]
+  const parts = pathname.split('/')
+  if (parts.length > 2 && TOKENIZED_ROUTES.has(parts[1]) && parts[2]) {
+    parts[2] = ':token'
+  }
+  return parts.join('/')
+}
+
 function sanitizeUrl(pathname: string): string {
-  return window.location.origin + pathname
+  return window.location.origin + redactPathname(pathname)
 }
 
 // ── Page-view tracker ────────────────────────────────────────────────────────

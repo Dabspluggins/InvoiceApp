@@ -51,12 +51,18 @@ const PUBLIC_EXACT: string[] = [
 //   /auth/*         — Supabase handles the auth flow
 //   /portal/*       — token-gated client portal pages
 //   /i/*            — public invoice share links
+//   /e/*            — public estimate review links; the page validates the
+//                     share token before reading anything (src/app/e/[token]/page.tsx)
+//   /api/e/*        — client approve/revise actions on an estimate; the route
+//                     validates the share token in the path before any read or write
 //   /api/cron/*     — MUST validate CRON_SECRET header (verified: all 3 current routes do)
 //   /api/webhooks/* — MUST verify webhook signature (verified: resend route uses Svix)
 const PUBLIC_PREFIXES: string[] = [
   '/auth/',
   '/portal/',
   '/i/',
+  '/e/',
+  '/api/e/',
   '/api/cron/',
   '/api/webhooks/',
 ]

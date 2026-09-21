@@ -11,37 +11,62 @@ function getAdmin() {
   )
 }
 
+// PUBLIC ENDPOINT — reachable without a session (see PUBLIC_PREFIXES in
+// src/middleware.ts). The share token in the path is the only credential and
+// MUST be validated here before anything is read or written.
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ token: string }> }
 ) {
-  const { id } = await params
+  const { token } = await params
+  let id = ''
 
   try {
     const body = await req.json()
-    const { client_token, action, deletedItemIds, proposedPrices } = body as {
-      client_token: string
+    const { action, deletedItemIds, proposedPrices } = body as {
       action: 'approve' | 'revise'
       deletedItemIds: string[]
       proposedPrices?: Record<string, number>
     }
 
-    if (!client_token || !action) {
+    if (!token || !action) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Use service role to bypass RLS — verify token matches
+    // Use service role to bypass RLS — the token is the credential.
+    // client_token is UNIQUE, so it resolves to exactly one estimate.
     const admin = getAdmin()
 
     const { data: estimate, error } = await admin
       .from('estimates')
       .select('*')
-      .eq('id', id)
-      .eq('client_token', client_token)
+      .eq('client_token', token)
       .single()
 
     if (error || !estimate) {
       return NextResponse.json({ error: 'Invalid or expired link' }, { status: 403 })
+    }
+
+    // Every query below keys off the authenticated row, never the URL.
+    id = estimate.id
+
+    // Proposed prices are only meaningful on a revision, and only when the
+    // owner turned negotiation on. Validate BEFORE any state change — the
+    // conversion RPC prefers client_proposed_price when building the invoice,
+    // so an unchecked value here becomes real money off the total.
+    const hasProposedPrices = !!proposedPrices && Object.keys(proposedPrices).length > 0
+    if (hasProposedPrices) {
+      if (action !== 'revise' || !estimate.allow_negotiation) {
+        return NextResponse.json(
+          { error: 'Price negotiation is not enabled for this estimate' },
+          { status: 403 }
+        )
+      }
+      for (const proposed of Object.values(proposedPrices!)) {
+        if (typeof proposed !== 'number' || !Number.isFinite(proposed) || proposed <= 0) {
+          return NextResponse.json({ error: 'Invalid proposed price' }, { status: 400 })
+        }
+      }
     }
 
     const now = new Date().toISOString()
@@ -119,7 +144,7 @@ export async function POST(
     }
 
     // Handle proposed prices (server-side validation + persistence)
-    if (proposedPrices && Object.keys(proposedPrices).length > 0) {
+    if (hasProposedPrices && proposedPrices) {
       const { data: estimateData } = await admin
         .from('estimates')
         .select('max_discount_pct')
@@ -232,13 +257,13 @@ export async function POST(
         }
       } catch (notifyErr) {
         // Non-fatal — don't fail the request if notification fails
-        logError('estimates/[id]/client-action', 'Owner notification failed', { estimateId: id }, notifyErr)
+        logError('e/[token]/action', 'Owner notification failed', { estimateId: id }, notifyErr)
       }
     }
 
     return NextResponse.json({ success: true })
   } catch (err) {
-    logError('estimates/[id]/client-action', 'Unhandled error', { estimateId: id }, err)
+    logError('e/[token]/action', 'Unhandled error', { estimateId: id }, err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

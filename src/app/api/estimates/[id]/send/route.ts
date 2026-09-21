@@ -248,7 +248,7 @@ export async function POST(
       .order('sort_order')
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://vortali.com'
-    const reviewUrl = `${appUrl}/estimates/${id}/review?token=${estimate.client_token}`
+    const reviewUrl = `${appUrl}/e/${estimate.client_token}`
 
     const html = buildEstimateEmail({
       toName: toName || estimate.client_name || '',

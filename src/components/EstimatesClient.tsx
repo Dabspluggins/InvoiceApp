@@ -179,7 +179,7 @@ export default function EstimatesClient() {
       user?.email ||
       'Vortali'
     const clientNameStr = est.client_name || 'there'
-    const reviewUrl = `${window.location.origin}/estimates/${est.id}/review?token=${est.client_token}`
+    const reviewUrl = `${window.location.origin}/e/${est.client_token}`
     const validUntilStr = est.valid_until
       ? new Date(est.valid_until + 'T00:00:00').toLocaleDateString('en-GB', {
           day: 'numeric',

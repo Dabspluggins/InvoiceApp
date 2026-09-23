@@ -42,13 +42,10 @@ function getServiceClient() {
 
 export default async function EstimateReviewPage({
   params,
-  searchParams,
 }: {
-  params: Promise<{ id: string }>
-  searchParams: Promise<{ token?: string }>
+  params: Promise<{ token: string }>
 }) {
-  const { id } = await params
-  const { token } = await searchParams
+  const { token } = await params
 
   if (!token) {
     return (
@@ -67,11 +64,12 @@ export default async function EstimateReviewPage({
 
   const supabase = getServiceClient()
 
-  // Verify token matches — never trust ID alone
+  // The share token is the only credential. client_token carries a UNIQUE
+  // constraint (see 20260428000000_stabilize_core_schema.sql), so it resolves
+  // to exactly one estimate — the estimate id is never taken from the URL.
   const { data: estimate } = await supabase
     .from('estimates')
     .select('*')
-    .eq('id', id)
     .eq('client_token', token)
     .single()
 
@@ -88,6 +86,9 @@ export default async function EstimateReviewPage({
       </div>
     )
   }
+
+  // Every lookup below keys off the row we just authenticated, not the URL.
+  const id: string = estimate.id
 
   if (estimate.status === 'converted') {
     return (
@@ -110,56 +111,12 @@ export default async function EstimateReviewPage({
     .eq('deleted_by_client', false)
     .order('sort_order')
 
-  // Log client_viewed event
-  await supabase
-    .from('estimate_events')
-    .insert({
-      estimate_id: id,
-      event_type: 'client_viewed',
-      actor: 'client',
-      details: { at: new Date().toISOString() },
-    })
-
-  // Update status to client_reviewing if currently 'sent'
-  if (estimate.status === 'sent') {
-    await supabase
-      .from('estimates')
-      .update({ status: 'client_reviewing', updated_at: new Date().toISOString() })
-      .eq('id', id)
-  }
-
-  // Notify owner that client opened the estimate
-  try {
-    const apiKey = process.env.RESEND_API_KEY
-    if (apiKey) {
-      const { data: userData } = await supabase.auth.admin.getUserById(estimate.user_id)
-      const ownerEmail = userData?.user?.email
-      if (ownerEmail) {
-        const { Resend } = await import('resend')
-        const resend = new Resend(apiKey)
-        const clientDisplayName = estimate.client_name || 'Your client'
-        await resend.emails.send({
-          from: 'Vortali <noreply@vortali.com>',
-          to: ownerEmail,
-          subject: `${clientDisplayName} has opened estimate ${estimate.estimate_number}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
-              <h2 style="color: #4F46E5;">Estimate Opened</h2>
-              <p><strong>${clientDisplayName}</strong> has just opened and is reviewing your estimate <strong>${estimate.estimate_number}</strong>.</p>
-              ${estimate.title ? `<p style="color: #6B7280;">${estimate.title}</p>` : ''}
-              <p>They may approve, edit, or send back a revised version soon.</p>
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://vortali.com'}/estimates/${estimate.id}"
-                 style="display: inline-block; background: #4F46E5; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 16px;">
-                View Estimate
-              </a>
-            </div>
-          `,
-        })
-      }
-    }
-  } catch (notifyErr) {
-    console.error('Failed to send owner open notification:', notifyErr)
-  }
+  // Opening this page records nothing. The "client opened your estimate"
+  // signal is fired by EstimateReviewClient on mount, via
+  // POST /api/e/[token]/view — mail scanners follow emailed links but do not
+  // run JavaScript, so a render-time write would report views that never
+  // happened. That endpoint is also first-view-only, so reloads don't
+  // re-notify the owner.
 
   return (
     <EstimateReviewClient

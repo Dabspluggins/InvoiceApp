@@ -280,12 +280,7 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
     setLineItems((prev) => prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item)))
   }
 
-  const { subtotal: _subtotal, discountAmount: _discountAmount, taxAmount: _taxAmount, total } = calcTotals(
-    lineItems,
-    taxRate,
-    discountType,
-    discountValue
-  )
+  const { total } = calcTotals(lineItems, taxRate, discountType, discountValue)
 
   // PDF totals — use negotiated prices where the client has proposed them
   const pdfLineItems = lineItems.map((item) => ({
@@ -463,7 +458,7 @@ export default function EstimateEditor({ estimateId }: { estimateId?: string }) 
       user?.user_metadata?.business_name ||
       user?.email ||
       'Vortali'
-    const reviewUrl = `${window.location.origin}/estimates/${savedId}/review?token=${clientToken}`
+    const reviewUrl = `${window.location.origin}/e/${clientToken}`
     const clientNameStr = clientName || 'there'
     const validUntilStr = validUntil
       ? new Date(validUntil + 'T00:00:00').toLocaleDateString('en-GB', {

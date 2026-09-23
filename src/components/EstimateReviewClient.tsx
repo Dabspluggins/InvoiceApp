@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { formatCurrency } from '@/lib/utils'
 
 interface LineItem {
@@ -79,6 +79,19 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
   const [proposedPrices, setProposedPrices] = useState<Record<string, number>>({})
   const [priceErrors, setPriceErrors] = useState<Record<string, string>>({})
   const [downloading, setDownloading] = useState(false)
+
+  // Record the client's first view. Deliberately client-side: mail scanners
+  // open emailed links but don't run JS, so this keeps the owner's "opened"
+  // notification meaningful. The endpoint is first-view-only and idempotent,
+  // and the ref guards against React's double-invoked effects in dev.
+  const viewReported = useRef(false)
+  useEffect(() => {
+    if (viewReported.current) return
+    viewReported.current = true
+    fetch(`/api/e/${token}/view`, { method: 'POST' }).catch(() => {
+      // Non-critical telemetry — never surface this to the client.
+    })
+  }, [token])
 
   async function handleDownloadPDF() {
     const el = document.getElementById('estimate-pdf-content')
@@ -167,11 +180,10 @@ export default function EstimateReviewClient({ estimate, lineItems, token }: Pro
     setError(null)
     try {
       const deletedItemIds = items.filter((i) => i.pendingDelete).map((i) => i.id)
-      const res = await fetch(`/api/estimates/${estimate.id}/client-action`, {
+      const res = await fetch(`/api/e/${token}/action`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          client_token: token,
           action,
           deletedItemIds: action === 'revise' ? deletedItemIds : [],
           proposedPrices,
